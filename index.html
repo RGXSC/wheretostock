@@ -1,1100 +1,1464 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Where to Stock — Training Game</title>
+<title>Where to Stock — Launch Simulation</title>
 
 <!--
-  ============================================================================
-  WHERE TO STOCK — standalone training game
-  ----------------------------------------------------------------------------
-  ONE file. No network, no build step, no external resource of any kind.
-  Open it by double-clicking (file://). Works offline and from OneDrive.
+  ===========================================================================
+  WHERE TO STOCK — product launch stock allocation simulation
+  ---------------------------------------------------------------------------
+  ONE standalone file. No network of any kind: no CDN, no fonts, no images,
+  no fetch. Open by double-clicking (file://). Works offline.
 
-  HOW TO CHANGE THE GAME RULES
-  ----------------------------
-  Everything the facilitator cares about lives in the CONFIG object at the top
-  of the <script> block:
-      CONFIG.plannedRounds  -> how many rounds the session is meant to last
-      CONFIG.fields         -> the columns of every round (what people fill in)
-  Add / remove / reorder entries in CONFIG.fields and the whole app follows:
-  the round cards, the CSV export and the clipboard export are all generated
-  from it. You should not need to touch the engine below.
-  ============================================================================
+  THE GAME
+    1 central warehouse, 2 stores, 5 bags, 25 weeks.
+    Forecast is 2 pieces / week / store / bag  ->  100 per bag, 500 total.
+    Setup: pick a target sell-through (fixes how much is produced) and how
+    much of it goes to the stores up front. Then run 25 weeks of:
+        reveal demand -> sell -> allocate from warehouse -> next week.
+    Stock shipped in week N arrives at the start of week N+1.
+    P&L = (1000 x sold) - (200 x produced) - 225 000 fixed, revealed at the end.
+
+  WHERE TO CHANGE THINGS
+    ECONOMICS  - the ECON block below (price, cost, fixed cost)
+    DEMAND     - the DEMAND table below. It is hard-coded on purpose: every
+                 room must play exactly the same weeks or the debrief
+                 comparison between rooms is meaningless.
+  ===========================================================================
 -->
 
 <style>
-  /* ---------------------------------------------------------------- tokens */
+  /* ------------------------------------------------------------- tokens */
   :root{
-    --bg:        #f4f5f7;
-    --surface:   #ffffff;
-    --ink:       #14171c;   /* near-black, high contrast on white          */
-    --ink-soft:  #4d5560;
-    --line:      #c9cfd8;
-    --line-soft: #e3e7ec;
-    --accent:    #10508a;   /* sober corporate blue                        */
+    --bg:#eef1f4;
+    --surface:#ffffff;
+    --ink:#12161b;
+    --ink-soft:#525c68;
+    --line:#c6ced7;
+    --line-soft:#e2e7ec;
+    --accent:#12557f;          /* blue scale */
     --accent-ink:#ffffff;
-    --live:      #0a7d4a;   /* the "this round is live" colour             */
-    --warn:      #9a3412;
-    --radius:    10px;
+    --accent-soft:#e7f0f7;
+    --live:#0f6b45;
+    --warn:#8a3115;
+    --radius:10px;
   }
-
-  /* ------------------------------------------------------------------ base */
   *{ box-sizing:border-box; }
   html{ -webkit-text-size-adjust:100%; }
   body{
-    margin:0;
-    background:var(--bg);
-    color:var(--ink);
+    margin:0; background:var(--bg); color:var(--ink);
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    font-size:19px;            /* readable from a metre away */
-    line-height:1.45;
+    font-size:18px; line-height:1.4;
   }
-  h1,h2,h3{ margin:0; font-weight:700; letter-spacing:-0.01em; }
-  .wrap{ max-width:900px; margin:0 auto; padding:0 20px; }
+  h1,h2,h3{ margin:0; font-weight:800; letter-spacing:-0.015em; }
+  .wrap{ max-width:1180px; margin:0 auto; padding:0 18px; }
+  .narrow{ max-width:820px; }
   .hidden{ display:none !important; }
   .muted{ color:var(--ink-soft); }
   .small{ font-size:15px; }
+  .tnum{ font-variant-numeric:tabular-nums; }
 
-  /* --------------------------------------------------------------- buttons */
+  /* ------------------------------------------------------------ buttons */
   button{
     font:inherit; font-weight:600;
-    border:2px solid var(--line);
-    background:var(--surface);
-    color:var(--ink);
-    border-radius:var(--radius);
-    padding:14px 20px;
-    min-height:56px;                 /* big tap target */
-    cursor:pointer;
+    border:2px solid var(--line); background:var(--surface); color:var(--ink);
+    border-radius:var(--radius); padding:12px 18px; min-height:52px; cursor:pointer;
   }
   button:hover:not(:disabled){ border-color:var(--accent); }
   button:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
-  button:disabled{ opacity:.45; cursor:not-allowed; }
-  .btn-primary{
-    background:var(--accent); color:var(--accent-ink); border-color:var(--accent);
-  }
-  .btn-primary:hover:not(:disabled){ filter:brightness(1.12); }
-  .btn-danger{ color:var(--warn); border-color:#e2b7a6; }
-  .btn-ghost{                        /* discreet controls (e.g. unlock) */
-    min-height:40px; padding:6px 12px; font-size:15px; font-weight:600;
-    border-color:var(--line-soft); color:var(--ink-soft); background:transparent;
-  }
-  .btn-xl{ font-size:24px; min-height:72px; padding:18px 34px; }
+  button:disabled{ opacity:.4; cursor:not-allowed; }
+  .btn-primary{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  .btn-primary:hover:not(:disabled){ filter:brightness(1.15); }
+  .btn-danger{ color:var(--warn); border-color:#dcb5a5; }
+  .btn-ghost{ min-height:40px; padding:6px 12px; font-size:15px;
+              border-color:var(--line-soft); color:var(--ink-soft); background:transparent; }
+  .btn-xl{ font-size:23px; min-height:70px; padding:16px 30px; }
 
-  /* --------------------------------------------------------------- inputs  */
-  input[type=text], input[type=number], textarea{
-    font:inherit;
-    width:100%;
-    padding:14px 16px;
-    min-height:58px;
-    border:2px solid var(--line);
-    border-radius:var(--radius);
-    background:var(--surface);
-    color:var(--ink);
+  /* ------------------------------------------------------------- inputs */
+  input[type=text], input[type=number]{
+    font:inherit; width:100%; padding:12px 14px; min-height:54px;
+    border:2px solid var(--line); border-radius:var(--radius);
+    background:var(--surface); color:var(--ink);
   }
-  input:focus, textarea:focus{ outline:3px solid var(--accent); outline-offset:1px; }
-  /* kill the tiny native spinners — we use big -/+ buttons instead */
-  input[type=number]{ -moz-appearance:textfield; appearance:textfield; text-align:center; font-variant-numeric:tabular-nums; }
+  input:focus{ outline:3px solid var(--accent); outline-offset:1px; }
+  input[type=number]{ -moz-appearance:textfield; appearance:textfield;
+                      text-align:center; font-variant-numeric:tabular-nums; font-weight:700; }
   input[type=number]::-webkit-outer-spin-button,
   input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
-  input:disabled, textarea:disabled{
-    background:#f7f8fa; color:var(--ink); border-color:var(--line-soft);
-    -webkit-text-fill-color:var(--ink);   /* keep read-only text legible */
-    opacity:1;
-  }
-  label{ display:block; font-weight:600; margin-bottom:6px; }
+  label{ display:block; font-weight:700; margin-bottom:6px; }
 
-  /* -------------------------------------------------------------- start UI */
-  #screen-start{ padding:40px 0 80px; }
-  .card{
-    background:var(--surface);
-    border:2px solid var(--line-soft);
-    border-radius:var(--radius);
-    padding:26px;
-    margin-bottom:22px;
-  }
-  .card h2{ font-size:26px; margin-bottom:6px; }
-  .field{ margin-bottom:20px; }
-  .row-buttons{ display:flex; gap:14px; flex-wrap:wrap; }
-  .row-buttons > *{ flex:1 1 220px; }
-  .banner{
-    border:2px solid #e4c98a; background:#fdf6e3; color:#5a4413;
-    border-radius:var(--radius); padding:14px 18px; margin-bottom:22px;
-  }
+  .card{ background:var(--surface); border:2px solid var(--line-soft);
+         border-radius:var(--radius); padding:24px; margin-bottom:20px; }
+  .card h2{ font-size:25px; margin-bottom:8px; }
+  .field{ margin-bottom:18px; }
+  .row-buttons{ display:flex; gap:12px; flex-wrap:wrap; }
+  .row-buttons > *{ flex:1 1 200px; }
+  .banner{ border:2px solid #dcc389; background:#fdf7e8; color:#5a4413;
+           border-radius:var(--radius); padding:12px 16px; margin-bottom:18px; }
 
-  /* ------------------------------------------------------------ game header */
-  header.bar{
-    position:sticky; top:0; z-index:20;
-    background:var(--surface);
-    border-bottom:2px solid var(--line);
-  }
-  .bar-inner{
-    display:flex; align-items:center; gap:20px; flex-wrap:wrap;
-    padding:14px 20px; max-width:900px; margin:0 auto;
-  }
-  .round-badge{
-    display:flex; align-items:baseline; gap:10px;
-    padding:6px 18px; border-radius:var(--radius);
-    background:var(--live); color:#fff;
-  }
-  .round-badge .n{ font-size:40px; font-weight:800; line-height:1; }
-  .round-badge .of{ font-size:16px; opacity:.9; }
-  .bar-meta{ flex:1 1 240px; min-width:0; }
-  .bar-meta .room{ font-size:21px; font-weight:700; }
-  .bar-meta .players{ font-size:15px; color:var(--ink-soft); }
+  /* ---------------------------------------------------------- setup UI */
+  .econ{ background:var(--accent-soft); border:2px solid #bcd6e8;
+         border-radius:var(--radius); padding:18px 22px; margin-bottom:22px; }
+  .econ ul{ margin:10px 0 0; padding-left:22px; }
+  .econ li{ margin-bottom:6px; }
+  .econ b{ font-variant-numeric:tabular-nums; }
 
-  /* -------------------------------------------------------------- rounds   */
-  main{ padding:24px 0 200px; }
-  .round{
-    background:var(--surface);
-    border:2px solid var(--line-soft);
-    border-left:8px solid var(--line);
-    border-radius:var(--radius);
-    padding:20px 24px;
-    margin-bottom:18px;
-  }
-  .round.live{ border-color:var(--live); border-left-color:var(--live); }
-  .round.locked{ background:#fbfcfd; }
-  .round-head{
-    display:flex; align-items:center; gap:14px;
-    margin-bottom:16px; padding-bottom:12px;
-    border-bottom:2px solid var(--line-soft);
-  }
-  .round-head .title{ font-size:23px; font-weight:800; flex:1 1 auto; }
-  .tag{
-    font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
-    padding:4px 10px; border-radius:6px;
-  }
-  .tag.live{ background:var(--live); color:#fff; }
-  .tag.locked{ background:var(--line-soft); color:var(--ink-soft); }
-  .tag.open{ background:#fdf6e3; color:#5a4413; border:1px solid #e4c98a; }
+  .opts{ display:flex; gap:10px; flex-wrap:wrap; }
+  .opts button{ flex:1 1 110px; flex-direction:column; display:flex;
+                align-items:center; gap:2px; min-height:76px; }
+  .opts button .big{ font-size:24px; font-weight:800; }
+  .opts button .sub{ font-size:13px; color:var(--ink-soft); font-weight:600; }
+  .opts button[aria-pressed="true"]{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .opts button[aria-pressed="true"] .sub{ color:#cfe2f0; }
 
-  .field-block{ margin-bottom:22px; }
-  .field-block:last-child{ margin-bottom:4px; }
-  .field-block > .hint{ font-size:15px; color:var(--ink-soft); margin:-2px 0 8px; }
+  .consequence{ margin-top:14px; padding:16px 18px; border:2px dashed var(--line);
+                border-radius:var(--radius); background:#f8fafb; font-size:17px; }
+  .consequence b{ font-variant-numeric:tabular-nums; font-size:20px; }
 
-  /* one sub-input per player, side by side, wrapping on narrow screens */
-  .player-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
-  @media (max-width:700px){ .player-grid{ grid-template-columns:1fr; } }
-  .player-cell .who{
-    font-size:15px; font-weight:700; color:var(--ink-soft);
-    margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
+  /* --------------------------------------------------------- game header */
+  header.bar{ position:sticky; top:0; z-index:30; background:var(--surface);
+              border-bottom:2px solid var(--line); }
+  .bar-inner{ display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+              padding:10px 18px; max-width:1180px; margin:0 auto; }
+  .weekbox{ display:flex; align-items:baseline; gap:8px; padding:4px 16px;
+            border-radius:var(--radius); background:var(--live); color:#fff; }
+  .weekbox .n{ font-size:36px; font-weight:800; line-height:1; }
+  .weekbox .of{ font-size:14px; opacity:.9; }
+  .bar-meta{ flex:1 1 180px; min-width:0; }
+  .bar-meta .t{ font-size:19px; font-weight:800; white-space:nowrap;
+                overflow:hidden; text-overflow:ellipsis; }
+  .bar-meta .g{ font-size:14px; color:var(--ink-soft); }
+  .kpi{ text-align:right; }
+  .kpi .k{ font-size:12px; font-weight:700; text-transform:uppercase;
+           letter-spacing:.05em; color:var(--ink-soft); }
+  .kpi .v{ font-size:23px; font-weight:800; font-variant-numeric:tabular-nums; }
 
-  /* number field = big minus / input / big plus */
-  .stepper{ display:flex; gap:10px; }
-  .stepper button{ width:64px; min-width:64px; font-size:26px; padding:0; }
-  .stepper input{ flex:1 1 auto; }
+  /* ------------------------------------------------------------- steps */
+  .steps{ display:flex; gap:8px; padding:10px 18px 12px; max-width:1180px;
+          margin:0 auto; flex-wrap:wrap; }
+  .step{ flex:1 1 150px; display:flex; align-items:center; gap:10px;
+         padding:8px 14px; border:2px solid var(--line-soft); border-radius:var(--radius);
+         background:var(--surface); color:var(--ink-soft); font-weight:700; font-size:15px; }
+  .step .num{ width:26px; height:26px; border-radius:50%; background:var(--line-soft);
+              color:var(--ink-soft); display:grid; place-items:center; font-size:14px; flex:none; }
+  .step.active{ border-color:var(--live); color:var(--ink); background:#eefaf4; }
+  .step.active .num{ background:var(--live); color:#fff; }
+  .step.done{ color:var(--ink-soft); }
+  .step.done .num{ background:var(--accent); color:#fff; }
 
-  /* choice field = row of big toggle buttons */
-  .choices{ display:flex; gap:12px; flex-wrap:wrap; }
-  .choices button{ flex:1 1 160px; }
-  .choices button[aria-pressed="true"]{
-    background:var(--accent); color:var(--accent-ink); border-color:var(--accent);
-  }
+  /* ------------------------------------------------------------- board */
+  main{ padding:16px 0 40px; }
+  .board{ display:grid; grid-template-columns:minmax(280px,1fr) minmax(360px,1.35fr);
+          gap:16px; align-items:start; }
+  @media (max-width:900px){ .board{ grid-template-columns:1fr; } }
 
-  /* a passed round collapses to a compact, read-only summary row:
-     all the data stays on screen for the debrief, without the scroll */
-  .summary{
-    display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
-    gap:14px 28px;
-  }
-  .sum-item .k{
-    font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
-    color:var(--ink-soft);
-  }
-  .sum-item .v{ font-size:23px; font-weight:700; font-variant-numeric:tabular-nums; }
-  .sum-item .v.empty{ color:var(--line); font-weight:600; }
-  .sum-item .v.text{ font-size:18px; font-weight:600; }
-  .sum-item .who{ font-size:13px; font-weight:600; color:var(--ink-soft); }
-  .sum-item .sep{ color:var(--line); margin:0 8px; }
+  .panel{ background:var(--surface); border:2px solid var(--line-soft);
+          border-radius:var(--radius); padding:14px 16px; }
+  .panel + .panel{ margin-top:16px; }
+  .panel.wh{ border-left:8px solid var(--ink-soft); }
+  .panel.st{ border-left:8px solid var(--accent); }
+  .panel-head{ display:flex; align-items:baseline; gap:10px; margin-bottom:10px;
+               padding-bottom:8px; border-bottom:2px solid var(--line-soft); }
+  .panel-head h3{ font-size:19px; }
+  .panel-head .sub{ font-size:14px; color:var(--ink-soft); font-weight:600;
+                    margin-left:auto; font-variant-numeric:tabular-nums; }
 
-  .computed{
-    display:inline-block; font-size:28px; font-weight:800;
-    font-variant-numeric:tabular-nums;
-    padding:10px 20px; border:2px dashed var(--line); border-radius:var(--radius);
-    background:#f7f8fa;
-  }
+  /* one row per bag */
+  .brow{ display:grid; align-items:center; gap:8px; padding:5px 0;
+         border-bottom:1px solid var(--line-soft); }
+  .brow:last-child{ border-bottom:0; }
+  .wh .brow{ grid-template-columns:26px 1fr 88px; }
+  .st .brow{ grid-template-columns:26px minmax(64px,1fr) 84px 52px 62px 62px; }
+  .brow .nm{ font-size:15px; font-weight:700; white-space:nowrap;
+             overflow:hidden; text-overflow:ellipsis; }
+  .bar{ height:9px; background:var(--line-soft); border-radius:5px; overflow:hidden; margin-top:3px; }
+  .bar i{ display:block; height:100%; border-radius:5px; transition:width .35s ease; }
+  .qty{ font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; text-align:right; }
+  .qty.zero{ color:#c0392b; }
+  .cell{ text-align:right; font-variant-numeric:tabular-nums; }
+  .cell .v{ font-size:19px; font-weight:800; }
+  .cell .d{ font-size:12px; font-weight:700; color:var(--live); }
+  .cell.miss .v{ color:var(--warn); }
+  .cell.miss .d{ color:var(--warn); }
+  .cell .v.dim{ color:var(--line); }
+  .colhead{ display:grid; gap:8px; font-size:11px; font-weight:800;
+            text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft);
+            padding-bottom:4px; border-bottom:2px solid var(--line-soft); margin-bottom:2px; }
+  .wh .colhead{ grid-template-columns:26px 1fr 88px; }
+  .st .colhead{ grid-template-columns:26px minmax(64px,1fr) 84px 52px 62px 62px; }
+  .colhead span{ text-align:right; }
+  .colhead span:nth-child(-n+2){ text-align:left; }
 
-  /* --------------------------------------------------------- bottom action */
-  .footbar{
-    position:fixed; left:0; right:0; bottom:0; z-index:20;
-    background:var(--surface); border-top:2px solid var(--line);
-    padding:14px 20px;
-  }
-  .footbar-inner{
-    max-width:900px; margin:0 auto;
-    display:flex; gap:14px; align-items:center; flex-wrap:wrap;
-  }
-  .footbar .btn-xl{ flex:1 1 320px; }
+  .demandcell{ font-size:19px; font-weight:800; text-align:right;
+               font-variant-numeric:tabular-nums; }
+  .demandcell.hid{ color:var(--line); }
 
-  /* ---------------------------------------------------------------- modal  */
-  .modal-back{
-    position:fixed; inset:0; z-index:50;
-    background:rgba(15,20,28,.55);
-    display:flex; align-items:center; justify-content:center; padding:20px;
-  }
-  .modal{
-    background:var(--surface); border-radius:var(--radius);
-    max-width:640px; width:100%; padding:28px;
-    max-height:90vh; overflow:auto;
-  }
-  .modal h2{ font-size:26px; margin-bottom:10px; }
-  .modal p{ margin:0 0 20px; }
-  .modal textarea{ min-height:220px; font-family:ui-monospace,Consolas,monospace; font-size:14px; }
+  /* ------------------------------------------------------------ action */
+  .action{ margin-top:16px; background:var(--surface); border:2px solid var(--live);
+           border-radius:var(--radius); padding:16px 18px; }
+  .action h3{ font-size:20px; margin-bottom:4px; }
+  .action p{ margin:0 0 14px; color:var(--ink-soft); font-size:16px; }
 
-  @media print{ .footbar, header.bar button{ display:none; } }
+  table.alloc{ width:100%; border-collapse:collapse; margin-bottom:14px; }
+  table.alloc th{ font-size:12px; text-transform:uppercase; letter-spacing:.05em;
+                  color:var(--ink-soft); text-align:center; padding:0 4px 6px; }
+  table.alloc th:first-child{ text-align:left; }
+  table.alloc td{ padding:4px 4px; border-top:1px solid var(--line-soft); }
+  table.alloc td.nm{ font-weight:700; font-size:15px; }
+  table.alloc td.avail{ text-align:center; font-variant-numeric:tabular-nums;
+                        font-weight:800; font-size:18px; }
+  table.alloc input{ min-height:48px; padding:8px; font-size:19px; }
+  table.alloc input.bad{ border-color:var(--warn); background:#fdf1ec; }
+  .alloccell{ display:flex; gap:6px; align-items:stretch; }
+  .alloccell input{ flex:1 1 auto; }
+  .maxbtn{ min-height:48px; padding:2px 10px; font-size:13px; flex:none; }
+
+  /* ----------------------------------------------------------- history */
+  details.hist{ margin-top:18px; background:var(--surface);
+                border:2px solid var(--line-soft); border-radius:var(--radius); padding:8px 16px; }
+  details.hist summary{ cursor:pointer; font-weight:700; padding:8px 0; }
+  .histwrap{ overflow-x:auto; }
+  table.h{ width:100%; border-collapse:collapse; font-size:14px; white-space:nowrap; }
+  table.h th, table.h td{ padding:5px 9px; text-align:right;
+                          border-bottom:1px solid var(--line-soft); font-variant-numeric:tabular-nums; }
+  table.h th{ font-size:11px; text-transform:uppercase; color:var(--ink-soft);
+              position:sticky; top:0; background:var(--surface); }
+  table.h td:first-child, table.h th:first-child{ text-align:left; }
+
+  /* --------------------------------------------------------- animation */
+  #fly-layer{ position:fixed; inset:0; pointer-events:none; z-index:45; }
+  .fly{ position:absolute; width:13px; height:13px; border-radius:3px;
+        margin:-6px 0 0 -6px; opacity:.95; }
+
+  /* -------------------------------------------------------------- hints */
+  .hint{ position:fixed; z-index:60; max-width:330px; background:var(--ink);
+         color:#fff; border-radius:var(--radius); padding:16px 18px;
+         box-shadow:0 8px 28px rgba(0,0,0,.3); }
+  .hint h4{ margin:0 0 6px; font-size:17px; }
+  .hint p{ margin:0 0 14px; font-size:15px; line-height:1.4; color:#dfe5ea; }
+  .hint button{ min-height:40px; padding:6px 16px; font-size:15px;
+                background:#fff; color:var(--ink); border-color:#fff; }
+  .hint:after{ content:''; position:absolute; width:14px; height:14px;
+               background:var(--ink); transform:rotate(45deg); }
+  .hint.below:after{ top:-7px; left:28px; }
+  .hint.above:after{ bottom:-7px; left:28px; }
+  .hint-mask{ position:fixed; inset:0; z-index:55; background:rgba(10,14,20,.35); }
+
+  /* -------------------------------------------------------------- modal */
+  .modal-back{ position:fixed; inset:0; z-index:70; background:rgba(12,16,22,.6);
+               display:flex; align-items:center; justify-content:center; padding:18px; }
+  .modal{ background:var(--surface); border-radius:var(--radius); max-width:660px;
+          width:100%; padding:26px; max-height:92vh; overflow:auto; }
+  .modal h2{ font-size:25px; margin-bottom:10px; }
+  .modal p{ margin:0 0 18px; }
+  .modal textarea{ width:100%; min-height:200px; font-family:ui-monospace,Consolas,monospace;
+                   font-size:13px; border:2px solid var(--line); border-radius:var(--radius); padding:10px; }
+
+  /* ----------------------------------------------------------- P&L end */
+  .pnl{ width:100%; border-collapse:collapse; margin:18px 0; }
+  .pnl td{ padding:11px 8px; border-bottom:1px solid var(--line-soft); font-size:19px; }
+  .pnl td:last-child{ text-align:right; font-weight:800; font-variant-numeric:tabular-nums; }
+  .pnl tr.total td{ border-top:3px solid var(--ink); border-bottom:0;
+                    font-size:27px; font-weight:800; padding-top:14px; }
+  .pnl tr.neg td:last-child{ color:var(--warn); }
+  /* 6 tiles: 3x2 on desktop, 2x3 on a tablet — never an orphan on its own row */
+  .stat{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:18px 0; }
+  @media (max-width:620px){ .stat{ grid-template-columns:repeat(2,1fr); } }
+  .stat div{ border:2px solid var(--line-soft); border-radius:var(--radius); padding:12px 14px; }
+  .stat .k{ font-size:12px; font-weight:800; text-transform:uppercase;
+            letter-spacing:.05em; color:var(--ink-soft); }
+  .stat .v{ font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; }
 </style>
 
-<!-- ======================================================== START SCREEN -->
-<section id="screen-start" class="wrap">
-  <h1 style="font-size:34px;margin-bottom:6px;">Where to Stock</h1>
-  <p class="muted" style="margin-top:0;">Turn-based team training game — one screen per room.</p>
+<!-- ========================================================= SCREEN: START -->
+<section id="screen-start" class="wrap narrow" style="padding:34px 0 70px;">
+  <h1 style="font-size:33px;">Where to Stock</h1>
+  <p class="muted" style="margin-top:4px;">Product launch simulation — 1 warehouse, 2 stores, 5 bags, 25 weeks.</p>
 
   <div id="storage-warning" class="banner hidden">
-    <strong>Heads-up:</strong> this browser is not letting the page save locally.
-    The session will still work, but nothing will be recovered if the tab is closed.
-    Export your results before finishing.
+    <strong>Note:</strong> this browser will not let the page save locally. The game still works,
+    but nothing is recovered if the tab closes. Export before you finish.
   </div>
 
-  <!-- Shown only when a previous session is found in localStorage -->
   <div id="resume-card" class="card hidden">
-    <h2>A session already exists on this computer</h2>
+    <h2>A game is already in progress on this computer</h2>
     <p id="resume-summary" class="muted"></p>
     <div class="row-buttons">
-      <button id="btn-resume" class="btn-primary btn-xl">Resume session</button>
-      <button id="btn-discard" class="btn-danger">Start new session…</button>
+      <button id="btn-resume" class="btn-primary btn-xl">Resume</button>
+      <button id="btn-discard" class="btn-danger">Start a new game…</button>
     </div>
   </div>
 
-  <!-- New-session form -->
   <div id="setup-card" class="card">
-    <h2>New session</h2>
-    <p class="muted small">Filled in once, kept for the whole session.</p>
+    <h2>New game</h2>
+    <p class="muted small">Used to identify your results in the export. No player names needed.</p>
     <div class="field">
-      <label for="in-room">Room name</label>
-      <input id="in-room" type="text" autocomplete="off" placeholder="e.g. Room 3 — Antwerp">
+      <label for="in-team">Team name</label>
+      <input id="in-team" type="text" autocomplete="off" placeholder="e.g. Team 3">
     </div>
     <div class="field">
-      <label for="in-p1">Player 1</label>
-      <input id="in-p1" type="text" autocomplete="off" placeholder="First name">
+      <label for="in-game">Game name</label>
+      <input id="in-game" type="text" autocomplete="off" placeholder="e.g. Run 1" value="Run 1">
+      <p class="small muted" style="margin:6px 0 0;">
+        Play again under a different game name to compare strategies — both names appear on every exported row.
+      </p>
     </div>
-    <div class="field">
-      <label for="in-p2">Player 2</label>
-      <input id="in-p2" type="text" autocomplete="off" placeholder="First name">
-    </div>
-    <div class="field">
-      <label for="in-p3">Player 3</label>
-      <input id="in-p3" type="text" autocomplete="off" placeholder="First name">
-    </div>
-    <p id="setup-error" class="hidden" style="color:var(--warn);font-weight:600;"></p>
-    <button id="btn-start" class="btn-primary btn-xl" style="width:100%;">Start round 1</button>
+    <p id="start-error" class="hidden" style="color:var(--warn);font-weight:700;"></p>
+    <button id="btn-tosetup" class="btn-primary btn-xl" style="width:100%;">Continue to briefing</button>
   </div>
 </section>
 
-<!-- ========================================================= GAME SCREEN -->
+<!-- ========================================================= SCREEN: SETUP -->
+<section id="screen-setup" class="wrap narrow hidden" style="padding:28px 0 70px;">
+  <h1 style="font-size:29px;">Briefing &amp; setup</h1>
+  <p class="muted" style="margin-top:4px;" id="setup-who"></p>
+
+  <div class="econ">
+    <h3 style="font-size:19px;">The numbers, before you decide</h3>
+    <ul>
+      <li>You are launching <b>5 bags</b> in <b>2 stores</b>, supplied by <b>1 central warehouse</b>, over <b>25 weeks</b>.</li>
+      <li>The forecast is <b>2 pieces per week, per store, per bag</b> → <b>100 pieces per bag</b>, <b>500 in total</b>.</li>
+      <li>Every bag sells for <b>1 000 €</b> and costs <b>200 €</b> to produce.</li>
+      <li>You pay the 200 € for <b>everything you produce</b> — whether it sells or not.</li>
+      <li>A <b>fixed cost of 225 000 €</b> (45% of forecast sales) is charged at the end.</li>
+      <li>Missed sales are <b>lost for good</b>. There are no back-orders.</li>
+      <li>Your profit is revealed at <b>week 25</b>. During the game you only see units and revenue.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Decision 1 — target sell-through</h2>
+    <p class="muted" style="margin-top:0;">
+      How much of what you produce do you expect to sell? A <b>100%</b> target means producing exactly the
+      forecast. A lower target means producing more than the forecast, to protect against under-estimating.
+      <b>You choose once, and it cannot be changed.</b>
+    </p>
+    <div class="opts" id="opt-sellthrough"></div>
+    <div class="consequence" id="cons-sellthrough">Choose a target to see what gets produced.</div>
+  </div>
+
+  <div class="card">
+    <h2>Decision 2 — where does the stock start?</h2>
+    <p class="muted" style="margin-top:0;">
+      Part of the production goes to the shops before opening; the rest stays in the central warehouse,
+      where you can send it week by week — but it takes <b>one week to arrive</b>.
+      The shop share is <b>always split equally between Store A and Store B</b>.
+    </p>
+    <div class="opts" id="opt-split"></div>
+    <div class="consequence" id="cons-split">Choose a split to see where the stock goes.</div>
+  </div>
+
+  <button id="btn-begin" class="btn-primary btn-xl" style="width:100%;" disabled>Lock the setup and start week 1</button>
+  <p class="small muted" style="text-align:center;margin-top:10px;">Both decisions are final once the game starts.</p>
+</section>
+
+<!-- ========================================================== SCREEN: GAME -->
 <section id="screen-game" class="hidden">
   <header class="bar">
     <div class="bar-inner">
-      <div class="round-badge">
-        <span class="n" id="hdr-round">1</span>
-        <span class="of" id="hdr-of">of 8</span>
-      </div>
+      <div class="weekbox"><span class="n" id="hdr-week">1</span><span class="of">of 25</span></div>
       <div class="bar-meta">
-        <div class="room" id="hdr-room">—</div>
-        <div class="players" id="hdr-players">—</div>
+        <div class="t" id="hdr-team">—</div>
+        <div class="g" id="hdr-game">—</div>
       </div>
-      <button id="btn-export" class="btn-ghost">Export &amp; results</button>
+      <div class="kpi"><div class="k">Sold</div><div class="v" id="hdr-sold">0</div></div>
+      <div class="kpi"><div class="k">Missed</div><div class="v" id="hdr-missed" style="color:var(--warn)">0</div></div>
+      <div class="kpi"><div class="k">Revenue</div><div class="v" id="hdr-rev">0 €</div></div>
+      <button id="btn-export" class="btn-ghost">Export</button>
+      <button id="btn-help" class="btn-ghost" title="Replay the guide">?</button>
     </div>
+    <div class="steps" id="steps"></div>
   </header>
 
   <main class="wrap">
-    <div id="rounds"><!-- one .round card per round, oldest first --></div>
-  </main>
-
-  <div class="footbar">
-    <div class="footbar-inner">
-      <button id="btn-next" class="btn-primary btn-xl">Next round &rarr;</button>
-      <span class="small muted" id="save-note">Saved automatically</span>
+    <div class="board">
+      <!-- warehouse -->
+      <div>
+        <div class="panel wh" id="panel-wh">
+          <div class="panel-head">
+            <h3>⌂ Central warehouse</h3>
+            <span class="sub" id="wh-total">—</span>
+          </div>
+          <div class="colhead"><span></span><span>Bag</span><span>In stock</span></div>
+          <div id="wh-rows"></div>
+        </div>
+        <div class="action" id="action-panel"></div>
+      </div>
+      <!-- stores -->
+      <div>
+        <div class="panel st" id="panel-A">
+          <div class="panel-head"><h3>▤ Store A</h3><span class="sub" id="A-total">—</span></div>
+          <div class="colhead">
+            <span></span><span>Bag</span><span>Stock</span><span>Dem.</span><span>Sold</span><span>Missed</span>
+          </div>
+          <div id="A-rows"></div>
+        </div>
+        <div class="panel st" id="panel-B">
+          <div class="panel-head"><h3>▤ Store B</h3><span class="sub" id="B-total">—</span></div>
+          <div class="colhead">
+            <span></span><span>Bag</span><span>Stock</span><span>Dem.</span><span>Sold</span><span>Missed</span>
+          </div>
+          <div id="B-rows"></div>
+        </div>
+      </div>
     </div>
-  </div>
+
+    <details class="hist" id="hist">
+      <summary>Week-by-week history</summary>
+      <div class="histwrap"><table class="h" id="hist-table"></table></div>
+    </details>
+  </main>
 </section>
 
+<!-- =========================================================== SCREEN: END -->
+<section id="screen-end" class="wrap narrow hidden" style="padding:30px 0 70px;">
+  <h1 style="font-size:31px;">Season closed — the P&amp;L</h1>
+  <p class="muted" style="margin-top:4px;" id="end-who"></p>
+  <div id="end-body"></div>
+</section>
+
+<div id="fly-layer"></div>
 <div id="modal-root"></div>
+<div id="hint-root"></div>
 
 <script>
 "use strict";
 
-/* ==========================================================================
-   1. CONFIG — the game rules live here. Edit this, not the engine.
-   ==========================================================================
-   Each entry of CONFIG.fields becomes a block inside every round card and a
-   column (or three) in the exports.
+/* =========================================================================
+   1. FIXED GAME DATA
+   ========================================================================= */
+const WEEKS = 25;
+const FORECAST_PER_BAG = 100;          /* 2/week/store x 25 weeks x 2 stores */
 
-   field = {
-     key    : unique id, used as the storage key and the CSV header stem
-     label  : what people read on screen
-     hint   : optional one-line explanation under the label
-     scope  : 'team'   -> a single value for the room
-              'player' -> one value per player (3 inputs, 3 CSV columns)
-     type   : 'number' -> big  -  [ 12 ]  +  control
-              'choice' -> row of big toggle buttons (needs `options`)
-              'text'   -> free text line
-              'computed' -> read-only, derived by `compute` (never typed in)
-     options: ['A','B'] — for type 'choice' only
-     step   : increment used by the -/+ buttons of a 'number' field (default 1)
-     min/max: optional clamp for 'number'
-     compute: (values, ctx) => value — for type 'computed' only.
-              `values` is the round's raw values object:
-                 values[key]        for scope 'team'
-                 values[key][i]     for scope 'player' (i = 0,1,2)
-              `ctx` = { roundNumber, players }
-   }
-
-   ---------------------------------------------------------------------------
-   PLACEHOLDER RULES — replace with the real ones.
-   They exercise every field type so you can see what each looks like.
-   --------------------------------------------------------------------------- */
-const CONFIG = {
-  plannedRounds: 8,          // shown as "Round 3 of 8"; extra rounds are allowed
-  warnOnEmptyRound: true,    // ask for confirmation if the live round is blank
-
-  fields: [
-    {
-      key:'demand', label:'Demand announced', scope:'team', type:'number',
-      hint:'Read out by the facilitator at the start of the round.',
-      step:10, min:0
-    },
-    {
-      key:'order', label:'Units ordered', scope:'player', type:'number',
-      hint:'Each player commits to a quantity, without consulting the others.',
-      step:10, min:0
-    },
-    {
-      key:'total', label:'Total ordered by the room', scope:'team', type:'computed',
-      compute: function(values){
-        var sum = 0, any = false;
-        (values.order || []).forEach(function(v){
-          if(v !== '' && v !== null && v !== undefined){ sum += Number(v)||0; any = true; }
-        });
-        return any ? sum : '';
-      }
-    },
-    {
-      key:'gap', label:'Gap vs demand', scope:'team', type:'computed',
-      hint:'Total ordered minus demand. Positive = overstock.',
-      compute: function(values){
-        var d = values.demand;
-        if(d === '' || d === null || d === undefined) return '';
-        var sum = 0, any = false;
-        (values.order || []).forEach(function(v){
-          if(v !== '' && v !== null && v !== undefined){ sum += Number(v)||0; any = true; }
-        });
-        if(!any) return '';
-        var g = sum - Number(d);
-        return (g > 0 ? '+' : '') + g;
-      }
-    },
-    {
-      key:'strategy', label:'Strategy chosen', scope:'team', type:'choice',
-      hint:'One answer for the room — agree out loud.',
-      options:['Centralise','Split evenly','Follow the leader','Improvise']
-    },
-    {
-      key:'notes', label:'Debrief note', scope:'team', type:'text',
-      hint:'One sentence: what drove the decision?'
-    }
-  ]
+const ECON = {
+  price: 1000,                          /* € earned per bag sold            */
+  cost:  200,                           /* € paid per bag PRODUCED          */
+  fixed: 225000                         /* 45% of forecast sales (500x1000) */
 };
 
-/* ==========================================================================
-   2. STATE + PERSISTENCE
-   ========================================================================== */
-const STORAGE_KEY = 'wheretostock.training.v1';
+/* The five bags. Colours are a blue/grey scale; each also has its own
+   silhouette so they stay distinguishable without relying on colour. */
+const BAGS = [
+  { key:'aveline',  name:'Aveline',  color:'#12395e' },
+  { key:'bastide',  name:'Bastide',  color:'#2f6ea8' },
+  { key:'calanque', name:'Calanque', color:'#6ba3cd' },
+  { key:'doriane',  name:'Doriane',  color:'#8d99a6' },
+  { key:'esterel',  name:'Estérel',  color:'#464f59' }
+];
 
-/* The whole session in one object. Nothing else is stored. */
+/* Inline SVG silhouettes — one distinct shape per bag, no external assets. */
+const BAG_SHAPES = [
+  'M4 9h16l-1.6 11H5.6L4 9Zm4 0V7a4 4 0 0 1 8 0v2',                    /* tote          */
+  'M4 10h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Zm0 0 2-5h12l2 5H4Z',    /* flap shoulder */
+  'M5 9h14l-1 10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 9Zm2 0a5 5 0 0 1 10 0',/* bucket       */
+  'M3 8h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Zm0 0 9 5 9-5',            /* clutch        */
+  'M4 10h16v9H4v-9Zm5 0V8a3 3 0 0 1 6 0v2'                             /* top handle    */
+];
+
+/* -------------------------------------------------------------------------
+   DEMAND — hard-coded on purpose.
+   Every room plays exactly the same 25 weeks, so the debrief can compare
+   P&Ls without luck being a factor, and a team replaying can genuinely
+   improve. Generated once as random integers with no repeating pattern,
+   capped at 3x the store/bag weekly average, summing exactly to:
+
+     bag        vs forecast   total   store A   store B
+     Aveline        +70%       170      119        51
+     Bastide        +30%       130       39        91
+     Calanque       -20%        80       56        24
+     Doriane        -50%        50       15        35
+     Estérel          0%       100       70        30
+                                        --------------
+                          total 530  vs 500 forecast
+   The 70/30 store skew alternates direction bag by bag, so no store is
+   simply "the big one" — each bag behaves differently across the two.
+   ------------------------------------------------------------------------- */
+const DEMAND = {
+  aveline:  { A:[6,3,3,2,4,6,2,5,5,4,4,3,4,5,3,7,6,7,8,7,4,5,8,5,3],
+              B:[2,2,1,2,3,1,5,1,2,1,3,1,3,2,3,1,2,0,2,2,1,2,2,4,3] },
+  bastide:  { A:[1,3,0,0,3,0,2,1,2,2,1,1,2,1,2,0,1,3,1,3,2,3,1,3,1],
+              B:[6,4,2,1,1,4,6,2,6,6,9,6,6,1,3,2,5,3,1,3,2,3,6,0,3] },
+  calanque: { A:[5,1,3,3,1,5,1,4,0,1,2,1,3,3,2,0,1,1,1,2,3,4,4,3,2],
+              B:[2,2,2,0,1,0,3,0,0,1,2,0,0,2,1,0,1,2,1,0,2,0,1,1,0] },
+  doriane:  { A:[1,0,2,2,0,0,1,2,0,1,2,0,0,0,0,1,0,0,0,1,2,0,0,0,0],
+              B:[0,2,0,2,0,3,0,1,1,3,4,1,0,0,0,3,0,1,2,0,4,2,3,2,1] },
+  esterel:  { A:[3,2,4,4,2,0,0,3,2,1,1,2,3,2,1,4,4,2,5,2,5,7,4,2,5],
+              B:[1,3,1,2,0,1,0,2,0,1,4,2,1,1,0,0,2,0,1,1,2,1,1,2,1] }
+};
+
+const SELL_THROUGH_OPTIONS = [60, 70, 80, 90, 100];
+const SPLIT_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90];   /* % to stores */
+
+/* The four sub-steps of a week. */
+const STEPS = [
+  { key:'reveal',   label:'Reveal demand' },
+  { key:'sell',     label:'Sell' },
+  { key:'allocate', label:'Ship from warehouse' },
+  { key:'confirm',  label:'Next week' }
+];
+
+/* =========================================================================
+   2. STATE
+   ========================================================================= */
+const STORAGE_KEY = 'wheretostock.launch.v2';
 let state = null;
 let storageOK = true;
 
-function blankRound(n){
-  const values = {};
-  CONFIG.fields.forEach(function(f){
-    if(f.type === 'computed') return;              // computed values are never stored
-    values[f.key] = (f.scope === 'player') ? ['','',''] : '';
-  });
+const zeros = () => BAGS.map(function(){ return 0; });
+
+/* How many units are produced per bag for a given target sell-through.
+   Target 100% -> produce exactly the forecast. Target 60% -> produce
+   forecast / 0.6, i.e. enough that selling only 60% of it still covers
+   the forecast demand. */
+function producedPerBag(target){ return Math.round(FORECAST_PER_BAG * 100 / target); }
+
+/* Split one bag's production into store A / store B / warehouse.
+   The store share is always divided equally between the two shops. */
+function splitStock(units, storePct){
+  const perStore = Math.round(units * storePct / 100 / 2);
+  return { store: perStore, central: units - 2 * perStore };
+}
+
+function newState(team, game){
   return {
-    n: n,
-    values: values,
-    locked: false,     // true once the round has been passed
-    unlocked: false    // true when the facilitator re-opened a locked round
+    version:2, team:team, game:game,
+    createdAt:new Date().toISOString(),
+    setup:null,                 /* {sellThrough, storePct, perBag, perStore, central} */
+    week:1,
+    step:'reveal',
+    finished:false,
+    stock:  { W:zeros(), A:zeros(), B:zeros() },
+    transit:{ A:zeros(), B:zeros() },   /* arrives at the start of next week */
+    sold:   { A:zeros(), B:zeros() },   /* cumulative                        */
+    missed: { A:zeros(), B:zeros() },
+    lastSold:   { A:zeros(), B:zeros() },  /* this week only, for the deltas */
+    lastMissed: { A:zeros(), B:zeros() },
+    revenue:0,
+    ship:   { A:zeros(), B:zeros() },   /* what is being typed in right now  */
+    weekOpen:null,                      /* snapshot for the export rows      */
+    log:[],                             /* one entry per week x bag x place  */
+    hintsSeen:{}
   };
 }
 
-function newState(room, players){
-  return {
-    version: 1,
-    room: room,
-    players: players,
-    startedAt: new Date().toISOString(),
-    currentIndex: 0,             // index into rounds[] of the live round
-    rounds: [ blankRound(1) ]
-  };
-}
-
-/* Save after EVERY action. Cheap: the object is tiny. */
 function save(){
   if(!state) return;
-  try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    flashSaved();
-  }catch(err){
-    storageOK = false;
-    document.getElementById('storage-warning').classList.remove('hidden');
-  }
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch(err){ storageOK = false; el('storage-warning').classList.remove('hidden'); }
 }
-
 function loadSaved(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     if(!raw) return null;
-    const obj = JSON.parse(raw);
-    if(!obj || !Array.isArray(obj.rounds) || !obj.rounds.length) return null;
-    return obj;
-  }catch(err){
-    return null;    // corrupt or blocked — behave as if there were no session
-  }
+    const o = JSON.parse(raw);
+    return (o && o.version === 2 && o.team) ? o : null;
+  }catch(err){ return null; }
+}
+function clearSaved(){ try{ localStorage.removeItem(STORAGE_KEY); }catch(err){} }
+
+/* =========================================================================
+   3. WEEK ENGINE
+   ========================================================================= */
+const el = function(id){ return document.getElementById(id); };
+const demandOf = function(bagIndex, store, week){ return DEMAND[BAGS[bagIndex].key][store][week - 1]; };
+
+/* Start of a week: snapshot the opening position, then let in-transit stock
+   land so it can be sold this week. */
+function beginWeek(){
+  state.weekOpen = {
+    W: state.stock.W.slice(),
+    A: state.stock.A.slice(),
+    B: state.stock.B.slice(),
+    recvA: state.transit.A.slice(),
+    recvB: state.transit.B.slice()
+  };
+  BAGS.forEach(function(b, i){
+    state.stock.A[i] += state.transit.A[i];
+    state.stock.B[i] += state.transit.B[i];
+  });
+  state.transit = { A:zeros(), B:zeros() };
+  state.lastSold   = { A:zeros(), B:zeros() };
+  state.lastMissed = { A:zeros(), B:zeros() };
+  state.ship = { A:zeros(), B:zeros() };
+  state.step = 'reveal';
 }
 
-function clearSaved(){
-  try{ localStorage.removeItem(STORAGE_KEY); }catch(err){/* ignore */}
-}
-
-/* Probe localStorage once so we can warn early rather than mid-session. */
-function probeStorage(){
-  try{
-    localStorage.setItem(STORAGE_KEY + '.probe', '1');
-    localStorage.removeItem(STORAGE_KEY + '.probe');
-  }catch(err){
-    storageOK = false;
-    document.getElementById('storage-warning').classList.remove('hidden');
-  }
-}
-
-let saveNoteTimer = null;
-function flashSaved(){
-  const el = document.getElementById('save-note');
-  if(!el) return;
-  el.textContent = 'Saved ✓';
-  clearTimeout(saveNoteTimer);
-  saveNoteTimer = setTimeout(function(){ el.textContent = 'Saved automatically'; }, 1200);
-}
-
-/* ==========================================================================
-   3. EDIT PERMISSION — the rule that must not depend on good faith
-   ========================================================================== */
-/* A round is editable when it is the live one, or when a facilitator has
-   explicitly re-opened it. Everything else is read-only, both in the DOM
-   (disabled inputs) and in the handlers (guard below). */
-function isEditable(i){
-  const r = state.rounds[i];
-  if(!r) return false;
-  if(r.unlocked) return true;
-  return i === state.currentIndex && !r.locked;
-}
-
-/* Single write path for every value in the app. */
-function setValue(i, key, playerIndex, value){
-  if(!isEditable(i)) return false;                 // hard guard
-  const r = state.rounds[i];
-  if(!(key in r.values)) return false;
-  if(playerIndex === null || playerIndex === undefined){
-    r.values[key] = value;
-  }else{
-    if(!Array.isArray(r.values[key])) r.values[key] = ['','',''];
-    r.values[key][playerIndex] = value;
-  }
+/* Serve this week's demand from store stock. Whatever cannot be served is
+   lost immediately — no back-orders. */
+function doSell(){
+  ['A','B'].forEach(function(s){
+    BAGS.forEach(function(b, i){
+      const d = demandOf(i, s, state.week);
+      const sold = Math.min(state.stock[s][i], d);
+      state.stock[s][i]  -= sold;
+      state.sold[s][i]   += sold;
+      state.missed[s][i] += (d - sold);
+      state.lastSold[s][i]   = sold;
+      state.lastMissed[s][i] = d - sold;
+      state.revenue += sold * ECON.price;
+    });
+  });
+  state.step = 'allocate';
   save();
-  return true;
 }
 
-/* ==========================================================================
-   4. FIELD VALUE HELPERS
-   ========================================================================== */
-function readValue(round, field, playerIndex){
-  if(field.type === 'computed'){
-    try{
-      return field.compute(round.values, { roundNumber: round.n, players: state.players });
-    }catch(err){ return ''; }
+/* Move what was typed into the allocation table out of the warehouse and
+   into transit. It becomes sellable at the start of next week. */
+function doShip(){
+  BAGS.forEach(function(b, i){
+    const a = state.ship.A[i] || 0, bq = state.ship.B[i] || 0;
+    state.stock.W[i] -= (a + bq);
+    state.transit.A[i] += a;
+    state.transit.B[i] += bq;
+  });
+  state.step = 'confirm';
+  save();
+}
+
+/* Close the week: write the export rows, then move on (or finish). */
+function closeWeek(){
+  const w = state.week, o = state.weekOpen;
+  BAGS.forEach(function(b, i){
+    const shipped = (state.ship.A[i] || 0) + (state.ship.B[i] || 0);
+    state.log.push({
+      week:w, bag:b.name, loc:'Warehouse',
+      opening:o.W[i], received:0, demand:0, sold:0, missed:0,
+      shipped:shipped, closing:state.stock.W[i]
+    });
+    ['A','B'].forEach(function(s){
+      state.log.push({
+        week:w, bag:b.name, loc:'Store ' + s,
+        opening:o[s][i],
+        received:(s === 'A' ? o.recvA[i] : o.recvB[i]),
+        demand:demandOf(i, s, w),
+        sold:state.lastSold[s][i],
+        missed:state.lastMissed[s][i],
+        shipped:0,
+        closing:state.stock[s][i]
+      });
+    });
+  });
+
+  if(state.week >= WEEKS){
+    state.finished = true;
+    save();
+    showScreen('end');
+    renderEnd();
+    return;
   }
-  const v = round.values[field.key];
-  if(field.scope === 'player') return (Array.isArray(v) ? v[playerIndex] : '') ?? '';
-  return v ?? '';
+  state.week += 1;
+  beginWeek();
+  save();
+  renderGame();
+  maybeHint();
 }
 
-function roundIsEmpty(round){
-  return CONFIG.fields.every(function(f){
-    if(f.type === 'computed') return true;
-    const v = round.values[f.key];
-    if(Array.isArray(v)) return v.every(function(x){ return String(x).trim() === ''; });
-    return String(v ?? '').trim() === '';
+/* =========================================================================
+   4. P&L
+   ========================================================================= */
+function totals(){
+  let sold = 0, missed = 0;
+  ['A','B'].forEach(function(s){
+    BAGS.forEach(function(b, i){ sold += state.sold[s][i]; missed += state.missed[s][i]; });
+  });
+  const produced = state.setup.perBag * BAGS.length;
+  const revenue  = sold * ECON.price;
+  const cogs     = produced * ECON.cost;
+  const profit   = revenue - cogs - ECON.fixed;
+  return {
+    sold:sold, missed:missed, produced:produced, leftover:produced - sold,
+    revenue:revenue, cogs:cogs, fixed:ECON.fixed, profit:profit,
+    sellThrough: produced ? (sold / produced * 100) : 0
+  };
+}
+
+const fmt  = function(n){ return Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' '); };
+const fmtE = function(n){ return fmt(n) + ' €'; };
+
+/* =========================================================================
+   5. RENDERING — board
+   ========================================================================= */
+function showScreen(which){
+  ['start','setup','game','end'].forEach(function(s){
+    el('screen-' + s).classList.toggle('hidden', s !== which);
   });
 }
 
-/* ==========================================================================
-   5. RENDERING
-   ========================================================================== */
-const el = function(id){ return document.getElementById(id); };
+function bagIcon(i, size){
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" aria-hidden="true">'
+       + '<path d="' + BAG_SHAPES[i] + '" fill="none" stroke="' + BAGS[i].color
+       + '" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+}
 
-function showScreen(which){
-  el('screen-start').classList.toggle('hidden', which !== 'start');
-  el('screen-game').classList.toggle('hidden',  which !== 'game');
+/* Bars: the two stores share one scale so A and B are directly comparable
+   bag by bag; the warehouse holds far more, so it gets its own. Both scales
+   only ever grow, so a bar never rescales under the players' eyes. */
+let scaleStore = 10, scaleWh = 10;
+function refreshScales(){
+  BAGS.forEach(function(b, i){
+    scaleStore = Math.max(scaleStore, state.stock.A[i], state.stock.B[i]);
+    scaleWh    = Math.max(scaleWh, state.stock.W[i]);
+  });
 }
 
 function renderGame(){
-  const live = state.rounds[state.currentIndex];
-  el('hdr-round').textContent   = live.n;
-  el('hdr-of').textContent      = 'of ' + CONFIG.plannedRounds;
-  el('hdr-room').textContent    = state.room;
-  el('hdr-players').textContent = state.players.join(' · ');
+  refreshScales();
+  el('hdr-week').textContent = state.week;
+  el('hdr-team').textContent = state.team;
+  el('hdr-game').textContent = state.game;
 
-  const host = el('rounds');
+  let sold = 0, missed = 0;
+  ['A','B'].forEach(function(s){
+    BAGS.forEach(function(b, i){ sold += state.sold[s][i]; missed += state.missed[s][i]; });
+  });
+  el('hdr-sold').textContent   = fmt(sold);
+  el('hdr-missed').textContent = fmt(missed);
+  el('hdr-rev').textContent    = fmtE(state.revenue);
+
+  renderSteps();
+  renderWarehouse();
+  renderStore('A');
+  renderStore('B');
+  renderAction();
+  renderHistory();
+}
+
+function renderSteps(){
+  const host = el('steps');
   host.textContent = '';
-  state.rounds.forEach(function(r, i){ host.appendChild(buildRoundCard(r, i)); });
-}
-
-function buildRoundCard(round, i){
-  const editable = isEditable(i);
-  const isLive   = (i === state.currentIndex);
-
-  const card = document.createElement('section');
-  card.className = 'round' + (isLive ? ' live' : '') + (round.locked && !round.unlocked ? ' locked' : '');
-  card.dataset.index = i;
-
-  /* --- header: round number + status + the discreet unlock control --- */
-  const head = document.createElement('div');
-  head.className = 'round-head';
-
-  const title = document.createElement('div');
-  title.className = 'title';
-  title.textContent = 'Round ' + round.n;
-  head.appendChild(title);
-
-  const tag = document.createElement('span');
-  if(isLive && !round.locked){ tag.className = 'tag live';   tag.textContent = 'In progress'; }
-  else if(round.unlocked)    { tag.className = 'tag open';   tag.textContent = 'Re-opened';  }
-  else                       { tag.className = 'tag locked'; tag.textContent = 'Locked';     }
-  head.appendChild(tag);
-
-  /* Small, deliberately unobtrusive control: mistakes happen live. */
-  if(round.locked){
-    const btn = document.createElement('button');
-    btn.className = 'btn-ghost';
-    btn.textContent = round.unlocked ? '🔒 Lock again' : '🔓 Unlock';
-    btn.addEventListener('click', function(){
-      if(round.unlocked){
-        round.unlocked = false; save(); renderGame();
-      }else{
-        askConfirm({
-          title:'Unlock round ' + round.n + '?',
-          body:'This round was already passed. Unlocking lets you correct it. '
-             + 'Remember to lock it again afterwards.',
-          confirmLabel:'Unlock round ' + round.n,
-          onConfirm:function(){ round.unlocked = true; save(); renderGame(); }
-        });
-      }
-    });
-    head.appendChild(btn);
-  }
-  card.appendChild(head);
-
-  /* --- body: compact summary when passed, full form when editable --- */
-  if(editable){
-    CONFIG.fields.forEach(function(f){
-      card.appendChild(buildFieldBlock(f, round, i, true));
-    });
-  }else{
-    card.appendChild(buildSummary(round));
-  }
-
-  return card;
-}
-
-/* Read-only recap of a passed round. Every configured field is shown, so the
-   stacked history is the debrief material — just without the tall inputs. */
-function buildSummary(round){
-  const grid = document.createElement('div');
-  grid.className = 'summary';
-
-  CONFIG.fields.forEach(function(f){
-    const item = document.createElement('div');
-    item.className = 'sum-item';
-    item.dataset.field = f.key;
-
-    const k = document.createElement('div');
-    k.className = 'k';
-    k.textContent = f.label;
-    item.appendChild(k);
-
-    const v = document.createElement('div');
-    v.className = 'v' + (f.type === 'text' ? ' text' : '');
-
-    if(f.scope === 'player'){
-      /* "Ana 40 · Ben 30 · Cléo 50" */
-      state.players.forEach(function(name, p){
-        if(p > 0){
-          const sep = document.createElement('span');
-          sep.className = 'sep'; sep.textContent = '·';
-          v.appendChild(sep);
-        }
-        const who = document.createElement('span');
-        who.className = 'who'; who.textContent = name + ' ';
-        v.appendChild(who);
-        const raw = readValue(round, f, p);
-        v.appendChild(document.createTextNode(String(raw) === '' ? '—' : String(raw)));
-      });
-    }else{
-      const raw = readValue(round, f, null);
-      if(String(raw) === '') v.classList.add('empty');
-      v.textContent = String(raw) === '' ? '—' : String(raw);
-    }
-
-    item.appendChild(v);
-    grid.appendChild(item);
-  });
-
-  return grid;
-}
-
-function buildFieldBlock(field, round, i, editable){
-  const block = document.createElement('div');
-  block.className = 'field-block';
-  block.dataset.field = field.key;
-
-  const lab = document.createElement('label');
-  lab.textContent = field.label;
-  block.appendChild(lab);
-
-  if(field.hint){
-    const h = document.createElement('div');
-    h.className = 'hint';
-    h.textContent = field.hint;
-    block.appendChild(h);
-  }
-
-  if(field.type === 'computed'){
-    const out = document.createElement('div');
-    out.className = 'computed';
-    out.dataset.computed = field.key;
-    const v = readValue(round, field, null);
-    out.textContent = (v === '' ? '—' : v);
-    block.appendChild(out);
-    return block;
-  }
-
-  if(field.scope === 'player'){
-    const grid = document.createElement('div');
-    grid.className = 'player-grid';
-    state.players.forEach(function(name, p){
-      const cell = document.createElement('div');
-      cell.className = 'player-cell';
-      const who = document.createElement('div');
-      who.className = 'who';
-      who.textContent = name;
-      cell.appendChild(who);
-      cell.appendChild(buildControl(field, round, i, p, editable));
-      grid.appendChild(cell);
-    });
-    block.appendChild(grid);
-  }else{
-    block.appendChild(buildControl(field, round, i, null, editable));
-  }
-  return block;
-}
-
-/* Builds the actual input widget for one (field, player) pair. */
-function buildControl(field, round, i, playerIndex, editable){
-  const current = readValue(round, field, playerIndex);
-
-  /* ---------------------------------------------------------- number ---- */
-  if(field.type === 'number'){
-    const wrap = document.createElement('div');
-    wrap.className = 'stepper';
-
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.value = current;
-    input.disabled = !editable;
-    input.inputMode = 'numeric';
-    input.setAttribute('aria-label', field.label + (playerIndex !== null ? ' — ' + state.players[playerIndex] : ''));
-
-    const step = function(delta){
-      if(!editable) return;
-      let n = Number(input.value);
-      if(input.value === '' || isNaN(n)) n = 0;
-      n += delta;
-      if(field.min !== undefined && n < field.min) n = field.min;
-      if(field.max !== undefined && n > field.max) n = field.max;
-      input.value = String(n);
-      setValue(i, field.key, playerIndex, input.value);
-      refreshComputed(i);
-    };
-
-    const minus = document.createElement('button');
-    minus.type = 'button'; minus.textContent = '−';
-    minus.disabled = !editable;
-    minus.setAttribute('aria-label', 'Decrease ' + field.label);
-    minus.addEventListener('click', function(){ step(-(field.step || 1)); });
-
-    const plus = document.createElement('button');
-    plus.type = 'button'; plus.textContent = '+';
-    plus.disabled = !editable;
-    plus.setAttribute('aria-label', 'Increase ' + field.label);
-    plus.addEventListener('click', function(){ step(field.step || 1); });
-
-    /* Typing writes straight through — no re-render, so focus is never lost. */
-    input.addEventListener('input', function(){
-      setValue(i, field.key, playerIndex, input.value);
-      refreshComputed(i);
-    });
-
-    wrap.appendChild(minus); wrap.appendChild(input); wrap.appendChild(plus);
-    return wrap;
-  }
-
-  /* ---------------------------------------------------------- choice ---- */
-  if(field.type === 'choice'){
-    const wrap = document.createElement('div');
-    wrap.className = 'choices';
-    (field.options || []).forEach(function(opt){
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = opt;
-      b.disabled = !editable;
-      b.setAttribute('aria-pressed', String(current === opt));
-      b.addEventListener('click', function(){
-        if(!editable) return;
-        /* click the active option again to clear it */
-        const next = (readValue(round, field, playerIndex) === opt) ? '' : opt;
-        if(!setValue(i, field.key, playerIndex, next)) return;
-        Array.prototype.forEach.call(wrap.children, function(other){
-          other.setAttribute('aria-pressed', String(other.textContent === next));
-        });
-        refreshComputed(i);
-      });
-      wrap.appendChild(b);
-    });
-    return wrap;
-  }
-
-  /* ------------------------------------------------------------ text ---- */
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.value = current;
-  input.disabled = !editable;
-  input.autocomplete = 'off';
-  input.setAttribute('aria-label', field.label + (playerIndex !== null ? ' — ' + state.players[playerIndex] : ''));
-  input.addEventListener('input', function(){
-    setValue(i, field.key, playerIndex, input.value);
-    refreshComputed(i);
-  });
-  return input;
-}
-
-/* Recompute the derived read-outs of one round card, in place. */
-function refreshComputed(i){
-  const card = document.querySelector('.round[data-index="' + i + '"]');
-  if(!card) return;
-  const round = state.rounds[i];
-  CONFIG.fields.forEach(function(f){
-    if(f.type !== 'computed') return;
-    const out = card.querySelector('[data-computed="' + f.key + '"]');
-    if(!out) return;
-    const v = readValue(round, f, null);
-    out.textContent = (v === '' ? '—' : v);
+  const cur = STEPS.findIndex(function(s){ return s.key === state.step; });
+  STEPS.forEach(function(s, i){
+    const d = document.createElement('div');
+    d.className = 'step' + (i === cur ? ' active' : (i < cur ? ' done' : ''));
+    d.id = 'step-' + s.key;
+    d.innerHTML = '<span class="num">' + (i < cur ? '✓' : (i + 1)) + '</span><span>' + s.label + '</span>';
+    host.appendChild(d);
   });
 }
 
-/* ==========================================================================
-   6. ROUND FLOW
-   ========================================================================== */
-function nextRound(){
-  const live = state.rounds[state.currentIndex];
+function renderWarehouse(){
+  const host = el('wh-rows');
+  host.textContent = '';
+  let tot = 0;
+  BAGS.forEach(function(b, i){
+    tot += state.stock.W[i];
+    const r = document.createElement('div');
+    r.className = 'brow';
+    r.id = 'wh-row-' + i;
+    r.innerHTML =
+      bagIcon(i, 24) +
+      '<div><div class="nm">' + b.name + '</div>' +
+        '<div class="bar"><i style="width:' + (state.stock.W[i] / scaleWh * 100) + '%;background:' + b.color + '"></i></div></div>' +
+      '<div class="qty' + (state.stock.W[i] === 0 ? ' zero' : '') + '">' + fmt(state.stock.W[i]) + '</div>';
+    host.appendChild(r);
+  });
+  el('wh-total').textContent = fmt(tot) + ' units';
+}
 
-  const go = function(){
-    /* lock everything up to and including the round we are leaving */
-    state.rounds.forEach(function(r, idx){
-      if(idx <= state.currentIndex){ r.locked = true; r.unlocked = false; }
-    });
-    state.rounds.push(blankRound(state.rounds.length + 1));
-    state.currentIndex = state.rounds.length - 1;
-    save();
-    renderGame();
-    const card = document.querySelector('.round[data-index="' + state.currentIndex + '"]');
-    if(card) card.scrollIntoView({ behavior:'smooth', block:'center' });
-  };
+function renderStore(s){
+  const host = el(s + '-rows');
+  host.textContent = '';
+  const revealed = (state.step !== 'reveal');
+  let tot = 0;
+  BAGS.forEach(function(b, i){
+    tot += state.stock[s][i];
+    const d = demandOf(i, s, state.week);
+    const ls = state.lastSold[s][i], lm = state.lastMissed[s][i];
+    const r = document.createElement('div');
+    r.className = 'brow';
+    r.id = s + '-row-' + i;
+    r.innerHTML =
+      bagIcon(i, 24) +
+      '<div class="nm">' + b.name + '</div>' +
+      '<div><div class="bar"><i style="width:' + (state.stock[s][i] / scaleStore * 100) + '%;background:' + b.color + '"></i></div>' +
+        '<div class="qty' + (state.stock[s][i] === 0 ? ' zero' : '') + '" style="font-size:17px">' + fmt(state.stock[s][i]) + '</div></div>' +
+      '<div class="demandcell' + (revealed ? '' : ' hid') + '">' + (revealed ? d : '?') + '</div>' +
+      '<div class="cell"><div class="v">' + fmt(state.sold[s][i]) + '</div>' +
+        (ls > 0 ? '<div class="d">+' + ls + '</div>' : '') + '</div>' +
+      '<div class="cell miss"><div class="v' + (state.missed[s][i] === 0 ? ' dim' : '') + '">' + fmt(state.missed[s][i]) + '</div>' +
+        (lm > 0 ? '<div class="d">+' + lm + '</div>' : '') + '</div>';
+    host.appendChild(r);
+  });
+  el(s + '-total').textContent = fmt(tot) + ' units';
+}
 
-  if(CONFIG.warnOnEmptyRound && roundIsEmpty(live)){
-    askConfirm({
-      title:'Round ' + live.n + ' is empty',
-      body:'Nothing has been entered for this round. Move on anyway?',
-      confirmLabel:'Yes, next round',
-      onConfirm:go
-    });
+/* ---------------------------------------------------- the action panel  */
+function renderAction(){
+  const host = el('action-panel');
+  host.textContent = '';
+  const h = document.createElement('h3');
+  const p = document.createElement('p');
+
+  if(state.step === 'reveal'){
+    h.textContent = 'Week ' + state.week + ' — who walks in?';
+    p.textContent = 'Reveal what customers ask for in each store this week.';
+    host.appendChild(h); host.appendChild(p);
+    host.appendChild(bigButton('Reveal demand', function(){
+      state.step = 'sell'; save(); renderGame(); maybeHint();
+    }));
     return;
   }
-  go();
+
+  if(state.step === 'sell'){
+    h.textContent = 'Week ' + state.week + ' — serve the customers';
+    p.textContent = 'Each bag you can serve earns 1 000 €. Anything you cannot serve is a lost sale, for good.';
+    host.appendChild(h); host.appendChild(p);
+    host.appendChild(bigButton('Sell', function(){
+      const before = { A:state.lastSold.A.slice(), B:state.lastSold.B.slice() };
+      doSell();
+      renderGame();
+      animateSales();
+      maybeHint();
+    }));
+    return;
+  }
+
+  if(state.step === 'allocate'){
+    h.textContent = 'Week ' + state.week + ' — ship from the warehouse';
+    p.textContent = 'Decide what leaves the central warehouse. It arrives at the stores next week, ready to sell.';
+    host.appendChild(h); host.appendChild(p);
+    host.appendChild(buildAllocTable());
+    const btn = bigButton('Confirm shipment', function(){
+      if(!allocValid()) return;
+      doShip(); renderGame(); animateShipments(); maybeHint();
+    });
+    btn.id = 'btn-ship';
+    host.appendChild(btn);
+    const none = document.createElement('button');
+    none.className = 'btn-ghost';
+    none.style.marginTop = '8px';
+    none.textContent = 'Ship nothing this week';
+    none.addEventListener('click', function(){
+      state.ship = { A:zeros(), B:zeros() };
+      doShip(); renderGame(); maybeHint();
+    });
+    host.appendChild(none);
+    return;
+  }
+
+  /* confirm */
+  const last = state.week >= WEEKS;
+  h.textContent = last ? 'Week 25 complete' : 'Week ' + state.week + ' complete';
+  p.textContent = last
+    ? 'The season is over. Reveal the P&L to see how the launch actually performed.'
+    : 'Shipped stock is in transit and arrives at the start of week ' + (state.week + 1) + '.';
+  host.appendChild(h); host.appendChild(p);
+  const b = bigButton(last ? 'Reveal the P&L' : 'Start week ' + (state.week + 1) + ' →', closeWeek);
+  b.id = 'btn-nextweek';
+  host.appendChild(b);
 }
 
-/* ==========================================================================
-   7. EXPORT — CSV file + clipboard TSV (downloads can be blocked on file://)
-   ========================================================================== */
-/* One flat table, generated from CONFIG so exports never drift from the UI. */
-function buildTable(){
-  const head = ['Room', 'Player 1', 'Player 2', 'Player 3', 'Round'];
-  CONFIG.fields.forEach(function(f){
-    if(f.scope === 'player'){
-      state.players.forEach(function(name){ head.push(f.label + ' — ' + name); });
-    }else{
-      head.push(f.label);
-    }
-  });
+function bigButton(label, fn){
+  const b = document.createElement('button');
+  b.className = 'btn-primary btn-xl';
+  b.style.width = '100%';
+  b.textContent = label;
+  b.addEventListener('click', fn);
+  return b;
+}
 
-  const rows = state.rounds.map(function(r){
-    const row = [state.room, state.players[0], state.players[1], state.players[2], r.n];
-    CONFIG.fields.forEach(function(f){
-      if(f.scope === 'player'){
-        for(let p = 0; p < 3; p++) row.push(readValue(r, f, p));
-      }else{
-        row.push(readValue(r, f, null));
-      }
+/* 5 bags x 2 stores, default 0, cannot exceed what the warehouse holds. */
+function buildAllocTable(){
+  const t = document.createElement('table');
+  t.className = 'alloc';
+  t.innerHTML = '<thead><tr><th>Bag</th><th>In warehouse</th><th>→ Store A</th><th>→ Store B</th></tr></thead>';
+  const body = document.createElement('tbody');
+
+  BAGS.forEach(function(b, i){
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td class="nm">' + bagIcon(i, 18) + ' ' + b.name + '</td>' +
+                   '<td class="avail" id="avail-' + i + '">' + fmt(state.stock.W[i]) + '</td>';
+
+    ['A','B'].forEach(function(s){
+      const td = document.createElement('td');
+      const cell = document.createElement('div');
+      cell.className = 'alloccell';
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.min = '0'; inp.value = state.ship[s][i] || 0;
+      inp.id = 'ship-' + s + '-' + i;
+      inp.setAttribute('aria-label', 'Ship ' + b.name + ' to Store ' + s);
+      inp.addEventListener('input', function(){
+        state.ship[s][i] = Math.max(0, Math.floor(Number(inp.value) || 0));
+        save(); refreshAlloc();
+      });
+      inp.addEventListener('focus', function(){ inp.select(); });
+      cell.appendChild(inp);
+
+      const mx = document.createElement('button');
+      mx.className = 'btn-ghost maxbtn';
+      mx.textContent = 'all';
+      mx.title = 'Send everything left of this bag';
+      mx.addEventListener('click', function(){
+        const other = (s === 'A') ? state.ship.B[i] : state.ship.A[i];
+        state.ship[s][i] = Math.max(0, state.stock.W[i] - (other || 0));
+        inp.value = state.ship[s][i];
+        save(); refreshAlloc();
+      });
+      cell.appendChild(mx);
+      td.appendChild(cell);
+      tr.appendChild(td);
     });
-    return row;
+    body.appendChild(tr);
   });
+  t.appendChild(body);
+  return t;
+}
 
+/* Live "what is left in the warehouse" feedback + hard block on over-shipping. */
+function refreshAlloc(){
+  let ok = true;
+  BAGS.forEach(function(b, i){
+    const used = (state.ship.A[i] || 0) + (state.ship.B[i] || 0);
+    const left = state.stock.W[i] - used;
+    const cell = el('avail-' + i);
+    if(cell){
+      cell.textContent = fmt(left);
+      cell.style.color = left < 0 ? 'var(--warn)' : '';
+    }
+    ['A','B'].forEach(function(s){
+      const inp = el('ship-' + s + '-' + i);
+      if(inp) inp.classList.toggle('bad', left < 0);
+    });
+    if(left < 0) ok = false;
+  });
+  const btn = el('btn-ship');
+  if(btn){
+    btn.disabled = !ok;
+    btn.textContent = ok ? 'Confirm shipment' : 'Not enough stock in the warehouse';
+  }
+  return ok;
+}
+function allocValid(){ return refreshAlloc(); }
+
+/* ------------------------------------------------------------- history */
+function renderHistory(){
+  const t = el('hist-table');
+  t.textContent = '';
+  if(!state.log.length){
+    t.innerHTML = '<tbody><tr><td class="muted">Nothing yet — the first week appears here once it is closed.</td></tr></tbody>';
+    return;
+  }
+  /* Compact per-week view; the CSV export carries the full detail. */
+  const byWeek = {};
+  state.log.forEach(function(r){
+    const w = byWeek[r.week] || (byWeek[r.week] = { week:r.week, sold:0, missed:0, shipped:0, wh:0, sa:0, sb:0 });
+    w.sold += r.sold; w.missed += r.missed; w.shipped += r.shipped;
+    if(r.loc === 'Warehouse') w.wh += r.closing;
+    if(r.loc === 'Store A')   w.sa += r.closing;
+    if(r.loc === 'Store B')   w.sb += r.closing;
+  });
+  let html = '<thead><tr><th>Week</th><th>Sold</th><th>Missed</th><th>Revenue</th>'
+           + '<th>Shipped</th><th>Warehouse</th><th>Store A</th><th>Store B</th></tr></thead><tbody>';
+  Object.keys(byWeek).sort(function(a, b){ return b - a; }).forEach(function(k){
+    const w = byWeek[k];
+    html += '<tr><td><b>' + w.week + '</b></td><td>' + w.sold + '</td>'
+          + '<td style="color:var(--warn)">' + (w.missed || '') + '</td>'
+          + '<td>' + fmtE(w.sold * ECON.price) + '</td><td>' + (w.shipped || '') + '</td>'
+          + '<td>' + w.wh + '</td><td>' + w.sa + '</td><td>' + w.sb + '</td></tr>';
+  });
+  t.innerHTML = html + '</tbody>';
+}
+
+/* =========================================================================
+   6. ANIMATION — short, decorative, never blocks the interface
+   ========================================================================= */
+function fly(fromEl, toEl, color, count){
+  if(!fromEl || !toEl || count <= 0) return;
+  const a = fromEl.getBoundingClientRect(), b = toEl.getBoundingClientRect();
+  const n = Math.min(count, 5);
+  const layer = el('fly-layer');
+  for(let i = 0; i < n; i++){
+    const d = document.createElement('div');
+    d.className = 'fly';
+    d.style.background = color;
+    d.style.left = (a.left + a.width * 0.75) + 'px';
+    d.style.top  = (a.top + a.height / 2) + 'px';
+    layer.appendChild(d);
+    const dx = (b.left + b.width * 0.4) - (a.left + a.width * 0.75);
+    const dy = (b.top + b.height / 2) - (a.top + a.height / 2);
+    /* stagger a little so a batch reads as several pieces, not one blob */
+    setTimeout(function(){
+      d.style.transition = 'transform 400ms cubic-bezier(.4,0,.2,1), opacity 400ms';
+      d.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+      d.style.opacity = '0.15';
+    }, i * 45);
+    setTimeout(function(){ d.remove(); }, 500 + i * 45);
+  }
+}
+
+/* stock leaving the shelves towards the customers (rightwards, off-panel) */
+function animateSales(){
+  ['A','B'].forEach(function(s){
+    BAGS.forEach(function(b, i){
+      const n = state.lastSold[s][i];
+      if(n <= 0) return;
+      const row = el(s + '-row-' + i);
+      if(!row) return;
+      const r = row.getBoundingClientRect();
+      const ghost = { getBoundingClientRect:function(){
+        return { left:r.right + 60, top:r.top, width:10, height:r.height };
+      } };
+      fly(row, ghost, b.color, n);
+    });
+  });
+}
+
+/* stock leaving the warehouse towards each store */
+function animateShipments(){
+  ['A','B'].forEach(function(s){
+    BAGS.forEach(function(b, i){
+      const n = (s === 'A' ? state.transit.A[i] : state.transit.B[i]);
+      if(n <= 0) return;
+      fly(el('wh-row-' + i), el(s + '-row-' + i), b.color, n);
+    });
+  });
+}
+
+/* =========================================================================
+   7. GUIDED HINTS — fade in over the first three weeks, one per new step
+   ========================================================================= */
+const HINTS = [
+  { id:'reveal',  week:1, step:'reveal',   anchor:function(){ return el('action-panel'); },
+    title:'1 — Reveal the demand',
+    text:'Each week, customers walk into both shops. You never know what they want until you reveal it. Start here.' },
+  { id:'demand',  week:1, step:'sell',     anchor:function(){ return el('panel-A'); },
+    title:'This is the demand',
+    text:'The "Dem." column shows what customers ask for in this store, bag by bag. Compare it with the stock just to its left.' },
+  { id:'sell',    week:1, step:'sell',     anchor:function(){ return el('action-panel'); },
+    title:'2 — Sell what you can',
+    text:'You serve demand from the stock already in that shop. Every bag sold earns 1 000 €. What you cannot serve is lost — it does not come back next week.' },
+  { id:'alloc',   week:1, step:'allocate', anchor:function(){ return el('action-panel'); },
+    title:'3 — Ship from the warehouse',
+    text:'Type how many pieces leave the central warehouse for each shop. They arrive at the start of next week, so you are always deciding one week ahead.' },
+  { id:'confirm', week:1, step:'confirm',  anchor:function(){ return el('action-panel'); },
+    title:'4 — Close the week',
+    text:'That is the full cycle. Twenty-five weeks, then the P&L is revealed.' },
+  { id:'counters', week:2, step:'sell',    anchor:function(){ return el('panel-A'); },
+    title:'Watch the two right-hand columns',
+    text:'"Sold" and "Missed" are running totals for the whole season, with this week\'s change underneath. A missed-sales counter climbing on one bag is your signal to move stock.' },
+  { id:'wh',      week:2, step:'allocate', anchor:function(){ return el('panel-wh'); },
+    title:'Your reserve',
+    text:'Everything still here is uncommitted — you can send it wherever demand actually shows up. But it earns nothing while it sits, and you already paid to produce it.' },
+  { id:'kpi',     week:3, step:'reveal',   anchor:function(){ return el('hdr-rev'); },
+    title:'Revenue only, for now',
+    text:'You see units and revenue during the game. Costs and the final profit stay hidden until week 25.' },
+  { id:'hist',    week:3, step:'confirm',  anchor:function(){ return el('hist'); },
+    title:'The full history',
+    text:'Every closed week is recorded here, and the Export button gives you the complete week-by-week data for the debrief.' }
+];
+
+let hintOpen = false;
+function maybeHint(){
+  if(hintOpen || !state || state.finished) return;
+  const h = HINTS.find(function(x){
+    return !state.hintsSeen[x.id] && x.week === state.week && x.step === state.step;
+  });
+  if(h) setTimeout(function(){ showHint(h); }, 260);
+}
+
+function showHint(h){
+  const anchor = h.anchor();
+  if(!anchor){ state.hintsSeen[h.id] = true; save(); return; }
+  hintOpen = true;
+
+  const mask = document.createElement('div');
+  mask.className = 'hint-mask';
+  const box = document.createElement('div');
+  box.className = 'hint';
+  box.innerHTML = '<h4>' + h.title + '</h4><p>' + h.text + '</p>';
+  const ok = document.createElement('button');
+  ok.textContent = 'Got it';
+  box.appendChild(ok);
+
+  el('hint-root').appendChild(mask);
+  el('hint-root').appendChild(box);
+
+  /* place under the anchor, flipping above if there is no room */
+  const r = anchor.getBoundingClientRect();
+  const bw = Math.min(330, window.innerWidth - 24);
+  let left = Math.min(Math.max(12, r.left), window.innerWidth - bw - 12);
+  let top = r.bottom + 12;
+  box.style.left = left + 'px';
+  const bh = box.offsetHeight;
+  if(top + bh > window.innerHeight - 12){
+    top = Math.max(12, r.top - bh - 12);
+    box.classList.add('above');
+  }else{
+    box.classList.add('below');
+  }
+  box.style.top = top + 'px';
+
+  const close = function(){
+    state.hintsSeen[h.id] = true;
+    save();
+    mask.remove(); box.remove();
+    hintOpen = false;
+    maybeHint();                     /* several hints can share a step */
+  };
+  ok.addEventListener('click', close);
+  mask.addEventListener('click', close);
+  ok.focus();
+}
+
+/* =========================================================================
+   8. EXPORT — one row per week x bag x location (a flat fact table, so the
+   reporting file can pivot it without special cases). Team and game names
+   repeat on every row, as requested.
+   ========================================================================= */
+function buildTable(){
+  const head = ['Team','Game','TargetSellThrough','StorePctAtSetup','ProducedPerBag','ProducedTotal',
+                'Week','Bag','Location','Opening','Received','Demand','Sold','Missed','ShippedOut','Closing',
+                'Revenue','LostRevenue'];
+  const s = state.setup;
+  const rows = state.log.map(function(r){
+    return [state.team, state.game, s.sellThrough + '%', s.storePct + '%', s.perBag, s.perBag * BAGS.length,
+            r.week, r.bag, r.loc, r.opening, r.received, r.demand, r.sold, r.missed, r.shipped, r.closing,
+            r.sold * ECON.price, r.missed * ECON.price];
+  });
   return [head].concat(rows);
+}
+
+/* A second, one-line summary table — handy for cross-team comparison. */
+function buildSummary(){
+  const t = totals(), s = state.setup;
+  const head = ['Team','Game','TargetSellThrough','StorePctAtSetup','Produced','Sold','Missed',
+                'Leftover','ActualSellThrough','Revenue','COGS','FixedCost','Profit'];
+  const row = [state.team, state.game, s.sellThrough + '%', s.storePct + '%', t.produced, t.sold, t.missed,
+               t.leftover, t.sellThrough.toFixed(1) + '%', t.revenue, t.cogs, t.fixed, t.profit];
+  return [head, row];
 }
 
 function toCSV(table){
   return table.map(function(row){
-    return row.map(function(cell){
-      const s = String(cell ?? '');
-      /* quote whenever the cell could confuse Excel */
-      return /[",;\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    return row.map(function(c){
+      const v = String(c === null || c === undefined ? '' : c);
+      return /[",;\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
     }).join(',');
   }).join('\r\n');
 }
-
 function toTSV(table){
   return table.map(function(row){
-    return row.map(function(cell){
-      /* tabs and newlines would break the paste — flatten them */
-      return String(cell ?? '').replace(/[\t\r\n]+/g, ' ');
+    return row.map(function(c){
+      return String(c === null || c === undefined ? '' : c).replace(/[\t\r\n]+/g, ' ');
     }).join('\t');
   }).join('\r\n');
 }
 
 function safeName(s){
-  return String(s).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'room';
+  return String(s).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'team';
 }
-
 function exportFilename(){
-  const d = new Date();
-  const pad = function(n){ return String(n).padStart(2, '0'); };
-  const stamp = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes());
-  return 'wheretostock_' + safeName(state.room) + '_'
-       + safeName(state.players.join('-')) + '_' + stamp + '.csv';
+  const d = new Date(), pad = function(n){ return String(n).padStart(2, '0'); };
+  return 'wheretostock_' + safeName(state.team) + '_' + safeName(state.game) + '_'
+       + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-'
+       + pad(d.getHours()) + pad(d.getMinutes()) + '.csv';
 }
 
 function downloadCSV(){
-  const csv = '\uFEFF' + toCSV(buildTable());   // BOM so Excel reads accents right
+  const csv = '﻿' + toCSV(buildTable());      /* BOM keeps Excel happy */
   try{
     const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url;
-    a.download = exportFilename();
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = exportFilename();
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
   }catch(err){
-    /* Corporate policy can block downloads from file:// — always leave a way out. */
-    showTextFallback('Download blocked — copy the CSV manually', csv);
+    showTextFallback('Download blocked — copy the data manually', csv);
   }
 }
 
-function copyResults(){
-  const tsv = toTSV(buildTable());
-  /* Try the modern API, then the old one, then show the text for manual copy. */
+function copyText(text, okMsg){
   const fallback = function(){
     const ta = document.createElement('textarea');
-    ta.value = tsv;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
     let ok = false;
-    try{ ok = document.execCommand('copy'); }catch(err){ ok = false; }
+    try{ ok = document.execCommand('copy'); }catch(e){ ok = false; }
     document.body.removeChild(ta);
-    if(ok) toast('Results copied — paste into Excel or Teams');
-    else   showTextFallback('Copy the results manually', tsv);
+    if(ok) toast(okMsg); else showTextFallback('Copy manually', text);
   };
-
   if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(tsv).then(
-      function(){ toast('Results copied — paste into Excel or Teams'); },
-      fallback
-    );
-  }else{
-    fallback();
-  }
-}
-
-/* ==========================================================================
-   8. MODALS / TOAST
-   ========================================================================== */
-function closeModal(){ el('modal-root').textContent = ''; }
-
-function openModal(build){
-  closeModal();
-  const back = document.createElement('div');
-  back.className = 'modal-back';
-  const box = document.createElement('div');
-  box.className = 'modal';
-  build(box);
-  back.appendChild(box);
-  back.addEventListener('click', function(e){ if(e.target === back) closeModal(); });
-  el('modal-root').appendChild(back);
-  const first = box.querySelector('button, textarea');
-  if(first) first.focus();
-}
-
-function askConfirm(opts){
-  openModal(function(box){
-    const h = document.createElement('h2'); h.textContent = opts.title; box.appendChild(h);
-    const p = document.createElement('p');  p.textContent = opts.body;  box.appendChild(p);
-    const row = document.createElement('div'); row.className = 'row-buttons';
-    const cancel = document.createElement('button');
-    cancel.textContent = 'Cancel';
-    cancel.addEventListener('click', closeModal);
-    const ok = document.createElement('button');
-    ok.className = opts.danger ? 'btn-danger btn-xl' : 'btn-primary btn-xl';
-    ok.textContent = opts.confirmLabel;
-    ok.addEventListener('click', function(){ closeModal(); opts.onConfirm(); });
-    row.appendChild(cancel); row.appendChild(ok);
-    box.appendChild(row);
-  });
-}
-
-function showTextFallback(title, text){
-  openModal(function(box){
-    const h = document.createElement('h2'); h.textContent = title; box.appendChild(h);
-    const p = document.createElement('p'); p.className = 'small muted';
-    p.textContent = 'Select everything below (Ctrl+A) and copy it (Ctrl+C).';
-    box.appendChild(p);
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.readOnly = true;
-    box.appendChild(ta);
-    const close = document.createElement('button');
-    close.className = 'btn-primary';
-    close.textContent = 'Close';
-    close.style.marginTop = '16px';
-    close.addEventListener('click', closeModal);
-    box.appendChild(close);
-    setTimeout(function(){ ta.focus(); ta.select(); }, 30);
-  });
+    navigator.clipboard.writeText(text).then(function(){ toast(okMsg); }, fallback);
+  }else fallback();
 }
 
 function openExport(){
   openModal(function(box){
     const h = document.createElement('h2'); h.textContent = 'Export results'; box.appendChild(h);
     const p = document.createElement('p'); p.className = 'muted';
-    p.textContent = state.room + ' — ' + state.players.join(', ') + ' — '
-                  + state.rounds.length + ' round(s) recorded.';
+    p.textContent = state.team + ' · ' + state.game + ' · ' + state.log.length
+                  + ' rows (' + (state.finished ? WEEKS : state.week - 1) + ' completed weeks).';
     box.appendChild(p);
 
-    const row = document.createElement('div'); row.className = 'row-buttons';
+    const r1 = document.createElement('div'); r1.className = 'row-buttons';
     const dl = document.createElement('button');
-    dl.className = 'btn-primary btn-xl';
-    dl.textContent = '⭳ Download CSV';
+    dl.className = 'btn-primary btn-xl'; dl.textContent = '⭳ Download CSV';
     dl.addEventListener('click', downloadCSV);
     const cp = document.createElement('button');
-    cp.className = 'btn-xl';
-    cp.textContent = '⧉ Copy results';
-    cp.addEventListener('click', copyResults);
-    row.appendChild(dl); row.appendChild(cp);
-    box.appendChild(row);
+    cp.className = 'btn-xl'; cp.textContent = '⧉ Copy all data';
+    cp.addEventListener('click', function(){ copyText(toTSV(buildTable()), 'All data copied — paste into Excel'); });
+    r1.appendChild(dl); r1.appendChild(cp);
+    box.appendChild(r1);
+
+    const p2 = document.createElement('p'); p2.className = 'small muted';
+    p2.style.margin = '16px 0 8px';
+    p2.textContent = 'One row per week × bag × location, with the team and game name on every row.';
+    box.appendChild(p2);
+
+    const cs = document.createElement('button');
+    cs.className = 'btn-ghost';
+    cs.textContent = '⧉ Copy the one-line summary instead';
+    cs.addEventListener('click', function(){ copyText(toTSV(buildSummary()), 'Summary copied'); });
+    box.appendChild(cs);
 
     const hr = document.createElement('div');
-    hr.style.cssText = 'border-top:2px solid var(--line-soft);margin:24px 0 18px;';
+    hr.style.cssText = 'border-top:2px solid var(--line-soft);margin:22px 0 16px;';
     box.appendChild(hr);
 
     const reset = document.createElement('button');
     reset.className = 'btn-danger';
-    reset.textContent = 'End session and start a new one…';
+    reset.textContent = 'Abandon this game and start again…';
     reset.addEventListener('click', function(){
       askConfirm({
-        title:'Erase this session?',
-        body:'All ' + state.rounds.length + ' round(s) for "' + state.room + '" will be deleted '
-           + 'from this computer. Export first if you have not already. This cannot be undone.',
-        confirmLabel:'Erase and start new',
-        danger:true,
-        onConfirm:function(){
-          clearSaved();
-          state = null;
-          showScreen('start');
-          el('resume-card').classList.add('hidden');
-          el('setup-card').classList.remove('hidden');
-          ['in-room','in-p1','in-p2','in-p3'].forEach(function(id){ el(id).value = ''; });
-          el('in-room').focus();
-        }
+        title:'Erase this game?',
+        body:'Everything played by "' + state.team + '" in "' + state.game
+           + '" will be deleted from this computer. Export first if you have not. This cannot be undone.',
+        confirmLabel:'Erase and start again', danger:true,
+        onConfirm:function(){ clearSaved(); state = null; resetToStart(); }
       });
     });
     box.appendChild(reset);
 
-    const close = document.createElement('button');
-    close.className = 'btn-ghost';
-    close.textContent = 'Close';
-    close.style.marginLeft = '12px';
-    close.addEventListener('click', closeModal);
-    box.appendChild(close);
+    const cl = document.createElement('button');
+    cl.className = 'btn-ghost'; cl.textContent = 'Close'; cl.style.marginLeft = '10px';
+    cl.addEventListener('click', closeModal);
+    box.appendChild(cl);
   });
 }
 
+/* =========================================================================
+   9. END SCREEN — the P&L reveal
+   ========================================================================= */
+function renderEnd(){
+  const t = totals(), s = state.setup;
+  el('end-who').textContent = state.team + ' · ' + state.game
+    + ' · target sell-through ' + s.sellThrough + '% · ' + s.storePct + '% to the shops at launch';
+
+  const perBag = BAGS.map(function(b, i){
+    const sold = state.sold.A[i] + state.sold.B[i];
+    const miss = state.missed.A[i] + state.missed.B[i];
+    const left = state.stock.W[i] + state.stock.A[i] + state.stock.B[i];
+    return { b:b, i:i, sold:sold, miss:miss, left:left };
+  });
+
+  let html = ''
+    + '<div class="stat">'
+    +   '<div><div class="k">Produced</div><div class="v">' + fmt(t.produced) + '</div></div>'
+    +   '<div><div class="k">Sold</div><div class="v">' + fmt(t.sold) + '</div></div>'
+    +   '<div><div class="k">Missed sales</div><div class="v" style="color:var(--warn)">' + fmt(t.missed) + '</div></div>'
+    +   '<div><div class="k">Left unsold</div><div class="v">' + fmt(t.leftover) + '</div></div>'
+    +   '<div><div class="k">Sell-through</div><div class="v">' + t.sellThrough.toFixed(1) + '%</div></div>'
+    +   '<div><div class="k">Target was</div><div class="v">' + s.sellThrough + '%</div></div>'
+    + '</div>'
+    + '<table class="pnl">'
+    +   '<tr><td>Revenue — ' + fmt(t.sold) + ' bags sold at 1 000 €</td><td>' + fmtE(t.revenue) + '</td></tr>'
+    +   '<tr class="neg"><td>Cost of goods — ' + fmt(t.produced) + ' bags produced at 200 €</td><td>− ' + fmtE(t.cogs) + '</td></tr>'
+    +   '<tr class="neg"><td>Fixed cost — 45% of forecast sales</td><td>− ' + fmtE(t.fixed) + '</td></tr>'
+    +   '<tr class="total' + (t.profit < 0 ? ' neg' : '') + '"><td>Profit</td><td>' + fmtE(t.profit) + '</td></tr>'
+    + '</table>'
+    + '<p class="muted">Those ' + fmt(t.missed) + ' missed sales were <b>' + fmtE(t.missed * ECON.price)
+    + '</b> of revenue that walked out of the shop. The ' + fmt(t.leftover)
+    + ' unsold bags cost <b>' + fmtE(t.leftover * ECON.cost) + '</b> to produce and earned nothing.</p>'
+    + '<div class="card"><h2>Bag by bag</h2><table class="h" style="width:100%">'
+    + '<thead><tr><th>Bag</th><th>Produced</th><th>Real demand</th><th>Sold</th><th>Missed</th><th>Left</th></tr></thead><tbody>';
+
+  perBag.forEach(function(r){
+    const realDemand = DEMAND[r.b.key].A.reduce(function(a, x){ return a + x; }, 0)
+                     + DEMAND[r.b.key].B.reduce(function(a, x){ return a + x; }, 0);
+    html += '<tr><td>' + bagIcon(r.i, 16) + ' <b>' + r.b.name + '</b></td>'
+          + '<td>' + s.perBag + '</td><td>' + realDemand + '</td><td>' + r.sold + '</td>'
+          + '<td style="color:var(--warn)">' + (r.miss || '') + '</td><td>' + r.left + '</td></tr>';
+  });
+  html += '</tbody></table>'
+        + '<p class="small muted" style="margin-top:12px;">The forecast was 100 per bag for all five. '
+        + 'Real demand was not.</p></div>'
+        + '<div class="row-buttons">'
+        + '<button class="btn-primary btn-xl" id="end-dl">⭳ Download CSV</button>'
+        + '<button class="btn-xl" id="end-copy">⧉ Copy all data</button>'
+        + '</div>'
+        + '<button class="btn-ghost" id="end-summary" style="margin-top:12px;">⧉ Copy the one-line summary</button>'
+        + '<button class="btn-ghost" id="end-new" style="margin-top:12px;margin-left:10px;">Start another game…</button>';
+
+  el('end-body').innerHTML = html;
+  el('end-dl').addEventListener('click', downloadCSV);
+  el('end-copy').addEventListener('click', function(){ copyText(toTSV(buildTable()), 'All data copied'); });
+  el('end-summary').addEventListener('click', function(){ copyText(toTSV(buildSummary()), 'Summary copied'); });
+  el('end-new').addEventListener('click', function(){
+    askConfirm({
+      title:'Start another game?',
+      body:'Export this one first if you have not — starting again erases it from this computer.',
+      confirmLabel:'Erase and start again', danger:true,
+      onConfirm:function(){ clearSaved(); state = null; resetToStart(); }
+    });
+  });
+}
+
+/* =========================================================================
+   10. MODAL / TOAST
+   ========================================================================= */
+function closeModal(){ el('modal-root').textContent = ''; }
+function openModal(build){
+  closeModal();
+  const back = document.createElement('div'); back.className = 'modal-back';
+  const box = document.createElement('div'); box.className = 'modal';
+  build(box); back.appendChild(box);
+  back.addEventListener('click', function(e){ if(e.target === back) closeModal(); });
+  el('modal-root').appendChild(back);
+  const f = box.querySelector('button, textarea'); if(f) f.focus();
+}
+function askConfirm(o){
+  openModal(function(box){
+    const h = document.createElement('h2'); h.textContent = o.title; box.appendChild(h);
+    const p = document.createElement('p'); p.textContent = o.body; box.appendChild(p);
+    const row = document.createElement('div'); row.className = 'row-buttons';
+    const c = document.createElement('button'); c.textContent = 'Cancel';
+    c.addEventListener('click', closeModal);
+    const k = document.createElement('button');
+    k.className = (o.danger ? 'btn-danger' : 'btn-primary') + ' btn-xl';
+    k.textContent = o.confirmLabel;
+    k.addEventListener('click', function(){ closeModal(); o.onConfirm(); });
+    row.appendChild(c); row.appendChild(k); box.appendChild(row);
+  });
+}
+function showTextFallback(title, text){
+  openModal(function(box){
+    const h = document.createElement('h2'); h.textContent = title; box.appendChild(h);
+    const p = document.createElement('p'); p.className = 'small muted';
+    p.textContent = 'Select everything below (Ctrl+A) then copy (Ctrl+C).';
+    box.appendChild(p);
+    const ta = document.createElement('textarea'); ta.value = text; ta.readOnly = true;
+    box.appendChild(ta);
+    const c = document.createElement('button'); c.className = 'btn-primary';
+    c.textContent = 'Close'; c.style.marginTop = '14px';
+    c.addEventListener('click', closeModal); box.appendChild(c);
+    setTimeout(function(){ ta.focus(); ta.select(); }, 30);
+  });
+}
 let toastTimer = null;
 function toast(msg){
-  let t = document.getElementById('toast');
+  let t = el('toast');
   if(!t){
-    t = document.createElement('div');
-    t.id = 'toast';
-    t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:110px;z-index:60;'
-      + 'background:#14171c;color:#fff;padding:16px 26px;border-radius:10px;font-weight:600;';
+    t = document.createElement('div'); t.id = 'toast';
+    t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:34px;z-index:80;'
+      + 'background:#12161b;color:#fff;padding:14px 24px;border-radius:10px;font-weight:700;';
     document.body.appendChild(t);
   }
-  t.textContent = msg;
-  t.style.display = 'block';
+  t.textContent = msg; t.style.display = 'block';
   clearTimeout(toastTimer);
   toastTimer = setTimeout(function(){ t.style.display = 'none'; }, 2600);
 }
 
-/* ==========================================================================
-   9. START-UP
-   ========================================================================== */
-function startNewSession(){
-  const room = el('in-room').value.trim();
-  const p = [el('in-p1').value.trim(), el('in-p2').value.trim(), el('in-p3').value.trim()];
-  const err = el('setup-error');
+/* =========================================================================
+   11. SETUP SCREEN
+   ========================================================================= */
+let draft = { sellThrough:null, storePct:null };
 
-  if(!room || p.some(function(x){ return !x; })){
-    err.textContent = 'Please fill in the room name and all three player names.';
-    err.classList.remove('hidden');
-    return;
+function renderSetupOptions(){
+  const st = el('opt-sellthrough');
+  st.textContent = '';
+  SELL_THROUGH_OPTIONS.forEach(function(v){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(draft.sellThrough === v));
+    b.innerHTML = '<span class="big">' + v + '%</span><span class="sub">'
+                + fmt(producedPerBag(v) * BAGS.length) + ' produced</span>';
+    b.addEventListener('click', function(){ draft.sellThrough = v; renderSetupOptions(); });
+    st.appendChild(b);
+  });
+
+  const sp = el('opt-split');
+  sp.textContent = '';
+  SPLIT_OPTIONS.forEach(function(v){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(draft.storePct === v));
+    b.innerHTML = '<span class="big">' + v + '%</span><span class="sub">to shops</span>';
+    b.addEventListener('click', function(){ draft.storePct = v; renderSetupOptions(); });
+    sp.appendChild(b);
+  });
+
+  /* live, explicit consequences of both choices */
+  const c1 = el('cons-sellthrough');
+  if(draft.sellThrough === null){
+    c1.textContent = 'Choose a target to see what gets produced.';
+  }else{
+    const per = producedPerBag(draft.sellThrough), tot = per * BAGS.length;
+    c1.innerHTML = 'You produce <b>' + per + '</b> pieces of each bag — <b>' + fmt(tot)
+      + '</b> in total, costing <b>' + fmtE(tot * ECON.cost) + '</b>.'
+      + (draft.sellThrough === 100
+          ? ' That is exactly the forecast: nothing spare anywhere.'
+          : ' That is <b>' + fmt(tot - FORECAST_PER_BAG * BAGS.length) + '</b> more than the forecast.');
   }
-  err.classList.add('hidden');
 
-  state = newState(room, p);
+  const c2 = el('cons-split');
+  if(draft.sellThrough === null || draft.storePct === null){
+    c2.textContent = draft.sellThrough === null
+      ? 'Choose a sell-through target first.'
+      : 'Choose a split to see where the stock goes.';
+  }else{
+    const per = producedPerBag(draft.sellThrough);
+    const sp2 = splitStock(per, draft.storePct);
+    c2.innerHTML = 'Per bag: <b>' + sp2.store + '</b> to Store A and <b>' + sp2.store
+      + '</b> to Store B, <b>' + sp2.central + '</b> kept central.<br>'
+      + 'Across the five bags: <b>' + fmt(sp2.store * BAGS.length) + '</b> units in each shop, <b>'
+      + fmt(sp2.central * BAGS.length) + '</b> units in the warehouse.';
+  }
+
+  el('btn-begin').disabled = (draft.sellThrough === null || draft.storePct === null);
+}
+
+function beginGame(){
+  const per = producedPerBag(draft.sellThrough);
+  const sp = splitStock(per, draft.storePct);
+  state.setup = { sellThrough:draft.sellThrough, storePct:draft.storePct,
+                  perBag:per, perStore:sp.store, central:sp.central };
+  BAGS.forEach(function(b, i){
+    state.stock.W[i] = sp.central;
+    /* the launch allocation is modelled as stock in transit so that week 1
+       records it as "received" — same path as every later shipment */
+    state.transit.A[i] = sp.store;
+    state.transit.B[i] = sp.store;
+  });
+  state.week = 1;
+  beginWeek();
+  scaleStore = 10; scaleWh = 10;
   save();
   showScreen('game');
   renderGame();
+  maybeHint();
+}
+
+/* =========================================================================
+   12. START-UP
+   ========================================================================= */
+function resetToStart(){
+  showScreen('start');
+  el('resume-card').classList.add('hidden');
+  el('setup-card').classList.remove('hidden');
+  el('in-team').value = '';
+  el('in-game').value = 'Run 1';
+  draft = { sellThrough:null, storePct:null };
+  el('in-team').focus();
+}
+
+function probeStorage(){
+  try{
+    localStorage.setItem(STORAGE_KEY + '.p', '1');
+    localStorage.removeItem(STORAGE_KEY + '.p');
+  }catch(err){
+    storageOK = false;
+    el('storage-warning').classList.remove('hidden');
+  }
 }
 
 function init(){
@@ -1102,67 +1466,71 @@ function init(){
 
   const saved = loadSaved();
   if(saved){
-    const cur = saved.rounds[saved.currentIndex] || saved.rounds[saved.rounds.length - 1];
-    el('resume-summary').textContent =
-      '"' + saved.room + '" — ' + (saved.players || []).join(', ')
-      + ' — currently on round ' + (cur ? cur.n : '?')
-      + ' (' + saved.rounds.length + ' round(s) recorded).';
+    el('resume-summary').textContent = saved.finished
+      ? '"' + saved.team + ' · ' + saved.game + '" — finished, P&L available.'
+      : '"' + saved.team + ' · ' + saved.game + '" — '
+        + (saved.setup ? 'week ' + saved.week + ' of ' + WEEKS : 'setup not finished yet') + '.';
     el('resume-card').classList.remove('hidden');
     el('setup-card').classList.add('hidden');
 
     el('btn-resume').addEventListener('click', function(){
       state = saved;
-      /* tolerate a file edited between sessions: add any new configured fields */
-      state.rounds.forEach(function(r){
-        CONFIG.fields.forEach(function(f){
-          if(f.type === 'computed') return;
-          if(!(f.key in r.values)) r.values[f.key] = (f.scope === 'player') ? ['','',''] : '';
-        });
-        r.unlocked = false;
-      });
-      showScreen('game');
-      renderGame();
+      if(!state.setup){ showScreen('setup'); el('setup-who').textContent = state.team + ' · ' + state.game; renderSetupOptions(); return; }
+      if(state.finished){ showScreen('end'); renderEnd(); return; }
+      showScreen('game'); renderGame();
     });
 
     el('btn-discard').addEventListener('click', function(){
       askConfirm({
-        title:'Delete the saved session?',
-        body:'"' + saved.room + '" has ' + saved.rounds.length + ' round(s) saved on this computer. '
-           + 'Starting a new session erases them for good.',
-        confirmLabel:'Yes, start a new session',
-        danger:true,
-        onConfirm:function(){
-          clearSaved();
-          el('resume-card').classList.add('hidden');
-          el('setup-card').classList.remove('hidden');
-          el('in-room').focus();
-        }
+        title:'Delete the saved game?',
+        body:'"' + saved.team + ' · ' + saved.game + '" is saved on this computer. Starting a new game erases it.',
+        confirmLabel:'Yes, start a new game', danger:true,
+        onConfirm:function(){ clearSaved(); resetToStart(); }
       });
     });
   }else{
-    el('in-room').focus();
+    el('in-team').focus();
   }
 
-  el('btn-start').addEventListener('click', startNewSession);
-  el('btn-next').addEventListener('click', nextRound);
-  el('btn-export').addEventListener('click', openExport);
+  el('btn-tosetup').addEventListener('click', function(){
+    const team = el('in-team').value.trim(), game = el('in-game').value.trim();
+    const err = el('start-error');
+    if(!team || !game){
+      err.textContent = 'Please fill in both the team name and the game name.';
+      err.classList.remove('hidden');
+      return;
+    }
+    err.classList.add('hidden');
+    state = newState(team, game);
+    save();
+    el('setup-who').textContent = team + ' · ' + game;
+    showScreen('setup');
+    renderSetupOptions();
+    window.scrollTo(0, 0);
+  });
 
-  /* Enter moves through the setup form and finally starts the session. */
-  ['in-room','in-p1','in-p2','in-p3'].forEach(function(id, idx, all){
+  el('btn-begin').addEventListener('click', beginGame);
+  el('btn-export').addEventListener('click', openExport);
+  el('btn-help').addEventListener('click', function(){
+    /* replay the guide from the current step */
+    state.hintsSeen = {};
+    save();
+    const h = HINTS.find(function(x){ return x.step === state.step; });
+    if(h) showHint(h); else toast('No guide for this step');
+  });
+
+  ['in-team','in-game'].forEach(function(id, idx, all){
     el(id).addEventListener('keydown', function(e){
       if(e.key !== 'Enter') return;
       if(idx < all.length - 1) el(all[idx + 1]).focus();
-      else startNewSession();
+      else el('btn-tosetup').click();
     });
   });
 
-  document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape') closeModal();
-  });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeModal(); });
 
-  /* Last-ditch protection against an accidental tab close mid-session. */
   window.addEventListener('beforeunload', function(e){
-    if(state && state.rounds.length){ e.preventDefault(); e.returnValue = ''; }
+    if(state && state.setup && !state.finished){ e.preventDefault(); e.returnValue = ''; }
   });
 }
 
