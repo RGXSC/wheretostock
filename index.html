@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Where to Stock — Launch Simulation</title>
@@ -115,7 +116,9 @@
   .consequence b{ font-variant-numeric:tabular-nums; font-size:20px; }
 
   /* --------------------------------------------------------- game header */
-  header.bar{ position:sticky; top:0; z-index:30; background:var(--surface);
+  /* NB: not called ".bar" — that class is the stock bars, and its
+     height/overflow would clip this header shut. */
+  header.topbar{ position:sticky; top:0; z-index:30; background:var(--surface);
               border-bottom:2px solid var(--line); }
   .bar-inner{ display:flex; align-items:center; gap:16px; flex-wrap:wrap;
               padding:10px 18px; max-width:1180px; margin:0 auto; }
@@ -156,8 +159,9 @@
   .panel + .panel{ margin-top:16px; }
   .panel.wh{ border-left:8px solid var(--ink-soft); }
   .panel.st{ border-left:8px solid var(--accent); }
-  .panel-head{ display:flex; align-items:baseline; gap:10px; margin-bottom:10px;
+  .panel-head{ display:flex; align-items:center; gap:11px; margin-bottom:10px;
                padding-bottom:8px; border-bottom:2px solid var(--line-soft); }
+  .panel-head svg.place{ flex:none; }
   .panel-head h3{ font-size:19px; }
   .panel-head .sub{ font-size:14px; color:var(--ink-soft); font-weight:600;
                     margin-left:auto; font-variant-numeric:tabular-nums; }
@@ -170,7 +174,7 @@
   .st .brow{ grid-template-columns:26px minmax(64px,1fr) 84px 52px 62px 62px; }
   .brow .nm{ font-size:15px; font-weight:700; white-space:nowrap;
              overflow:hidden; text-overflow:ellipsis; }
-  .bar{ height:9px; background:var(--line-soft); border-radius:5px; overflow:hidden; margin-top:3px; }
+  .bar{ height:9px; background:var(--line-soft); border-radius:5px; overflow:hidden; margin-top:3px; } /* stock bars only */
   .bar i{ display:block; height:100%; border-radius:5px; transition:width .35s ease; }
   .qty{ font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; text-align:right; }
   .qty.zero{ color:#c0392b; }
@@ -224,10 +228,39 @@
               position:sticky; top:0; background:var(--surface); }
   table.h td:first-child, table.h th:first-child{ text-align:left; }
 
+  /* ------------------------------------------------- decisions reminder */
+  .decisions{ display:flex; gap:8px; flex-wrap:wrap; padding:0 18px 10px;
+              max-width:1180px; margin:0 auto; }
+  .dchip{ font-size:13px; font-weight:700; background:var(--accent-soft); color:#0d3d5e;
+          border:1px solid #bcd6e8; border-radius:999px; padding:4px 13px; }
+  .dchip span{ font-weight:600; color:#4a6b83; }
+  .dchip b{ font-variant-numeric:tabular-nums; }
+
   /* --------------------------------------------------------- animation */
   #fly-layer{ position:fixed; inset:0; pointer-events:none; z-index:45; }
-  .fly{ position:absolute; width:13px; height:13px; border-radius:3px;
-        margin:-6px 0 0 -6px; opacity:.95; }
+  .fly{ position:absolute; width:22px; height:22px; border-radius:6px;
+        margin:-11px 0 0 -11px; display:grid; place-items:center;
+        box-shadow:0 3px 10px rgba(10,20,30,.35); }
+  .fly svg{ width:15px; height:15px; }
+  .fly.cust{ width:13px; height:13px; border-radius:50%; margin:-6.5px 0 0 -6.5px;
+            box-shadow:0 2px 6px rgba(10,20,30,.3); }
+
+  /* the reveal / sell / miss feedback — the numbers must be seen changing */
+  @keyframes pop{ 0%{ transform:scale(.35); opacity:0 } 55%{ transform:scale(1.35) }
+                  100%{ transform:scale(1); opacity:1 } }
+  .demandcell.pop{ animation:pop .45s cubic-bezier(.2,.9,.3,1.5) both; }
+  @keyframes bump{ 0%{ transform:scale(1) } 35%{ transform:scale(1.45); color:var(--live) }
+                   100%{ transform:scale(1) } }
+  .cell .v.bump{ display:inline-block; animation:bump .55s ease both; }
+  @keyframes flashmiss{ 0%,100%{ background:transparent } 35%{ background:#fbdfd3 } }
+  .cell.miss.flash{ animation:flashmiss .9s ease both; border-radius:6px; }
+  @keyframes glow{ 0%,100%{ box-shadow:0 0 0 0 rgba(15,107,69,0) }
+                   40%{ box-shadow:0 0 0 5px rgba(15,107,69,.22) } }
+  .brow.arrived{ animation:glow .8s ease both; border-radius:8px; }
+
+  /* step that was skipped because the warehouse is empty */
+  .step.skipped{ opacity:.5; }
+  .step.skipped .num{ background:var(--line); color:#fff; }
 
   /* -------------------------------------------------------------- hints */
   .hint{ position:fixed; z-index:60; max-width:330px; background:var(--ink);
@@ -347,7 +380,7 @@
 
 <!-- ========================================================== SCREEN: GAME -->
 <section id="screen-game" class="hidden">
-  <header class="bar">
+  <header class="topbar">
     <div class="bar-inner">
       <div class="weekbox"><span class="n" id="hdr-week">1</span><span class="of" id="hdr-of">of 13</span></div>
       <div class="bar-meta">
@@ -361,6 +394,8 @@
       <button id="btn-help" class="btn-ghost" title="Replay the guide">?</button>
     </div>
     <div class="steps" id="steps"></div>
+    <!-- the two locked setup decisions, kept in sight all game -->
+    <div class="decisions" id="decisions"></div>
   </header>
 
   <main class="wrap">
@@ -369,7 +404,7 @@
       <div>
         <div class="panel wh" id="panel-wh">
           <div class="panel-head">
-            <h3>⌂ Central warehouse</h3>
+            <svg class="place" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4d5560" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 9.5 12 4l10 5.5"/><path d="M4 9.5V20h16V9.5"/><path d="M9.5 20v-5.5h5V20"/><path d="M6.3 12.6h2M15.7 12.6h2"/></svg><h3>Central warehouse</h3>
             <span class="sub" id="wh-total">—</span>
           </div>
           <div class="colhead"><span></span><span>Bag</span><span>In stock</span></div>
@@ -380,14 +415,14 @@
       <!-- stores -->
       <div>
         <div class="panel st" id="panel-A">
-          <div class="panel-head"><h3>▤ Store A</h3><span class="sub" id="A-total">—</span></div>
+          <div class="panel-head"><svg class="place" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#12557f" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3.5 9.2h17V20h-17z"/><path d="M3.5 9.2 5 4.6h14l1.5 4.6"/><path d="M8 9.2V4.6M12 9.2V4.6M16 9.2V4.6"/><path d="M6.3 20v-5.4h4.4V20"/><path d="M13.6 13.8h4.1v3.4h-4.1z"/></svg><h3>Store A</h3><span class="sub" id="A-total">—</span></div>
           <div class="colhead">
             <span></span><span>Bag</span><span>Stock</span><span>Dem.</span><span>Sold</span><span>Missed</span>
           </div>
           <div id="A-rows"></div>
         </div>
         <div class="panel st" id="panel-B">
-          <div class="panel-head"><h3>▤ Store B</h3><span class="sub" id="B-total">—</span></div>
+          <div class="panel-head"><svg class="place" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#12557f" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3.5 9.2h17V20h-17z"/><path d="M3.5 9.2 5 4.6h14l1.5 4.6"/><path d="M8 9.2V4.6M12 9.2V4.6M16 9.2V4.6"/><path d="M6.3 20v-5.4h4.4V20"/><path d="M13.6 13.8h4.1v3.4h-4.1z"/></svg><h3>Store B</h3><span class="sub" id="B-total">—</span></div>
           <div class="colhead">
             <span></span><span>Bag</span><span>Stock</span><span>Dem.</span><span>Sold</span><span>Missed</span>
           </div>
@@ -608,7 +643,11 @@ function doSell(){
       state.revenue += sold * ECON.price;
     });
   });
-  state.step = 'allocate';
+  /* Nothing left to ship means nothing to decide — don't make them click
+     through an empty table every week for the rest of the season. */
+  const warehouseEmpty = state.stock.W.reduce(function(a, b){ return a + b; }, 0) === 0;
+  state.skippedAlloc = warehouseEmpty;
+  state.step = warehouseEmpty ? 'confirm' : 'allocate';
   save();
 }
 
@@ -660,6 +699,7 @@ function closeWeek(){
   beginWeek();
   save();
   renderGame();
+  animateArrivals({ A:state.weekOpen.recvA, B:state.weekOpen.recvB });
   maybeHint();
 }
 
@@ -727,6 +767,7 @@ function renderGame(){
   el('hdr-rev').textContent    = fmtE(state.revenue);
 
   renderSteps();
+  renderDecisions();
   renderWarehouse();
   renderStore('A');
   renderStore('B');
@@ -739,12 +780,28 @@ function renderSteps(){
   host.textContent = '';
   const cur = STEPS.findIndex(function(s){ return s.key === state.step; });
   STEPS.forEach(function(s, i){
+    /* the shipping step is skipped outright when the warehouse is empty */
+    const skipped = (s.key === 'allocate' && state.skippedAlloc && cur >= 3);
     const d = document.createElement('div');
-    d.className = 'step' + (i === cur ? ' active' : (i < cur ? ' done' : ''));
+    d.className = 'step' + (skipped ? ' skipped' : (i === cur ? ' active' : (i < cur ? ' done' : '')));
     d.id = 'step-' + s.key;
-    d.innerHTML = '<span class="num">' + (i < cur ? '✓' : (i + 1)) + '</span><span>' + s.label + '</span>';
+    d.innerHTML = '<span class="num">' + (skipped ? '–' : (i < cur ? '✓' : (i + 1))) + '</span>'
+                + '<span>' + (skipped ? 'Warehouse empty' : s.label) + '</span>';
     host.appendChild(d);
   });
+}
+
+/* The two locked setup decisions, restated on every screen of the game so
+   teams can see what they committed to while they live with it. */
+function renderDecisions(){
+  const s = state.setup;
+  if(!s) return;
+  el('decisions').innerHTML =
+      '<span class="dchip"><span>Target sell-through</span> <b>' + s.sellThrough + '%</b></span>'
+    + '<span class="dchip"><span>Produced</span> <b>' + fmt(s.perBag * BAGS.length) + '</b> <span>('
+      + s.perBag + ' per bag)</span></span>'
+    + '<span class="dchip"><span>At launch</span> <b>' + s.storePct + '%</b> <span>to the shops — '
+      + s.perStore + ' per bag each, ' + s.central + ' central</span></span>';
 }
 
 function renderWarehouse(){
@@ -781,12 +838,12 @@ function renderStore(s){
     r.innerHTML =
       bagIcon(i, 24) +
       '<div class="nm">' + b.name + '</div>' +
-      '<div><div class="bar"><i style="width:' + (state.stock[s][i] / scaleStore * 100) + '%;background:' + b.color + '"></i></div>' +
+      '<div id="' + s + '-stock-' + i + '"><div class="bar"><i style="width:' + (state.stock[s][i] / scaleStore * 100) + '%;background:' + b.color + '"></i></div>' +
         '<div class="qty' + (state.stock[s][i] === 0 ? ' zero' : '') + '" style="font-size:17px">' + fmt(state.stock[s][i]) + '</div></div>' +
-      '<div class="demandcell' + (revealed ? '' : ' hid') + '">' + (revealed ? d : '?') + '</div>' +
-      '<div class="cell"><div class="v">' + fmt(state.sold[s][i]) + '</div>' +
+      '<div class="demandcell' + (revealed ? '' : ' hid') + '" id="' + s + '-dem-' + i + '">' + (revealed ? d : '?') + '</div>' +
+      '<div class="cell" id="' + s + '-sold-' + i + '"><div class="v">' + fmt(state.sold[s][i]) + '</div>' +
         (ls > 0 ? '<div class="d">+' + ls + '</div>' : '') + '</div>' +
-      '<div class="cell miss"><div class="v' + (state.missed[s][i] === 0 ? ' dim' : '') + '">' + fmt(state.missed[s][i]) + '</div>' +
+      '<div class="cell miss" id="' + s + '-miss-' + i + '"><div class="v' + (state.missed[s][i] === 0 ? ' dim' : '') + '">' + fmt(state.missed[s][i]) + '</div>' +
         (lm > 0 ? '<div class="d">+' + lm + '</div>' : '') + '</div>';
     host.appendChild(r);
   });
@@ -805,7 +862,7 @@ function renderAction(){
     p.textContent = 'Reveal what customers ask for in each store this week.';
     host.appendChild(h); host.appendChild(p);
     host.appendChild(bigButton('Reveal demand', function(){
-      state.step = 'sell'; save(); renderGame(); maybeHint();
+      state.step = 'sell'; save(); renderGame(); animateDemand(); maybeHint();
     }));
     return;
   }
@@ -852,7 +909,9 @@ function renderAction(){
   h.textContent = last ? 'Week 25 complete' : 'Week ' + state.week + ' complete';
   p.textContent = last
     ? 'The season is over. Reveal the P&L to see how the launch actually performed.'
-    : 'Shipped stock is in transit and arrives at the start of week ' + (state.week + 1) + '.';
+    : (state.skippedAlloc
+        ? 'The central warehouse is empty — there is nothing left to ship. Whatever is in the shops is all you have.'
+        : 'Shipped stock is in transit and arrives at the start of week ' + (state.week + 1) + '.');
   host.appendChild(h); host.appendChild(p);
   const b = bigButton(last ? 'Reveal the P&L' : 'Start week ' + (state.week + 1) + ' →', closeWeek);
   b.id = 'btn-nextweek';
@@ -973,54 +1032,112 @@ function renderHistory(){
 /* =========================================================================
    6. ANIMATION — short, decorative, never blocks the interface
    ========================================================================= */
-function fly(fromEl, toEl, color, count){
-  if(!fromEl || !toEl || count <= 0) return;
+/* One flying piece per unit (capped), carrying the bag's own silhouette so
+   the movement is readable rather than an abstract dot. */
+function fly(fromEl, toEl, opts){
+  if(!fromEl || !toEl || opts.count <= 0) return;
   const a = fromEl.getBoundingClientRect(), b = toEl.getBoundingClientRect();
-  const n = Math.min(count, 5);
+  const n = Math.min(opts.count, 8);
   const layer = el('fly-layer');
+  const dur = opts.duration || 520;
+
   for(let i = 0; i < n; i++){
     const d = document.createElement('div');
-    d.className = 'fly';
-    d.style.background = color;
-    d.style.left = (a.left + a.width * 0.75) + 'px';
-    d.style.top  = (a.top + a.height / 2) + 'px';
+    d.className = 'fly' + (opts.customer ? ' cust' : '');
+    d.style.background = opts.color;
+    /* small spread so a batch does not overlap into a single blob */
+    const jx = (i % 3 - 1) * 7, jy = (Math.floor(i / 3) % 2 - 0.5) * 9;
+    d.style.left = (a.left + a.width * 0.55 + jx) + 'px';
+    d.style.top  = (a.top + a.height / 2 + jy) + 'px';
+    if(opts.shape !== undefined){
+      d.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" '
+                  + 'stroke-linejoin="round" stroke-linecap="round"><path d="'
+                  + BAG_SHAPES[opts.shape] + '"/></svg>';
+    }
+    d.style.transform = 'scale(.5)';
+    d.style.opacity = '0';
     layer.appendChild(d);
-    const dx = (b.left + b.width * 0.4) - (a.left + a.width * 0.75);
-    const dy = (b.top + b.height / 2) - (a.top + a.height / 2);
-    /* stagger a little so a batch reads as several pieces, not one blob */
+
+    /* Land in a small cloud rather than stacked on one point, and clear of
+       the figure itself — the number underneath has to stay readable. */
+    const lx = (i % 3 - 1) * 13 - 4, ly = (Math.floor(i / 3) % 2 - 0.5) * 15;
+    const dx = (b.left + b.width * 0.5 + lx) - (a.left + a.width * 0.55 + jx);
+    const dy = (b.top + b.height / 2 + ly) - (a.top + a.height / 2 + jy);
+
     setTimeout(function(){
-      d.style.transition = 'transform 400ms cubic-bezier(.4,0,.2,1), opacity 400ms';
-      d.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-      d.style.opacity = '0.15';
-    }, i * 45);
-    setTimeout(function(){ d.remove(); }, 500 + i * 45);
+      d.style.transition = 'transform ' + dur + 'ms cubic-bezier(.35,.05,.25,1), opacity 140ms';
+      d.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(1)';
+      d.style.opacity = '1';
+      /* start fading before arrival so pieces never sit on top of the number */
+      setTimeout(function(){
+        d.style.transition = 'transform 200ms ease, opacity 200ms ease';
+        d.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(.35)';
+        d.style.opacity = '0';
+      }, dur - 190);
+    }, i * 55);
+    setTimeout(function(){ d.remove(); }, dur + 260 + i * 55);
   }
 }
 
-/* stock leaving the shelves towards the customers (rightwards, off-panel) */
-function animateSales(){
+/* Customers arriving: dark dots fly in from off-panel to the demand column,
+   and the demand figure pops as it lands. */
+function animateDemand(){
   ['A','B'].forEach(function(s){
     BAGS.forEach(function(b, i){
-      const n = state.lastSold[s][i];
-      if(n <= 0) return;
-      const row = el(s + '-row-' + i);
-      if(!row) return;
-      const r = row.getBoundingClientRect();
+      const d = demandOf(i, s, state.week);
+      const cell = el(s + '-dem-' + i);
+      if(!cell) return;
+      setTimeout(function(){ cell.classList.add('pop'); }, i * 55);
+      if(d <= 0) return;
+      const panel = el('panel-' + s).getBoundingClientRect();
+      const r = cell.getBoundingClientRect();
       const ghost = { getBoundingClientRect:function(){
-        return { left:r.right + 60, top:r.top, width:10, height:r.height };
+        return { left:panel.right + 30, top:r.top, width:12, height:r.height };
       } };
-      fly(row, ghost, b.color, n);
+      fly(ghost, cell, { color:'#3b4652', count:d, customer:true, duration:460 });
     });
   });
 }
 
-/* stock leaving the warehouse towards each store */
+/* The sale itself: bags leave the shelf and land on the Sold counter, which
+   bumps. Anything unserved flashes on the Missed counter instead. */
+function animateSales(){
+  ['A','B'].forEach(function(s){
+    BAGS.forEach(function(b, i){
+      const n  = state.lastSold[s][i];
+      const lm = state.lastMissed[s][i];
+      if(n > 0){
+        fly(el(s + '-stock-' + i), el(s + '-sold-' + i), { color:b.color, count:n, shape:i });
+        const v = el(s + '-sold-' + i).querySelector('.v');
+        if(v) setTimeout(function(){ v.classList.add('bump'); }, 420);
+      }
+      if(lm > 0){
+        const cell = el(s + '-miss-' + i);
+        if(cell) setTimeout(function(){ cell.classList.add('flash'); }, 200);
+      }
+    });
+  });
+}
+
+/* Stock leaving the warehouse for each shop. */
 function animateShipments(){
   ['A','B'].forEach(function(s){
     BAGS.forEach(function(b, i){
-      const n = (s === 'A' ? state.transit.A[i] : state.transit.B[i]);
+      const n = state.transit[s][i];
       if(n <= 0) return;
-      fly(el('wh-row-' + i), el(s + '-row-' + i), b.color, n);
+      fly(el('wh-row-' + i), el(s + '-stock-' + i), { color:b.color, count:n, shape:i, duration:640 });
+    });
+  });
+}
+
+/* Arrivals landing at the start of a week — a short glow on the rows that
+   actually received something, so the delivery is not silent. */
+function animateArrivals(recv){
+  ['A','B'].forEach(function(s){
+    BAGS.forEach(function(b, i){
+      if(!recv[s] || recv[s][i] <= 0) return;
+      const row = el(s + '-row-' + i);
+      if(row) row.classList.add('arrived');
     });
   });
 }
@@ -1558,7 +1675,31 @@ function init(){
     });
   });
 
-  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeModal(); });
+  /* Enter always confirms whatever is in front of you: a guide bubble, the
+     setup screen, or the current step of the week (including the shipping
+     table, so figures can be typed and committed without reaching for the
+     mouse). */
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){ closeModal(); return; }
+    if(e.key !== 'Enter' || e.shiftKey) return;
+
+    if(el('modal-root').firstChild) return;          /* modals focus their own button */
+
+    if(hintOpen){
+      const hb = document.querySelector('.hint button');
+      if(hb){ e.preventDefault(); hb.click(); }
+      return;
+    }
+    if(!el('screen-setup').classList.contains('hidden')){
+      const bb = el('btn-begin');
+      if(bb && !bb.disabled){ e.preventDefault(); bb.click(); }
+      return;
+    }
+    if(!el('screen-game').classList.contains('hidden')){
+      const ab = document.querySelector('#action-panel button.btn-primary');
+      if(ab && !ab.disabled){ e.preventDefault(); ab.click(); }
+    }
+  });
 
   window.addEventListener('beforeunload', function(e){
     if(state && state.setup && !state.finished){ e.preventDefault(); e.returnValue = ''; }
