@@ -1,0 +1,1170 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where to Stock — Training Game</title>
+
+<!--
+  ============================================================================
+  WHERE TO STOCK — standalone training game
+  ----------------------------------------------------------------------------
+  ONE file. No network, no build step, no external resource of any kind.
+  Open it by double-clicking (file://). Works offline and from OneDrive.
+
+  HOW TO CHANGE THE GAME RULES
+  ----------------------------
+  Everything the facilitator cares about lives in the CONFIG object at the top
+  of the <script> block:
+      CONFIG.plannedRounds  -> how many rounds the session is meant to last
+      CONFIG.fields         -> the columns of every round (what people fill in)
+  Add / remove / reorder entries in CONFIG.fields and the whole app follows:
+  the round cards, the CSV export and the clipboard export are all generated
+  from it. You should not need to touch the engine below.
+  ============================================================================
+-->
+
+<style>
+  /* ---------------------------------------------------------------- tokens */
+  :root{
+    --bg:        #f4f5f7;
+    --surface:   #ffffff;
+    --ink:       #14171c;   /* near-black, high contrast on white          */
+    --ink-soft:  #4d5560;
+    --line:      #c9cfd8;
+    --line-soft: #e3e7ec;
+    --accent:    #10508a;   /* sober corporate blue                        */
+    --accent-ink:#ffffff;
+    --live:      #0a7d4a;   /* the "this round is live" colour             */
+    --warn:      #9a3412;
+    --radius:    10px;
+  }
+
+  /* ------------------------------------------------------------------ base */
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size:19px;            /* readable from a metre away */
+    line-height:1.45;
+  }
+  h1,h2,h3{ margin:0; font-weight:700; letter-spacing:-0.01em; }
+  .wrap{ max-width:900px; margin:0 auto; padding:0 20px; }
+  .hidden{ display:none !important; }
+  .muted{ color:var(--ink-soft); }
+  .small{ font-size:15px; }
+
+  /* --------------------------------------------------------------- buttons */
+  button{
+    font:inherit; font-weight:600;
+    border:2px solid var(--line);
+    background:var(--surface);
+    color:var(--ink);
+    border-radius:var(--radius);
+    padding:14px 20px;
+    min-height:56px;                 /* big tap target */
+    cursor:pointer;
+  }
+  button:hover:not(:disabled){ border-color:var(--accent); }
+  button:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
+  button:disabled{ opacity:.45; cursor:not-allowed; }
+  .btn-primary{
+    background:var(--accent); color:var(--accent-ink); border-color:var(--accent);
+  }
+  .btn-primary:hover:not(:disabled){ filter:brightness(1.12); }
+  .btn-danger{ color:var(--warn); border-color:#e2b7a6; }
+  .btn-ghost{                        /* discreet controls (e.g. unlock) */
+    min-height:40px; padding:6px 12px; font-size:15px; font-weight:600;
+    border-color:var(--line-soft); color:var(--ink-soft); background:transparent;
+  }
+  .btn-xl{ font-size:24px; min-height:72px; padding:18px 34px; }
+
+  /* --------------------------------------------------------------- inputs  */
+  input[type=text], input[type=number], textarea{
+    font:inherit;
+    width:100%;
+    padding:14px 16px;
+    min-height:58px;
+    border:2px solid var(--line);
+    border-radius:var(--radius);
+    background:var(--surface);
+    color:var(--ink);
+  }
+  input:focus, textarea:focus{ outline:3px solid var(--accent); outline-offset:1px; }
+  /* kill the tiny native spinners — we use big -/+ buttons instead */
+  input[type=number]{ -moz-appearance:textfield; appearance:textfield; text-align:center; font-variant-numeric:tabular-nums; }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  input:disabled, textarea:disabled{
+    background:#f7f8fa; color:var(--ink); border-color:var(--line-soft);
+    -webkit-text-fill-color:var(--ink);   /* keep read-only text legible */
+    opacity:1;
+  }
+  label{ display:block; font-weight:600; margin-bottom:6px; }
+
+  /* -------------------------------------------------------------- start UI */
+  #screen-start{ padding:40px 0 80px; }
+  .card{
+    background:var(--surface);
+    border:2px solid var(--line-soft);
+    border-radius:var(--radius);
+    padding:26px;
+    margin-bottom:22px;
+  }
+  .card h2{ font-size:26px; margin-bottom:6px; }
+  .field{ margin-bottom:20px; }
+  .row-buttons{ display:flex; gap:14px; flex-wrap:wrap; }
+  .row-buttons > *{ flex:1 1 220px; }
+  .banner{
+    border:2px solid #e4c98a; background:#fdf6e3; color:#5a4413;
+    border-radius:var(--radius); padding:14px 18px; margin-bottom:22px;
+  }
+
+  /* ------------------------------------------------------------ game header */
+  header.bar{
+    position:sticky; top:0; z-index:20;
+    background:var(--surface);
+    border-bottom:2px solid var(--line);
+  }
+  .bar-inner{
+    display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+    padding:14px 20px; max-width:900px; margin:0 auto;
+  }
+  .round-badge{
+    display:flex; align-items:baseline; gap:10px;
+    padding:6px 18px; border-radius:var(--radius);
+    background:var(--live); color:#fff;
+  }
+  .round-badge .n{ font-size:40px; font-weight:800; line-height:1; }
+  .round-badge .of{ font-size:16px; opacity:.9; }
+  .bar-meta{ flex:1 1 240px; min-width:0; }
+  .bar-meta .room{ font-size:21px; font-weight:700; }
+  .bar-meta .players{ font-size:15px; color:var(--ink-soft); }
+
+  /* -------------------------------------------------------------- rounds   */
+  main{ padding:24px 0 200px; }
+  .round{
+    background:var(--surface);
+    border:2px solid var(--line-soft);
+    border-left:8px solid var(--line);
+    border-radius:var(--radius);
+    padding:20px 24px;
+    margin-bottom:18px;
+  }
+  .round.live{ border-color:var(--live); border-left-color:var(--live); }
+  .round.locked{ background:#fbfcfd; }
+  .round-head{
+    display:flex; align-items:center; gap:14px;
+    margin-bottom:16px; padding-bottom:12px;
+    border-bottom:2px solid var(--line-soft);
+  }
+  .round-head .title{ font-size:23px; font-weight:800; flex:1 1 auto; }
+  .tag{
+    font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+    padding:4px 10px; border-radius:6px;
+  }
+  .tag.live{ background:var(--live); color:#fff; }
+  .tag.locked{ background:var(--line-soft); color:var(--ink-soft); }
+  .tag.open{ background:#fdf6e3; color:#5a4413; border:1px solid #e4c98a; }
+
+  .field-block{ margin-bottom:22px; }
+  .field-block:last-child{ margin-bottom:4px; }
+  .field-block > .hint{ font-size:15px; color:var(--ink-soft); margin:-2px 0 8px; }
+
+  /* one sub-input per player, side by side, wrapping on narrow screens */
+  .player-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:700px){ .player-grid{ grid-template-columns:1fr; } }
+  .player-cell .who{
+    font-size:15px; font-weight:700; color:var(--ink-soft);
+    margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  /* number field = big minus / input / big plus */
+  .stepper{ display:flex; gap:10px; }
+  .stepper button{ width:64px; min-width:64px; font-size:26px; padding:0; }
+  .stepper input{ flex:1 1 auto; }
+
+  /* choice field = row of big toggle buttons */
+  .choices{ display:flex; gap:12px; flex-wrap:wrap; }
+  .choices button{ flex:1 1 160px; }
+  .choices button[aria-pressed="true"]{
+    background:var(--accent); color:var(--accent-ink); border-color:var(--accent);
+  }
+
+  /* a passed round collapses to a compact, read-only summary row:
+     all the data stays on screen for the debrief, without the scroll */
+  .summary{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+    gap:14px 28px;
+  }
+  .sum-item .k{
+    font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--ink-soft);
+  }
+  .sum-item .v{ font-size:23px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .sum-item .v.empty{ color:var(--line); font-weight:600; }
+  .sum-item .v.text{ font-size:18px; font-weight:600; }
+  .sum-item .who{ font-size:13px; font-weight:600; color:var(--ink-soft); }
+  .sum-item .sep{ color:var(--line); margin:0 8px; }
+
+  .computed{
+    display:inline-block; font-size:28px; font-weight:800;
+    font-variant-numeric:tabular-nums;
+    padding:10px 20px; border:2px dashed var(--line); border-radius:var(--radius);
+    background:#f7f8fa;
+  }
+
+  /* --------------------------------------------------------- bottom action */
+  .footbar{
+    position:fixed; left:0; right:0; bottom:0; z-index:20;
+    background:var(--surface); border-top:2px solid var(--line);
+    padding:14px 20px;
+  }
+  .footbar-inner{
+    max-width:900px; margin:0 auto;
+    display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+  }
+  .footbar .btn-xl{ flex:1 1 320px; }
+
+  /* ---------------------------------------------------------------- modal  */
+  .modal-back{
+    position:fixed; inset:0; z-index:50;
+    background:rgba(15,20,28,.55);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal{
+    background:var(--surface); border-radius:var(--radius);
+    max-width:640px; width:100%; padding:28px;
+    max-height:90vh; overflow:auto;
+  }
+  .modal h2{ font-size:26px; margin-bottom:10px; }
+  .modal p{ margin:0 0 20px; }
+  .modal textarea{ min-height:220px; font-family:ui-monospace,Consolas,monospace; font-size:14px; }
+
+  @media print{ .footbar, header.bar button{ display:none; } }
+</style>
+
+<!-- ======================================================== START SCREEN -->
+<section id="screen-start" class="wrap">
+  <h1 style="font-size:34px;margin-bottom:6px;">Where to Stock</h1>
+  <p class="muted" style="margin-top:0;">Turn-based team training game — one screen per room.</p>
+
+  <div id="storage-warning" class="banner hidden">
+    <strong>Heads-up:</strong> this browser is not letting the page save locally.
+    The session will still work, but nothing will be recovered if the tab is closed.
+    Export your results before finishing.
+  </div>
+
+  <!-- Shown only when a previous session is found in localStorage -->
+  <div id="resume-card" class="card hidden">
+    <h2>A session already exists on this computer</h2>
+    <p id="resume-summary" class="muted"></p>
+    <div class="row-buttons">
+      <button id="btn-resume" class="btn-primary btn-xl">Resume session</button>
+      <button id="btn-discard" class="btn-danger">Start new session…</button>
+    </div>
+  </div>
+
+  <!-- New-session form -->
+  <div id="setup-card" class="card">
+    <h2>New session</h2>
+    <p class="muted small">Filled in once, kept for the whole session.</p>
+    <div class="field">
+      <label for="in-room">Room name</label>
+      <input id="in-room" type="text" autocomplete="off" placeholder="e.g. Room 3 — Antwerp">
+    </div>
+    <div class="field">
+      <label for="in-p1">Player 1</label>
+      <input id="in-p1" type="text" autocomplete="off" placeholder="First name">
+    </div>
+    <div class="field">
+      <label for="in-p2">Player 2</label>
+      <input id="in-p2" type="text" autocomplete="off" placeholder="First name">
+    </div>
+    <div class="field">
+      <label for="in-p3">Player 3</label>
+      <input id="in-p3" type="text" autocomplete="off" placeholder="First name">
+    </div>
+    <p id="setup-error" class="hidden" style="color:var(--warn);font-weight:600;"></p>
+    <button id="btn-start" class="btn-primary btn-xl" style="width:100%;">Start round 1</button>
+  </div>
+</section>
+
+<!-- ========================================================= GAME SCREEN -->
+<section id="screen-game" class="hidden">
+  <header class="bar">
+    <div class="bar-inner">
+      <div class="round-badge">
+        <span class="n" id="hdr-round">1</span>
+        <span class="of" id="hdr-of">of 8</span>
+      </div>
+      <div class="bar-meta">
+        <div class="room" id="hdr-room">—</div>
+        <div class="players" id="hdr-players">—</div>
+      </div>
+      <button id="btn-export" class="btn-ghost">Export &amp; results</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="rounds"><!-- one .round card per round, oldest first --></div>
+  </main>
+
+  <div class="footbar">
+    <div class="footbar-inner">
+      <button id="btn-next" class="btn-primary btn-xl">Next round &rarr;</button>
+      <span class="small muted" id="save-note">Saved automatically</span>
+    </div>
+  </div>
+</section>
+
+<div id="modal-root"></div>
+
+<script>
+"use strict";
+
+/* ==========================================================================
+   1. CONFIG — the game rules live here. Edit this, not the engine.
+   ==========================================================================
+   Each entry of CONFIG.fields becomes a block inside every round card and a
+   column (or three) in the exports.
+
+   field = {
+     key    : unique id, used as the storage key and the CSV header stem
+     label  : what people read on screen
+     hint   : optional one-line explanation under the label
+     scope  : 'team'   -> a single value for the room
+              'player' -> one value per player (3 inputs, 3 CSV columns)
+     type   : 'number' -> big  -  [ 12 ]  +  control
+              'choice' -> row of big toggle buttons (needs `options`)
+              'text'   -> free text line
+              'computed' -> read-only, derived by `compute` (never typed in)
+     options: ['A','B'] — for type 'choice' only
+     step   : increment used by the -/+ buttons of a 'number' field (default 1)
+     min/max: optional clamp for 'number'
+     compute: (values, ctx) => value — for type 'computed' only.
+              `values` is the round's raw values object:
+                 values[key]        for scope 'team'
+                 values[key][i]     for scope 'player' (i = 0,1,2)
+              `ctx` = { roundNumber, players }
+   }
+
+   ---------------------------------------------------------------------------
+   PLACEHOLDER RULES — replace with the real ones.
+   They exercise every field type so you can see what each looks like.
+   --------------------------------------------------------------------------- */
+const CONFIG = {
+  plannedRounds: 8,          // shown as "Round 3 of 8"; extra rounds are allowed
+  warnOnEmptyRound: true,    // ask for confirmation if the live round is blank
+
+  fields: [
+    {
+      key:'demand', label:'Demand announced', scope:'team', type:'number',
+      hint:'Read out by the facilitator at the start of the round.',
+      step:10, min:0
+    },
+    {
+      key:'order', label:'Units ordered', scope:'player', type:'number',
+      hint:'Each player commits to a quantity, without consulting the others.',
+      step:10, min:0
+    },
+    {
+      key:'total', label:'Total ordered by the room', scope:'team', type:'computed',
+      compute: function(values){
+        var sum = 0, any = false;
+        (values.order || []).forEach(function(v){
+          if(v !== '' && v !== null && v !== undefined){ sum += Number(v)||0; any = true; }
+        });
+        return any ? sum : '';
+      }
+    },
+    {
+      key:'gap', label:'Gap vs demand', scope:'team', type:'computed',
+      hint:'Total ordered minus demand. Positive = overstock.',
+      compute: function(values){
+        var d = values.demand;
+        if(d === '' || d === null || d === undefined) return '';
+        var sum = 0, any = false;
+        (values.order || []).forEach(function(v){
+          if(v !== '' && v !== null && v !== undefined){ sum += Number(v)||0; any = true; }
+        });
+        if(!any) return '';
+        var g = sum - Number(d);
+        return (g > 0 ? '+' : '') + g;
+      }
+    },
+    {
+      key:'strategy', label:'Strategy chosen', scope:'team', type:'choice',
+      hint:'One answer for the room — agree out loud.',
+      options:['Centralise','Split evenly','Follow the leader','Improvise']
+    },
+    {
+      key:'notes', label:'Debrief note', scope:'team', type:'text',
+      hint:'One sentence: what drove the decision?'
+    }
+  ]
+};
+
+/* ==========================================================================
+   2. STATE + PERSISTENCE
+   ========================================================================== */
+const STORAGE_KEY = 'wheretostock.training.v1';
+
+/* The whole session in one object. Nothing else is stored. */
+let state = null;
+let storageOK = true;
+
+function blankRound(n){
+  const values = {};
+  CONFIG.fields.forEach(function(f){
+    if(f.type === 'computed') return;              // computed values are never stored
+    values[f.key] = (f.scope === 'player') ? ['','',''] : '';
+  });
+  return {
+    n: n,
+    values: values,
+    locked: false,     // true once the round has been passed
+    unlocked: false    // true when the facilitator re-opened a locked round
+  };
+}
+
+function newState(room, players){
+  return {
+    version: 1,
+    room: room,
+    players: players,
+    startedAt: new Date().toISOString(),
+    currentIndex: 0,             // index into rounds[] of the live round
+    rounds: [ blankRound(1) ]
+  };
+}
+
+/* Save after EVERY action. Cheap: the object is tiny. */
+function save(){
+  if(!state) return;
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    flashSaved();
+  }catch(err){
+    storageOK = false;
+    document.getElementById('storage-warning').classList.remove('hidden');
+  }
+}
+
+function loadSaved(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return null;
+    const obj = JSON.parse(raw);
+    if(!obj || !Array.isArray(obj.rounds) || !obj.rounds.length) return null;
+    return obj;
+  }catch(err){
+    return null;    // corrupt or blocked — behave as if there were no session
+  }
+}
+
+function clearSaved(){
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(err){/* ignore */}
+}
+
+/* Probe localStorage once so we can warn early rather than mid-session. */
+function probeStorage(){
+  try{
+    localStorage.setItem(STORAGE_KEY + '.probe', '1');
+    localStorage.removeItem(STORAGE_KEY + '.probe');
+  }catch(err){
+    storageOK = false;
+    document.getElementById('storage-warning').classList.remove('hidden');
+  }
+}
+
+let saveNoteTimer = null;
+function flashSaved(){
+  const el = document.getElementById('save-note');
+  if(!el) return;
+  el.textContent = 'Saved ✓';
+  clearTimeout(saveNoteTimer);
+  saveNoteTimer = setTimeout(function(){ el.textContent = 'Saved automatically'; }, 1200);
+}
+
+/* ==========================================================================
+   3. EDIT PERMISSION — the rule that must not depend on good faith
+   ========================================================================== */
+/* A round is editable when it is the live one, or when a facilitator has
+   explicitly re-opened it. Everything else is read-only, both in the DOM
+   (disabled inputs) and in the handlers (guard below). */
+function isEditable(i){
+  const r = state.rounds[i];
+  if(!r) return false;
+  if(r.unlocked) return true;
+  return i === state.currentIndex && !r.locked;
+}
+
+/* Single write path for every value in the app. */
+function setValue(i, key, playerIndex, value){
+  if(!isEditable(i)) return false;                 // hard guard
+  const r = state.rounds[i];
+  if(!(key in r.values)) return false;
+  if(playerIndex === null || playerIndex === undefined){
+    r.values[key] = value;
+  }else{
+    if(!Array.isArray(r.values[key])) r.values[key] = ['','',''];
+    r.values[key][playerIndex] = value;
+  }
+  save();
+  return true;
+}
+
+/* ==========================================================================
+   4. FIELD VALUE HELPERS
+   ========================================================================== */
+function readValue(round, field, playerIndex){
+  if(field.type === 'computed'){
+    try{
+      return field.compute(round.values, { roundNumber: round.n, players: state.players });
+    }catch(err){ return ''; }
+  }
+  const v = round.values[field.key];
+  if(field.scope === 'player') return (Array.isArray(v) ? v[playerIndex] : '') ?? '';
+  return v ?? '';
+}
+
+function roundIsEmpty(round){
+  return CONFIG.fields.every(function(f){
+    if(f.type === 'computed') return true;
+    const v = round.values[f.key];
+    if(Array.isArray(v)) return v.every(function(x){ return String(x).trim() === ''; });
+    return String(v ?? '').trim() === '';
+  });
+}
+
+/* ==========================================================================
+   5. RENDERING
+   ========================================================================== */
+const el = function(id){ return document.getElementById(id); };
+
+function showScreen(which){
+  el('screen-start').classList.toggle('hidden', which !== 'start');
+  el('screen-game').classList.toggle('hidden',  which !== 'game');
+}
+
+function renderGame(){
+  const live = state.rounds[state.currentIndex];
+  el('hdr-round').textContent   = live.n;
+  el('hdr-of').textContent      = 'of ' + CONFIG.plannedRounds;
+  el('hdr-room').textContent    = state.room;
+  el('hdr-players').textContent = state.players.join(' · ');
+
+  const host = el('rounds');
+  host.textContent = '';
+  state.rounds.forEach(function(r, i){ host.appendChild(buildRoundCard(r, i)); });
+}
+
+function buildRoundCard(round, i){
+  const editable = isEditable(i);
+  const isLive   = (i === state.currentIndex);
+
+  const card = document.createElement('section');
+  card.className = 'round' + (isLive ? ' live' : '') + (round.locked && !round.unlocked ? ' locked' : '');
+  card.dataset.index = i;
+
+  /* --- header: round number + status + the discreet unlock control --- */
+  const head = document.createElement('div');
+  head.className = 'round-head';
+
+  const title = document.createElement('div');
+  title.className = 'title';
+  title.textContent = 'Round ' + round.n;
+  head.appendChild(title);
+
+  const tag = document.createElement('span');
+  if(isLive && !round.locked){ tag.className = 'tag live';   tag.textContent = 'In progress'; }
+  else if(round.unlocked)    { tag.className = 'tag open';   tag.textContent = 'Re-opened';  }
+  else                       { tag.className = 'tag locked'; tag.textContent = 'Locked';     }
+  head.appendChild(tag);
+
+  /* Small, deliberately unobtrusive control: mistakes happen live. */
+  if(round.locked){
+    const btn = document.createElement('button');
+    btn.className = 'btn-ghost';
+    btn.textContent = round.unlocked ? '🔒 Lock again' : '🔓 Unlock';
+    btn.addEventListener('click', function(){
+      if(round.unlocked){
+        round.unlocked = false; save(); renderGame();
+      }else{
+        askConfirm({
+          title:'Unlock round ' + round.n + '?',
+          body:'This round was already passed. Unlocking lets you correct it. '
+             + 'Remember to lock it again afterwards.',
+          confirmLabel:'Unlock round ' + round.n,
+          onConfirm:function(){ round.unlocked = true; save(); renderGame(); }
+        });
+      }
+    });
+    head.appendChild(btn);
+  }
+  card.appendChild(head);
+
+  /* --- body: compact summary when passed, full form when editable --- */
+  if(editable){
+    CONFIG.fields.forEach(function(f){
+      card.appendChild(buildFieldBlock(f, round, i, true));
+    });
+  }else{
+    card.appendChild(buildSummary(round));
+  }
+
+  return card;
+}
+
+/* Read-only recap of a passed round. Every configured field is shown, so the
+   stacked history is the debrief material — just without the tall inputs. */
+function buildSummary(round){
+  const grid = document.createElement('div');
+  grid.className = 'summary';
+
+  CONFIG.fields.forEach(function(f){
+    const item = document.createElement('div');
+    item.className = 'sum-item';
+    item.dataset.field = f.key;
+
+    const k = document.createElement('div');
+    k.className = 'k';
+    k.textContent = f.label;
+    item.appendChild(k);
+
+    const v = document.createElement('div');
+    v.className = 'v' + (f.type === 'text' ? ' text' : '');
+
+    if(f.scope === 'player'){
+      /* "Ana 40 · Ben 30 · Cléo 50" */
+      state.players.forEach(function(name, p){
+        if(p > 0){
+          const sep = document.createElement('span');
+          sep.className = 'sep'; sep.textContent = '·';
+          v.appendChild(sep);
+        }
+        const who = document.createElement('span');
+        who.className = 'who'; who.textContent = name + ' ';
+        v.appendChild(who);
+        const raw = readValue(round, f, p);
+        v.appendChild(document.createTextNode(String(raw) === '' ? '—' : String(raw)));
+      });
+    }else{
+      const raw = readValue(round, f, null);
+      if(String(raw) === '') v.classList.add('empty');
+      v.textContent = String(raw) === '' ? '—' : String(raw);
+    }
+
+    item.appendChild(v);
+    grid.appendChild(item);
+  });
+
+  return grid;
+}
+
+function buildFieldBlock(field, round, i, editable){
+  const block = document.createElement('div');
+  block.className = 'field-block';
+  block.dataset.field = field.key;
+
+  const lab = document.createElement('label');
+  lab.textContent = field.label;
+  block.appendChild(lab);
+
+  if(field.hint){
+    const h = document.createElement('div');
+    h.className = 'hint';
+    h.textContent = field.hint;
+    block.appendChild(h);
+  }
+
+  if(field.type === 'computed'){
+    const out = document.createElement('div');
+    out.className = 'computed';
+    out.dataset.computed = field.key;
+    const v = readValue(round, field, null);
+    out.textContent = (v === '' ? '—' : v);
+    block.appendChild(out);
+    return block;
+  }
+
+  if(field.scope === 'player'){
+    const grid = document.createElement('div');
+    grid.className = 'player-grid';
+    state.players.forEach(function(name, p){
+      const cell = document.createElement('div');
+      cell.className = 'player-cell';
+      const who = document.createElement('div');
+      who.className = 'who';
+      who.textContent = name;
+      cell.appendChild(who);
+      cell.appendChild(buildControl(field, round, i, p, editable));
+      grid.appendChild(cell);
+    });
+    block.appendChild(grid);
+  }else{
+    block.appendChild(buildControl(field, round, i, null, editable));
+  }
+  return block;
+}
+
+/* Builds the actual input widget for one (field, player) pair. */
+function buildControl(field, round, i, playerIndex, editable){
+  const current = readValue(round, field, playerIndex);
+
+  /* ---------------------------------------------------------- number ---- */
+  if(field.type === 'number'){
+    const wrap = document.createElement('div');
+    wrap.className = 'stepper';
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.value = current;
+    input.disabled = !editable;
+    input.inputMode = 'numeric';
+    input.setAttribute('aria-label', field.label + (playerIndex !== null ? ' — ' + state.players[playerIndex] : ''));
+
+    const step = function(delta){
+      if(!editable) return;
+      let n = Number(input.value);
+      if(input.value === '' || isNaN(n)) n = 0;
+      n += delta;
+      if(field.min !== undefined && n < field.min) n = field.min;
+      if(field.max !== undefined && n > field.max) n = field.max;
+      input.value = String(n);
+      setValue(i, field.key, playerIndex, input.value);
+      refreshComputed(i);
+    };
+
+    const minus = document.createElement('button');
+    minus.type = 'button'; minus.textContent = '−';
+    minus.disabled = !editable;
+    minus.setAttribute('aria-label', 'Decrease ' + field.label);
+    minus.addEventListener('click', function(){ step(-(field.step || 1)); });
+
+    const plus = document.createElement('button');
+    plus.type = 'button'; plus.textContent = '+';
+    plus.disabled = !editable;
+    plus.setAttribute('aria-label', 'Increase ' + field.label);
+    plus.addEventListener('click', function(){ step(field.step || 1); });
+
+    /* Typing writes straight through — no re-render, so focus is never lost. */
+    input.addEventListener('input', function(){
+      setValue(i, field.key, playerIndex, input.value);
+      refreshComputed(i);
+    });
+
+    wrap.appendChild(minus); wrap.appendChild(input); wrap.appendChild(plus);
+    return wrap;
+  }
+
+  /* ---------------------------------------------------------- choice ---- */
+  if(field.type === 'choice'){
+    const wrap = document.createElement('div');
+    wrap.className = 'choices';
+    (field.options || []).forEach(function(opt){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = opt;
+      b.disabled = !editable;
+      b.setAttribute('aria-pressed', String(current === opt));
+      b.addEventListener('click', function(){
+        if(!editable) return;
+        /* click the active option again to clear it */
+        const next = (readValue(round, field, playerIndex) === opt) ? '' : opt;
+        if(!setValue(i, field.key, playerIndex, next)) return;
+        Array.prototype.forEach.call(wrap.children, function(other){
+          other.setAttribute('aria-pressed', String(other.textContent === next));
+        });
+        refreshComputed(i);
+      });
+      wrap.appendChild(b);
+    });
+    return wrap;
+  }
+
+  /* ------------------------------------------------------------ text ---- */
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current;
+  input.disabled = !editable;
+  input.autocomplete = 'off';
+  input.setAttribute('aria-label', field.label + (playerIndex !== null ? ' — ' + state.players[playerIndex] : ''));
+  input.addEventListener('input', function(){
+    setValue(i, field.key, playerIndex, input.value);
+    refreshComputed(i);
+  });
+  return input;
+}
+
+/* Recompute the derived read-outs of one round card, in place. */
+function refreshComputed(i){
+  const card = document.querySelector('.round[data-index="' + i + '"]');
+  if(!card) return;
+  const round = state.rounds[i];
+  CONFIG.fields.forEach(function(f){
+    if(f.type !== 'computed') return;
+    const out = card.querySelector('[data-computed="' + f.key + '"]');
+    if(!out) return;
+    const v = readValue(round, f, null);
+    out.textContent = (v === '' ? '—' : v);
+  });
+}
+
+/* ==========================================================================
+   6. ROUND FLOW
+   ========================================================================== */
+function nextRound(){
+  const live = state.rounds[state.currentIndex];
+
+  const go = function(){
+    /* lock everything up to and including the round we are leaving */
+    state.rounds.forEach(function(r, idx){
+      if(idx <= state.currentIndex){ r.locked = true; r.unlocked = false; }
+    });
+    state.rounds.push(blankRound(state.rounds.length + 1));
+    state.currentIndex = state.rounds.length - 1;
+    save();
+    renderGame();
+    const card = document.querySelector('.round[data-index="' + state.currentIndex + '"]');
+    if(card) card.scrollIntoView({ behavior:'smooth', block:'center' });
+  };
+
+  if(CONFIG.warnOnEmptyRound && roundIsEmpty(live)){
+    askConfirm({
+      title:'Round ' + live.n + ' is empty',
+      body:'Nothing has been entered for this round. Move on anyway?',
+      confirmLabel:'Yes, next round',
+      onConfirm:go
+    });
+    return;
+  }
+  go();
+}
+
+/* ==========================================================================
+   7. EXPORT — CSV file + clipboard TSV (downloads can be blocked on file://)
+   ========================================================================== */
+/* One flat table, generated from CONFIG so exports never drift from the UI. */
+function buildTable(){
+  const head = ['Room', 'Player 1', 'Player 2', 'Player 3', 'Round'];
+  CONFIG.fields.forEach(function(f){
+    if(f.scope === 'player'){
+      state.players.forEach(function(name){ head.push(f.label + ' — ' + name); });
+    }else{
+      head.push(f.label);
+    }
+  });
+
+  const rows = state.rounds.map(function(r){
+    const row = [state.room, state.players[0], state.players[1], state.players[2], r.n];
+    CONFIG.fields.forEach(function(f){
+      if(f.scope === 'player'){
+        for(let p = 0; p < 3; p++) row.push(readValue(r, f, p));
+      }else{
+        row.push(readValue(r, f, null));
+      }
+    });
+    return row;
+  });
+
+  return [head].concat(rows);
+}
+
+function toCSV(table){
+  return table.map(function(row){
+    return row.map(function(cell){
+      const s = String(cell ?? '');
+      /* quote whenever the cell could confuse Excel */
+      return /[",;\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }).join(',');
+  }).join('\r\n');
+}
+
+function toTSV(table){
+  return table.map(function(row){
+    return row.map(function(cell){
+      /* tabs and newlines would break the paste — flatten them */
+      return String(cell ?? '').replace(/[\t\r\n]+/g, ' ');
+    }).join('\t');
+  }).join('\r\n');
+}
+
+function safeName(s){
+  return String(s).replace(/[^A-Za-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'room';
+}
+
+function exportFilename(){
+  const d = new Date();
+  const pad = function(n){ return String(n).padStart(2, '0'); };
+  const stamp = d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes());
+  return 'wheretostock_' + safeName(state.room) + '_'
+       + safeName(state.players.join('-')) + '_' + stamp + '.csv';
+}
+
+function downloadCSV(){
+  const csv = '\uFEFF' + toCSV(buildTable());   // BOM so Excel reads accents right
+  try{
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = exportFilename();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  }catch(err){
+    /* Corporate policy can block downloads from file:// — always leave a way out. */
+    showTextFallback('Download blocked — copy the CSV manually', csv);
+  }
+}
+
+function copyResults(){
+  const tsv = toTSV(buildTable());
+  /* Try the modern API, then the old one, then show the text for manual copy. */
+  const fallback = function(){
+    const ta = document.createElement('textarea');
+    ta.value = tsv;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try{ ok = document.execCommand('copy'); }catch(err){ ok = false; }
+    document.body.removeChild(ta);
+    if(ok) toast('Results copied — paste into Excel or Teams');
+    else   showTextFallback('Copy the results manually', tsv);
+  };
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(tsv).then(
+      function(){ toast('Results copied — paste into Excel or Teams'); },
+      fallback
+    );
+  }else{
+    fallback();
+  }
+}
+
+/* ==========================================================================
+   8. MODALS / TOAST
+   ========================================================================== */
+function closeModal(){ el('modal-root').textContent = ''; }
+
+function openModal(build){
+  closeModal();
+  const back = document.createElement('div');
+  back.className = 'modal-back';
+  const box = document.createElement('div');
+  box.className = 'modal';
+  build(box);
+  back.appendChild(box);
+  back.addEventListener('click', function(e){ if(e.target === back) closeModal(); });
+  el('modal-root').appendChild(back);
+  const first = box.querySelector('button, textarea');
+  if(first) first.focus();
+}
+
+function askConfirm(opts){
+  openModal(function(box){
+    const h = document.createElement('h2'); h.textContent = opts.title; box.appendChild(h);
+    const p = document.createElement('p');  p.textContent = opts.body;  box.appendChild(p);
+    const row = document.createElement('div'); row.className = 'row-buttons';
+    const cancel = document.createElement('button');
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', closeModal);
+    const ok = document.createElement('button');
+    ok.className = opts.danger ? 'btn-danger btn-xl' : 'btn-primary btn-xl';
+    ok.textContent = opts.confirmLabel;
+    ok.addEventListener('click', function(){ closeModal(); opts.onConfirm(); });
+    row.appendChild(cancel); row.appendChild(ok);
+    box.appendChild(row);
+  });
+}
+
+function showTextFallback(title, text){
+  openModal(function(box){
+    const h = document.createElement('h2'); h.textContent = title; box.appendChild(h);
+    const p = document.createElement('p'); p.className = 'small muted';
+    p.textContent = 'Select everything below (Ctrl+A) and copy it (Ctrl+C).';
+    box.appendChild(p);
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.readOnly = true;
+    box.appendChild(ta);
+    const close = document.createElement('button');
+    close.className = 'btn-primary';
+    close.textContent = 'Close';
+    close.style.marginTop = '16px';
+    close.addEventListener('click', closeModal);
+    box.appendChild(close);
+    setTimeout(function(){ ta.focus(); ta.select(); }, 30);
+  });
+}
+
+function openExport(){
+  openModal(function(box){
+    const h = document.createElement('h2'); h.textContent = 'Export results'; box.appendChild(h);
+    const p = document.createElement('p'); p.className = 'muted';
+    p.textContent = state.room + ' — ' + state.players.join(', ') + ' — '
+                  + state.rounds.length + ' round(s) recorded.';
+    box.appendChild(p);
+
+    const row = document.createElement('div'); row.className = 'row-buttons';
+    const dl = document.createElement('button');
+    dl.className = 'btn-primary btn-xl';
+    dl.textContent = '⭳ Download CSV';
+    dl.addEventListener('click', downloadCSV);
+    const cp = document.createElement('button');
+    cp.className = 'btn-xl';
+    cp.textContent = '⧉ Copy results';
+    cp.addEventListener('click', copyResults);
+    row.appendChild(dl); row.appendChild(cp);
+    box.appendChild(row);
+
+    const hr = document.createElement('div');
+    hr.style.cssText = 'border-top:2px solid var(--line-soft);margin:24px 0 18px;';
+    box.appendChild(hr);
+
+    const reset = document.createElement('button');
+    reset.className = 'btn-danger';
+    reset.textContent = 'End session and start a new one…';
+    reset.addEventListener('click', function(){
+      askConfirm({
+        title:'Erase this session?',
+        body:'All ' + state.rounds.length + ' round(s) for "' + state.room + '" will be deleted '
+           + 'from this computer. Export first if you have not already. This cannot be undone.',
+        confirmLabel:'Erase and start new',
+        danger:true,
+        onConfirm:function(){
+          clearSaved();
+          state = null;
+          showScreen('start');
+          el('resume-card').classList.add('hidden');
+          el('setup-card').classList.remove('hidden');
+          ['in-room','in-p1','in-p2','in-p3'].forEach(function(id){ el(id).value = ''; });
+          el('in-room').focus();
+        }
+      });
+    });
+    box.appendChild(reset);
+
+    const close = document.createElement('button');
+    close.className = 'btn-ghost';
+    close.textContent = 'Close';
+    close.style.marginLeft = '12px';
+    close.addEventListener('click', closeModal);
+    box.appendChild(close);
+  });
+}
+
+let toastTimer = null;
+function toast(msg){
+  let t = document.getElementById('toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:110px;z-index:60;'
+      + 'background:#14171c;color:#fff;padding:16px 26px;border-radius:10px;font-weight:600;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.style.display = 'none'; }, 2600);
+}
+
+/* ==========================================================================
+   9. START-UP
+   ========================================================================== */
+function startNewSession(){
+  const room = el('in-room').value.trim();
+  const p = [el('in-p1').value.trim(), el('in-p2').value.trim(), el('in-p3').value.trim()];
+  const err = el('setup-error');
+
+  if(!room || p.some(function(x){ return !x; })){
+    err.textContent = 'Please fill in the room name and all three player names.';
+    err.classList.remove('hidden');
+    return;
+  }
+  err.classList.add('hidden');
+
+  state = newState(room, p);
+  save();
+  showScreen('game');
+  renderGame();
+}
+
+function init(){
+  probeStorage();
+
+  const saved = loadSaved();
+  if(saved){
+    const cur = saved.rounds[saved.currentIndex] || saved.rounds[saved.rounds.length - 1];
+    el('resume-summary').textContent =
+      '"' + saved.room + '" — ' + (saved.players || []).join(', ')
+      + ' — currently on round ' + (cur ? cur.n : '?')
+      + ' (' + saved.rounds.length + ' round(s) recorded).';
+    el('resume-card').classList.remove('hidden');
+    el('setup-card').classList.add('hidden');
+
+    el('btn-resume').addEventListener('click', function(){
+      state = saved;
+      /* tolerate a file edited between sessions: add any new configured fields */
+      state.rounds.forEach(function(r){
+        CONFIG.fields.forEach(function(f){
+          if(f.type === 'computed') return;
+          if(!(f.key in r.values)) r.values[f.key] = (f.scope === 'player') ? ['','',''] : '';
+        });
+        r.unlocked = false;
+      });
+      showScreen('game');
+      renderGame();
+    });
+
+    el('btn-discard').addEventListener('click', function(){
+      askConfirm({
+        title:'Delete the saved session?',
+        body:'"' + saved.room + '" has ' + saved.rounds.length + ' round(s) saved on this computer. '
+           + 'Starting a new session erases them for good.',
+        confirmLabel:'Yes, start a new session',
+        danger:true,
+        onConfirm:function(){
+          clearSaved();
+          el('resume-card').classList.add('hidden');
+          el('setup-card').classList.remove('hidden');
+          el('in-room').focus();
+        }
+      });
+    });
+  }else{
+    el('in-room').focus();
+  }
+
+  el('btn-start').addEventListener('click', startNewSession);
+  el('btn-next').addEventListener('click', nextRound);
+  el('btn-export').addEventListener('click', openExport);
+
+  /* Enter moves through the setup form and finally starts the session. */
+  ['in-room','in-p1','in-p2','in-p3'].forEach(function(id, idx, all){
+    el(id).addEventListener('keydown', function(e){
+      if(e.key !== 'Enter') return;
+      if(idx < all.length - 1) el(all[idx + 1]).focus();
+      else startNewSession();
+    });
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeModal();
+  });
+
+  /* Last-ditch protection against an accidental tab close mid-session. */
+  window.addEventListener('beforeunload', function(e){
+    if(state && state.rounds.length){ e.preventDefault(); e.returnValue = ''; }
+  });
+}
+
+init();
+</script>
