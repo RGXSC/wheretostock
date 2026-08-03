@@ -10,13 +10,13 @@
   no fetch. Open by double-clicking (file://). Works offline.
 
   THE GAME
-    1 central warehouse, 2 stores, 5 bags, 25 weeks.
-    Forecast is 2 pieces / week / store / bag  ->  100 per bag, 500 total.
+    1 central warehouse, 2 stores, 5 bags, 13 weeks.
+    Forecast is 2 pieces / week / store / bag  ->  52 per bag, 260 total.
     Setup: pick a target sell-through (fixes how much is produced) and how
-    much of it goes to the stores up front. Then run 25 weeks of:
+    much of it goes to the stores up front. Then run 13 weeks of:
         reveal demand -> sell -> allocate from warehouse -> next week.
     Stock shipped in week N arrives at the start of week N+1.
-    P&L = (1000 x sold) - (200 x produced) - 225 000 fixed, revealed at the end.
+    P&L = (1000 x sold) - (200 x produced) - 117 000 fixed, revealed at the end.
 
   WHERE TO CHANGE THINGS
     ECONOMICS  - the ECON block below (price, cost, fixed cost)
@@ -272,7 +272,7 @@
 <!-- ========================================================= SCREEN: START -->
 <section id="screen-start" class="wrap narrow" style="padding:34px 0 70px;">
   <h1 style="font-size:33px;">Where to Stock</h1>
-  <p class="muted" style="margin-top:4px;">Product launch simulation — 1 warehouse, 2 stores, 5 bags, 25 weeks.</p>
+  <p class="muted" style="margin-top:4px;">Product launch simulation — 1 warehouse, 2 stores, 5 bags, 13 weeks.</p>
 
   <div id="storage-warning" class="banner hidden">
     <strong>Note:</strong> this browser will not let the page save locally. The game still works,
@@ -314,15 +314,9 @@
 
   <div class="econ">
     <h3 style="font-size:19px;">The numbers, before you decide</h3>
-    <ul>
-      <li>You are launching <b>5 bags</b> in <b>2 stores</b>, supplied by <b>1 central warehouse</b>, over <b>25 weeks</b>.</li>
-      <li>The forecast is <b>2 pieces per week, per store, per bag</b> → <b>100 pieces per bag</b>, <b>500 in total</b>.</li>
-      <li>Every bag sells for <b>1 000 €</b> and costs <b>200 €</b> to produce.</li>
-      <li>You pay the 200 € for <b>everything you produce</b> — whether it sells or not.</li>
-      <li>A <b>fixed cost of 225 000 €</b> (45% of forecast sales) is charged at the end.</li>
-      <li>Missed sales are <b>lost for good</b>. There are no back-orders.</li>
-      <li>Your profit is revealed at <b>week 25</b>. During the game you only see units and revenue.</li>
-    </ul>
+    <!-- filled from the constants in the script, so the briefing can never
+         disagree with the rules actually being played -->
+    <ul id="econ-list"></ul>
   </div>
 
   <div class="card">
@@ -355,7 +349,7 @@
 <section id="screen-game" class="hidden">
   <header class="bar">
     <div class="bar-inner">
-      <div class="weekbox"><span class="n" id="hdr-week">1</span><span class="of">of 25</span></div>
+      <div class="weekbox"><span class="n" id="hdr-week">1</span><span class="of" id="hdr-of">of 13</span></div>
       <div class="bar-meta">
         <div class="t" id="hdr-team">—</div>
         <div class="g" id="hdr-game">—</div>
@@ -426,13 +420,14 @@
 /* =========================================================================
    1. FIXED GAME DATA
    ========================================================================= */
-const WEEKS = 25;
-const FORECAST_PER_BAG = 100;          /* 2/week/store x 25 weeks x 2 stores */
+const WEEKS = 13;
+const FORECAST_PER_BAG = 2 * WEEKS * 2;   /* 2 per week per store, 2 stores = 52 */
 
 const ECON = {
-  price: 1000,                          /* € earned per bag sold            */
-  cost:  200,                           /* € paid per bag PRODUCED          */
-  fixed: 225000                         /* 45% of forecast sales (500x1000) */
+  price: 1000,        /* € earned per bag sold                              */
+  cost:  200,         /* € paid per bag PRODUCED, sold or not               */
+  fixedPct: 0.45,     /* fixed cost as a share of FORECAST sales            */
+  fixed: 0            /* computed from the above once BAGS is known         */
 };
 
 /* The five bags. Colours are a blue/grey scale; each also has its own
@@ -445,6 +440,11 @@ const BAGS = [
   { key:'esterel',  name:'Estérel',  color:'#464f59' }
 ];
 
+/* Everything below is derived, so changing WEEKS above rescales the whole
+   game — forecast, production and the fixed cost stay consistent. */
+const FORECAST_TOTAL = FORECAST_PER_BAG * BAGS.length;
+ECON.fixed = Math.round(ECON.fixedPct * FORECAST_TOTAL * ECON.price);
+
 /* Inline SVG silhouettes — one distinct shape per bag, no external assets. */
 const BAG_SHAPES = [
   'M4 9h16l-1.6 11H5.6L4 9Zm4 0V7a4 4 0 0 1 8 0v2',                    /* tote          */
@@ -456,33 +456,44 @@ const BAG_SHAPES = [
 
 /* -------------------------------------------------------------------------
    DEMAND — hard-coded on purpose.
-   Every room plays exactly the same 25 weeks, so the debrief can compare
+   Every room plays exactly the same 13 weeks, so the debrief can compare
    P&Ls without luck being a factor, and a team replaying can genuinely
-   improve. Generated once as random integers with no repeating pattern,
-   capped at 3x the store/bag weekly average, summing exactly to:
+   improve.
+
+   Shape: a launch curve, not a flat line.
+       weeks 1-3   growth      ~19 units / week (all bags, both stores)
+       weeks 4-5   peak        ~41
+       weeks 6-7   decline     ~25
+       weeks 8-13  flat tail   ~15
+   The peak is 2.4x the tail and half the season's demand lands in the first
+   five weeks — so stock has to be committed before anyone knows where it is
+   needed, which is the whole point of the exercise.
+
+   Random around that curve, integers, no repeating pattern, capped at 3x
+   each series' own weekly average, summing exactly to:
 
      bag        vs forecast   total   store A   store B
-     Aveline        +70%       170      119        51
-     Bastide        +30%       130       39        91
-     Calanque       -20%        80       56        24
-     Doriane        -50%        50       15        35
-     Estérel          0%       100       70        30
+     Aveline        +70%        88       62        26
+     Bastide        +30%        68       20        48
+     Calanque       -20%        42       29        13
+     Doriane        -50%        26        8        18
+     Estérel          0%        52       36        16
                                         --------------
-                          total 530  vs 500 forecast
+                          total 276  vs 260 forecast
    The 70/30 store skew alternates direction bag by bag, so no store is
    simply "the big one" — each bag behaves differently across the two.
    ------------------------------------------------------------------------- */
 const DEMAND = {
-  aveline:  { A:[6,3,3,2,4,6,2,5,5,4,4,3,4,5,3,7,6,7,8,7,4,5,8,5,3],
-              B:[2,2,1,2,3,1,5,1,2,1,3,1,3,2,3,1,2,0,2,2,1,2,2,4,3] },
-  bastide:  { A:[1,3,0,0,3,0,2,1,2,2,1,1,2,1,2,0,1,3,1,3,2,3,1,3,1],
-              B:[6,4,2,1,1,4,6,2,6,6,9,6,6,1,3,2,5,3,1,3,2,3,6,0,3] },
-  calanque: { A:[5,1,3,3,1,5,1,4,0,1,2,1,3,3,2,0,1,1,1,2,3,4,4,3,2],
-              B:[2,2,2,0,1,0,3,0,0,1,2,0,0,2,1,0,1,2,1,0,2,0,1,1,0] },
-  doriane:  { A:[1,0,2,2,0,0,1,2,0,1,2,0,0,0,0,1,0,0,0,1,2,0,0,0,0],
-              B:[0,2,0,2,0,3,0,1,1,3,4,1,0,0,0,3,0,1,2,0,4,2,3,2,1] },
-  esterel:  { A:[3,2,4,4,2,0,0,3,2,1,1,2,3,2,1,4,4,2,5,2,5,7,4,2,5],
-              B:[1,3,1,2,0,1,0,2,0,1,4,2,1,1,0,0,2,0,1,1,2,1,1,2,1] }
+  aveline:  { A:[1,3,6,10,10,8,6,3,2,3,3,4,3],
+              B:[1,2,3, 5, 4,2,1,1,2,2,1,1,1] },
+  bastide:  { A:[0,2,2, 3, 3,3,2,1,1,0,1,1,1],
+              B:[2,3,7, 5, 8,4,3,3,2,2,3,3,3] },
+  calanque: { A:[1,2,3, 4, 5,3,2,2,1,2,2,1,1],
+              B:[0,1,2, 1, 2,1,1,1,1,1,1,0,1] },
+  doriane:  { A:[0,1,1, 1, 2,1,1,0,0,0,0,1,0],
+              B:[1,1,2, 2, 3,1,2,1,1,1,1,1,1] },
+  esterel:  { A:[1,2,4, 5, 4,4,3,3,3,2,2,2,1],
+              B:[1,1,2, 2, 2,1,1,1,1,1,1,1,1] }
 };
 
 const SELL_THROUGH_OPTIONS = [60, 70, 80, 90, 100];
@@ -703,6 +714,7 @@ function refreshScales(){
 function renderGame(){
   refreshScales();
   el('hdr-week').textContent = state.week;
+  el('hdr-of').textContent   = 'of ' + WEEKS;
   el('hdr-team').textContent = state.team;
   el('hdr-game').textContent = state.game;
 
@@ -1031,7 +1043,7 @@ const HINTS = [
     text:'Type how many pieces leave the central warehouse for each shop. They arrive at the start of next week, so you are always deciding one week ahead.' },
   { id:'confirm', week:1, step:'confirm',  anchor:function(){ return el('action-panel'); },
     title:'4 — Close the week',
-    text:'That is the full cycle. Twenty-five weeks, then the P&L is revealed.' },
+    text:'That is the full cycle. Thirteen weeks, then the P&L is revealed.' },
   { id:'counters', week:2, step:'sell',    anchor:function(){ return el('panel-A'); },
     title:'Watch the two right-hand columns',
     text:'"Sold" and "Missed" are running totals for the whole season, with this week\'s change underneath. A missed-sales counter climbing on one bag is your signal to move stock.' },
@@ -1040,7 +1052,7 @@ const HINTS = [
     text:'Everything still here is uncommitted — you can send it wherever demand actually shows up. But it earns nothing while it sits, and you already paid to produce it.' },
   { id:'kpi',     week:3, step:'reveal',   anchor:function(){ return el('hdr-rev'); },
     title:'Revenue only, for now',
-    text:'You see units and revenue during the game. Costs and the final profit stay hidden until week 25.' },
+    text:'You see units and revenue during the game. Costs and the final profit stay hidden until the last week.' },
   { id:'hist',    week:3, step:'confirm',  anchor:function(){ return el('hist'); },
     title:'The full history',
     text:'Every closed week is recorded here, and the Export button gives you the complete week-by-week data for the debrief.' }
@@ -1280,7 +1292,7 @@ function renderEnd(){
           + '<td style="color:var(--warn)">' + (r.miss || '') + '</td><td>' + r.left + '</td></tr>';
   });
   html += '</tbody></table>'
-        + '<p class="small muted" style="margin-top:12px;">The forecast was 100 per bag for all five. '
+        + '<p class="small muted" style="margin-top:12px;">The forecast was ' + FORECAST_PER_BAG + ' per bag for all five. '
         + 'Real demand was not.</p></div>'
         + '<div class="row-buttons">'
         + '<button class="btn-primary btn-xl" id="end-dl">⭳ Download CSV</button>'
@@ -1362,6 +1374,24 @@ function toast(msg){
    11. SETUP SCREEN
    ========================================================================= */
 let draft = { sellThrough:null, storePct:null };
+
+/* The briefing is written from the constants above rather than typed into the
+   HTML, so changing WEEKS or the economics updates what players are told. */
+function renderBriefing(){
+  const items = [
+    'You are launching <b>' + BAGS.length + ' bags</b> in <b>2 stores</b>, supplied by '
+      + '<b>1 central warehouse</b>, over <b>' + WEEKS + ' weeks</b>.',
+    'The forecast is <b>2 pieces per week, per store, per bag</b> → <b>' + FORECAST_PER_BAG
+      + ' pieces per bag</b>, <b>' + FORECAST_TOTAL + ' in total</b>.',
+    'Every bag sells for <b>' + fmtE(ECON.price) + '</b> and costs <b>' + fmtE(ECON.cost) + '</b> to produce.',
+    'You pay the ' + fmtE(ECON.cost) + ' for <b>everything you produce</b> — whether it sells or not.',
+    'A <b>fixed cost of ' + fmtE(ECON.fixed) + '</b> (' + Math.round(ECON.fixedPct * 100)
+      + '% of forecast sales) is charged at the end.',
+    'Missed sales are <b>lost for good</b>. There are no back-orders.',
+    'Your profit is revealed at <b>week ' + WEEKS + '</b>. During the game you only see units and revenue.'
+  ];
+  el('econ-list').innerHTML = items.map(function(t){ return '<li>' + t + '</li>'; }).join('');
+}
 
 function renderSetupOptions(){
   const st = el('opt-sellthrough');
@@ -1475,7 +1505,7 @@ function init(){
 
     el('btn-resume').addEventListener('click', function(){
       state = saved;
-      if(!state.setup){ showScreen('setup'); el('setup-who').textContent = state.team + ' · ' + state.game; renderSetupOptions(); return; }
+      if(!state.setup){ showScreen('setup'); el('setup-who').textContent = state.team + ' · ' + state.game; renderBriefing(); renderSetupOptions(); return; }
       if(state.finished){ showScreen('end'); renderEnd(); return; }
       showScreen('game'); renderGame();
     });
@@ -1505,6 +1535,7 @@ function init(){
     save();
     el('setup-who').textContent = team + ' · ' + game;
     showScreen('setup');
+    renderBriefing();
     renderSetupOptions();
     window.scrollTo(0, 0);
   });
