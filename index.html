@@ -103,6 +103,30 @@
   .econ li{ margin-bottom:6px; }
   .econ b{ font-variant-numeric:tabular-nums; }
 
+  /* ------------------------------------------------------- setup sliders */
+  .sliderbox{ padding:6px 4px 0; }
+  .slidernow{ font-size:44px; font-weight:800; line-height:1;
+              color:var(--accent); text-align:center; margin-bottom:10px;
+              font-variant-numeric:tabular-nums; }
+  .slider{ -webkit-appearance:none; appearance:none; width:100%;
+           background:transparent; height:52px; margin:0; cursor:pointer; }
+  .slider:focus-visible{ outline:3px solid var(--accent); outline-offset:4px; border-radius:8px; }
+  .slider::-webkit-slider-runnable-track{
+    height:16px; border-radius:8px; background:var(--line-soft); border:2px solid var(--line); }
+  .slider::-webkit-slider-thumb{
+    -webkit-appearance:none; width:46px; height:46px; border-radius:50%;
+    background:var(--accent); border:4px solid #fff; margin-top:-17px;
+    box-shadow:0 2px 10px rgba(10,30,50,.4); }
+  .slider::-moz-range-track{
+    height:16px; border-radius:8px; background:var(--line-soft); border:2px solid var(--line); }
+  .slider::-moz-range-thumb{
+    width:40px; height:40px; border-radius:50%; background:var(--accent);
+    border:4px solid #fff; box-shadow:0 2px 10px rgba(10,30,50,.4); }
+  .ticks{ display:flex; justify-content:space-between; margin-top:-4px; }
+  .ticks span{ font-size:15px; font-weight:700; color:var(--ink-soft);
+               font-variant-numeric:tabular-nums; }
+  .ticks span.on{ color:var(--accent); }
+
   .opts{ display:flex; gap:10px; flex-wrap:wrap; }
   .opts button{ flex:1 1 110px; flex-direction:column; display:flex;
                 align-items:center; gap:2px; min-height:76px; }
@@ -212,9 +236,9 @@
                         font-weight:800; font-size:18px; }
   table.alloc input{ min-height:48px; padding:8px; font-size:19px; }
   table.alloc input.bad{ border-color:var(--warn); background:#fdf1ec; }
-  .alloccell{ display:flex; gap:6px; align-items:stretch; }
-  .alloccell input{ flex:1 1 auto; }
-  .maxbtn{ min-height:48px; padding:2px 10px; font-size:13px; flex:none; }
+  @keyframes clampflash{ 0%,100%{ background:var(--surface); border-color:var(--line) }
+                         30%{ background:#fdf1ec; border-color:var(--warn) } }
+  table.alloc input.clamped{ animation:clampflash .7s ease; }
 
   /* ----------------------------------------------------------- history */
   details.hist{ margin-top:18px; background:var(--surface);
@@ -359,8 +383,13 @@
       forecast. A lower target means producing more than the forecast, to protect against under-estimating.
       <b>You choose once, and it cannot be changed.</b>
     </p>
-    <div class="opts" id="opt-sellthrough"></div>
-    <div class="consequence" id="cons-sellthrough">Choose a target to see what gets produced.</div>
+    <div class="sliderbox">
+      <div class="slidernow" id="val-st">80%</div>
+      <input class="slider" type="range" id="sl-st" min="60" max="100" step="10" value="80"
+             aria-label="Target sell-through">
+      <div class="ticks" id="ticks-st"></div>
+    </div>
+    <div class="consequence" id="cons-sellthrough"></div>
   </div>
 
   <div class="card">
@@ -370,11 +399,16 @@
       where you can send it week by week — but it takes <b>one week to arrive</b>.
       The shop share is <b>always split equally between Store A and Store B</b>.
     </p>
-    <div class="opts" id="opt-split"></div>
-    <div class="consequence" id="cons-split">Choose a split to see where the stock goes.</div>
+    <div class="sliderbox">
+      <div class="slidernow" id="val-sp">40%</div>
+      <input class="slider" type="range" id="sl-sp" min="10" max="90" step="10" value="40"
+             aria-label="Share of production sent to the shops at launch">
+      <div class="ticks" id="ticks-sp"></div>
+    </div>
+    <div class="consequence" id="cons-split"></div>
   </div>
 
-  <button id="btn-begin" class="btn-primary btn-xl" style="width:100%;" disabled>Lock the setup and start week 1</button>
+  <button id="btn-begin" class="btn-primary btn-xl" style="width:100%;">Lock the setup and start week 1</button>
   <p class="small muted" style="text-align:center;margin-top:10px;">Both decisions are final once the game starts.</p>
 </section>
 
@@ -399,6 +433,9 @@
   </header>
 
   <main class="wrap">
+    <!-- what you have to act on sits above everything else -->
+    <div class="action" id="action-panel"></div>
+
     <div class="board">
       <!-- warehouse -->
       <div>
@@ -410,7 +447,6 @@
           <div class="colhead"><span></span><span>Bag</span><span>In stock</span></div>
           <div id="wh-rows"></div>
         </div>
-        <div class="action" id="action-panel"></div>
       </div>
       <!-- stores -->
       <div>
@@ -872,10 +908,9 @@ function renderAction(){
     p.textContent = 'Each bag you can serve earns 1 000 €. Anything you cannot serve is a lost sale, for good.';
     host.appendChild(h); host.appendChild(p);
     host.appendChild(bigButton('Sell', function(){
-      const before = { A:state.lastSold.A.slice(), B:state.lastSold.B.slice() };
       doSell();
       renderGame();
-      animateSales();
+      showFlow(animateSales);
       maybeHint();
     }));
     return;
@@ -888,7 +923,7 @@ function renderAction(){
     host.appendChild(buildAllocTable());
     const btn = bigButton('Confirm shipment', function(){
       if(!allocValid()) return;
-      doShip(); renderGame(); animateShipments(); maybeHint();
+      confirmShipment();
     });
     btn.id = 'btn-ship';
     host.appendChild(btn);
@@ -918,6 +953,79 @@ function renderAction(){
   host.appendChild(b);
 }
 
+/* Stock that leaves the warehouse can never come back, so it is confirmed
+   twice: the figures are restated line by line before anything moves. */
+function confirmShipment(){
+  const lines = [];
+  let total = 0;
+  BAGS.forEach(function(b, i){
+    const a = state.ship.A[i] || 0, bq = state.ship.B[i] || 0;
+    if(a + bq === 0) return;
+    total += a + bq;
+    lines.push({ name:b.name, i:i, a:a, b:bq });
+  });
+
+  /* nothing to move — no point asking */
+  if(total === 0){ doShip(); renderGame(); maybeHint(); return; }
+
+  openModal(function(box){
+    const h = document.createElement('h2');
+    h.textContent = 'Send ' + fmt(total) + ' units out of the warehouse?';
+    box.appendChild(h);
+
+    const p = document.createElement('p');
+    p.innerHTML = 'They arrive at the shops at the start of week ' + (state.week + 1)
+      + '. <b>Stock sent to a shop cannot be brought back</b> — not to the warehouse, '
+      + 'and not to the other shop.';
+    box.appendChild(p);
+
+    let t = '<table class="pnl" style="margin:0 0 20px"><tbody>';
+    lines.forEach(function(l){
+      const bits = [];
+      if(l.a) bits.push('<b>' + l.a + '</b> → Store A');
+      if(l.b) bits.push('<b>' + l.b + '</b> → Store B');
+      t += '<tr><td>' + bagIcon(l.i, 18) + ' ' + l.name + '</td><td style="font-weight:600">'
+         + bits.join(' &nbsp;·&nbsp; ') + '</td></tr>';
+    });
+    t += '</tbody></table>';
+    const wrap = document.createElement('div');
+    wrap.innerHTML = t;
+    box.appendChild(wrap);
+
+    const row = document.createElement('div');
+    row.className = 'row-buttons';
+    const back = document.createElement('button');
+    back.textContent = 'Go back and change it';
+    back.addEventListener('click', closeModal);
+    const go = document.createElement('button');
+    go.className = 'btn-primary btn-xl';
+    go.id = 'btn-ship-confirm';
+    go.textContent = 'Send them';
+    go.addEventListener('click', function(){
+      closeModal();
+      doShip();
+      renderGame();
+      showFlow(animateShipments);
+      maybeHint();
+    });
+    row.appendChild(back); row.appendChild(go);
+    box.appendChild(row);
+  });
+}
+
+/* The flow is the point of the animation, so make sure the warehouse and
+   both shops are actually on screen before anything flies between them. */
+function showFlow(fn){
+  const board = document.querySelector('.board');
+  if(board){
+    const r = board.getBoundingClientRect();
+    if(r.top < 60 || r.top > window.innerHeight * 0.45){
+      window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 150), behavior:'auto' });
+    }
+  }
+  requestAnimationFrame(function(){ requestAnimationFrame(fn); });
+}
+
 function bigButton(label, fn){
   const b = document.createElement('button');
   b.className = 'btn-primary btn-xl';
@@ -941,31 +1049,28 @@ function buildAllocTable(){
 
     ['A','B'].forEach(function(s){
       const td = document.createElement('td');
-      const cell = document.createElement('div');
-      cell.className = 'alloccell';
       const inp = document.createElement('input');
       inp.type = 'number'; inp.min = '0'; inp.value = state.ship[s][i] || 0;
       inp.id = 'ship-' + s + '-' + i;
       inp.setAttribute('aria-label', 'Ship ' + b.name + ' to Store ' + s);
+      /* Typing more than the warehouse holds is simply not possible: the
+         value is clamped to what is left, and the cell flashes to say so. */
       inp.addEventListener('input', function(){
-        state.ship[s][i] = Math.max(0, Math.floor(Number(inp.value) || 0));
+        let v = Math.max(0, Math.floor(Number(inp.value) || 0));
+        const other = (s === 'A' ? state.ship.B[i] : state.ship.A[i]) || 0;
+        const max = Math.max(0, state.stock.W[i] - other);
+        if(v > max){
+          v = max;
+          inp.value = String(v);
+          inp.classList.remove('clamped');
+          void inp.offsetWidth;                 /* restart the flash */
+          inp.classList.add('clamped');
+        }
+        state.ship[s][i] = v;
         save(); refreshAlloc();
       });
       inp.addEventListener('focus', function(){ inp.select(); });
-      cell.appendChild(inp);
-
-      const mx = document.createElement('button');
-      mx.className = 'btn-ghost maxbtn';
-      mx.textContent = 'all';
-      mx.title = 'Send everything left of this bag';
-      mx.addEventListener('click', function(){
-        const other = (s === 'A') ? state.ship.B[i] : state.ship.A[i];
-        state.ship[s][i] = Math.max(0, state.stock.W[i] - (other || 0));
-        inp.value = state.ship[s][i];
-        save(); refreshAlloc();
-      });
-      cell.appendChild(mx);
-      td.appendChild(cell);
+      td.appendChild(inp);
       tr.appendChild(td);
     });
     body.appendChild(tr);
@@ -1039,7 +1144,7 @@ function fly(fromEl, toEl, opts){
   const a = fromEl.getBoundingClientRect(), b = toEl.getBoundingClientRect();
   const n = Math.min(opts.count, 8);
   const layer = el('fly-layer');
-  const dur = opts.duration || 520;
+  const dur = opts.duration || 850;
 
   for(let i = 0; i < n; i++){
     const d = document.createElement('div');
@@ -1094,7 +1199,7 @@ function animateDemand(){
       const ghost = { getBoundingClientRect:function(){
         return { left:panel.right + 30, top:r.top, width:12, height:r.height };
       } };
-      fly(ghost, cell, { color:'#3b4652', count:d, customer:true, duration:460 });
+      fly(ghost, cell, { color:'#3b4652', count:d, customer:true, duration:700 });
     });
   });
 }
@@ -1109,7 +1214,7 @@ function animateSales(){
       if(n > 0){
         fly(el(s + '-stock-' + i), el(s + '-sold-' + i), { color:b.color, count:n, shape:i });
         const v = el(s + '-sold-' + i).querySelector('.v');
-        if(v) setTimeout(function(){ v.classList.add('bump'); }, 420);
+        if(v) setTimeout(function(){ v.classList.add('bump'); }, 700);
       }
       if(lm > 0){
         const cell = el(s + '-miss-' + i);
@@ -1125,7 +1230,7 @@ function animateShipments(){
     BAGS.forEach(function(b, i){
       const n = state.transit[s][i];
       if(n <= 0) return;
-      fly(el('wh-row-' + i), el(s + '-stock-' + i), { color:b.color, count:n, shape:i, duration:640 });
+      fly(el('wh-row-' + i), el(s + '-stock-' + i), { color:b.color, count:n, shape:i, duration:1150 });
     });
   });
 }
@@ -1490,7 +1595,7 @@ function toast(msg){
 /* =========================================================================
    11. SETUP SCREEN
    ========================================================================= */
-let draft = { sellThrough:null, storePct:null };
+let draft = { sellThrough:80, storePct:40 };
 
 /* The briefing is written from the constants above rather than typed into the
    HTML, so changing WEEKS or the economics updates what players are told. */
@@ -1510,58 +1615,45 @@ function renderBriefing(){
   el('econ-list').innerHTML = items.map(function(t){ return '<li>' + t + '</li>'; }).join('');
 }
 
+/* Both setup decisions are sliders: one drag, snapped to steps of 10, with
+   the consequence in units restated underneath as it moves. */
+function buildTicks(hostId, values, current){
+  const h = el(hostId);
+  h.textContent = '';
+  values.forEach(function(v){
+    const t = document.createElement('span');
+    t.textContent = v + '%';
+    if(v === current) t.className = 'on';
+    h.appendChild(t);
+  });
+}
+
 function renderSetupOptions(){
-  const st = el('opt-sellthrough');
-  st.textContent = '';
-  SELL_THROUGH_OPTIONS.forEach(function(v){
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.setAttribute('aria-pressed', String(draft.sellThrough === v));
-    b.innerHTML = '<span class="big">' + v + '%</span><span class="sub">'
-                + fmt(producedPerBag(v) * BAGS.length) + ' produced</span>';
-    b.addEventListener('click', function(){ draft.sellThrough = v; renderSetupOptions(); });
-    st.appendChild(b);
-  });
+  draft.sellThrough = Number(el('sl-st').value);
+  draft.storePct    = Number(el('sl-sp').value);
 
-  const sp = el('opt-split');
-  sp.textContent = '';
-  SPLIT_OPTIONS.forEach(function(v){
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.setAttribute('aria-pressed', String(draft.storePct === v));
-    b.innerHTML = '<span class="big">' + v + '%</span><span class="sub">to shops</span>';
-    b.addEventListener('click', function(){ draft.storePct = v; renderSetupOptions(); });
-    sp.appendChild(b);
-  });
+  el('val-st').textContent = draft.sellThrough + '%';
+  el('val-sp').textContent = draft.storePct + '%';
+  buildTicks('ticks-st', SELL_THROUGH_OPTIONS, draft.sellThrough);
+  buildTicks('ticks-sp', SPLIT_OPTIONS, draft.storePct);
 
-  /* live, explicit consequences of both choices */
-  const c1 = el('cons-sellthrough');
-  if(draft.sellThrough === null){
-    c1.textContent = 'Choose a target to see what gets produced.';
-  }else{
-    const per = producedPerBag(draft.sellThrough), tot = per * BAGS.length;
-    c1.innerHTML = 'You produce <b>' + per + '</b> pieces of each bag — <b>' + fmt(tot)
-      + '</b> in total, costing <b>' + fmtE(tot * ECON.cost) + '</b>.'
-      + (draft.sellThrough === 100
-          ? ' That is exactly the forecast: nothing spare anywhere.'
-          : ' That is <b>' + fmt(tot - FORECAST_PER_BAG * BAGS.length) + '</b> more than the forecast.');
-  }
+  const per = producedPerBag(draft.sellThrough), tot = per * BAGS.length;
+  el('cons-sellthrough').innerHTML =
+    'You produce <b>' + per + '</b> pieces of each bag — <b>' + fmt(tot)
+    + '</b> in total, costing <b>' + fmtE(tot * ECON.cost) + '</b>.'
+    + (draft.sellThrough === 100
+        ? ' That is exactly the forecast: nothing spare anywhere.'
+        : ' That is <b>' + fmt(tot - FORECAST_TOTAL) + '</b> more than the forecast.');
 
-  const c2 = el('cons-split');
-  if(draft.sellThrough === null || draft.storePct === null){
-    c2.textContent = draft.sellThrough === null
-      ? 'Choose a sell-through target first.'
-      : 'Choose a split to see where the stock goes.';
-  }else{
-    const per = producedPerBag(draft.sellThrough);
-    const sp2 = splitStock(per, draft.storePct);
-    c2.innerHTML = 'Per bag: <b>' + sp2.store + '</b> to Store A and <b>' + sp2.store
-      + '</b> to Store B, <b>' + sp2.central + '</b> kept central.<br>'
-      + 'Across the five bags: <b>' + fmt(sp2.store * BAGS.length) + '</b> units in each shop, <b>'
-      + fmt(sp2.central * BAGS.length) + '</b> units in the warehouse.';
-  }
+  const sp2 = splitStock(per, draft.storePct);
+  el('cons-split').innerHTML =
+    'Per bag: <b>' + sp2.store + '</b> to Store A and <b>' + sp2.store
+    + '</b> to Store B, <b>' + sp2.central + '</b> kept central.<br>'
+    + 'Across the five bags: <b>' + fmt(sp2.store * BAGS.length) + '</b> units in each shop, <b>'
+    + fmt(sp2.central * BAGS.length) + '</b> units in the warehouse.';
 
-  el('btn-begin').disabled = (draft.sellThrough === null || draft.storePct === null);
+  el('btn-begin').textContent =
+    'Lock ' + draft.sellThrough + '% / ' + draft.storePct + '% and start week 1';
 }
 
 function beginGame(){
@@ -1594,7 +1686,9 @@ function resetToStart(){
   el('setup-card').classList.remove('hidden');
   el('in-team').value = '';
   el('in-game').value = 'Run 1';
-  draft = { sellThrough:null, storePct:null };
+  draft = { sellThrough:80, storePct:40 };
+  el('sl-st').value = '80';
+  el('sl-sp').value = '40';
   el('in-team').focus();
 }
 
@@ -1657,6 +1751,10 @@ function init(){
     window.scrollTo(0, 0);
   });
 
+  ['sl-st','sl-sp'].forEach(function(id){
+    el(id).addEventListener('input',  renderSetupOptions);
+    el(id).addEventListener('change', renderSetupOptions);
+  });
   el('btn-begin').addEventListener('click', beginGame);
   el('btn-export').addEventListener('click', openExport);
   el('btn-help').addEventListener('click', function(){
@@ -1670,6 +1768,11 @@ function init(){
   ['in-team','in-game'].forEach(function(id, idx, all){
     el(id).addEventListener('keydown', function(e){
       if(e.key !== 'Enter') return;
+      /* stop the event here: the document-level Enter handler would
+         otherwise see the briefing we just opened and lock the setup
+         with the default slider positions, skipping the briefing entirely */
+      e.preventDefault();
+      e.stopPropagation();
       if(idx < all.length - 1) el(all[idx + 1]).focus();
       else el('btn-tosetup').click();
     });
