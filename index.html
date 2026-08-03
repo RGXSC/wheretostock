@@ -105,7 +105,7 @@
 
   /* ------------------------------------------------------- setup sliders */
   .sliderbox{ padding:6px 4px 0; }
-  .slidernow{ font-size:44px; font-weight:800; line-height:1;
+  .slidernow{ font-size:38px; font-weight:800; line-height:1;
               color:var(--accent); text-align:center; margin-bottom:10px;
               font-variant-numeric:tabular-nums; }
   .slider{ -webkit-appearance:none; appearance:none; width:100%;
@@ -221,7 +221,7 @@
   .demandcell.hid{ color:var(--line); }
 
   /* ------------------------------------------------------------ action */
-  .action{ margin-top:16px; background:var(--surface); border:2px solid var(--live);
+  .action{ margin-bottom:16px; background:var(--surface); border:2px solid var(--live);
            border-radius:var(--radius); padding:16px 18px; }
   .action h3{ font-size:20px; margin-bottom:4px; }
   .action p{ margin:0 0 14px; color:var(--ink-soft); font-size:16px; }
@@ -384,7 +384,7 @@
       <b>You choose once, and it cannot be changed.</b>
     </p>
     <div class="sliderbox">
-      <div class="slidernow" id="val-st">80%</div>
+      <div class="slidernow" id="val-st">80% sell-through</div>
       <input class="slider" type="range" id="sl-st" min="60" max="100" step="10" value="80"
              aria-label="Target sell-through">
       <div class="ticks" id="ticks-st"></div>
@@ -400,8 +400,8 @@
       The shop share is <b>always split equally between Store A and Store B</b>.
     </p>
     <div class="sliderbox">
-      <div class="slidernow" id="val-sp">40%</div>
-      <input class="slider" type="range" id="sl-sp" min="10" max="90" step="10" value="40"
+      <div class="slidernow" id="val-sp">50% in store</div>
+      <input class="slider" type="range" id="sl-sp" min="30" max="90" step="10" value="50"
              aria-label="Share of production sent to the shops at launch">
       <div class="ticks" id="ticks-sp"></div>
     </div>
@@ -433,12 +433,11 @@
   </header>
 
   <main class="wrap">
-    <!-- what you have to act on sits above everything else -->
-    <div class="action" id="action-panel"></div>
-
     <div class="board">
-      <!-- warehouse -->
+      <!-- left column: what you have to decide, sitting on top of the
+           warehouse it applies to, so the two are always on screen together -->
       <div>
+        <div class="action" id="action-panel"></div>
         <div class="panel wh" id="panel-wh">
           <div class="panel-head">
             <svg class="place" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4d5560" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 9.5 12 4l10 5.5"/><path d="M4 9.5V20h16V9.5"/><path d="M9.5 20v-5.5h5V20"/><path d="M6.3 12.6h2M15.7 12.6h2"/></svg><h3>Central warehouse</h3>
@@ -532,49 +531,54 @@ const BAG_SHAPES = [
    improve.
 
    Shape: a launch curve, not a flat line.
-       weeks 1-3   growth      ~19 units / week (all bags, both stores)
+       weeks 1-3   growth      ~18 units / week (all bags, both stores)
        weeks 4-5   peak        ~38
-       weeks 6-7   decline     ~24
-       weeks 8-13  flat tail   ~13
+       weeks 6-7   decline     ~22
+       weeks 8-13  flat tail   ~14
    Half the season's demand lands in the first five weeks, so stock has to
    be committed before anyone knows where it is needed.
 
-   TOTAL DEMAND EQUALS TOTAL FORECAST (260). The five biases are chosen to
-   sum to zero, so producing more than the forecast can never be recovered
-   in extra sales overall — it can only be recovered bag by bag, by holding
-   stock centrally and sending it where demand actually appears.
+   TWO PROPERTIES MAKE THE SETUP DECISIONS BITE:
 
-   Every bag sells twice as much in one shop as in the other, and which
-   shop that is alternates, so neither store is simply "the big one"
-   (Store A takes 128 of the 260, Store B 132).
+   1. Total demand equals total forecast exactly (260 = 260) and the biases
+      are mild, so the best-selling bag only needs 78 against a 52 forecast.
+      Producing deep enough to cover it wastes a great deal on the bags that
+      never get there. The sell-through optimum therefore sits INSIDE the
+      range - around 70-80% - and both extremes lose money against it.
+
+   2. Store A is much the bigger shop (165 of the 260 against 95), because
+      four of the five bags sell twice as much there. The launch split is
+      forced to be equal between the two shops, so a team that puts most of
+      its stock in the shops at launch has put half of it in the wrong one.
 
      bag        vs forecast   total   store A   store B   ratio
-     Aveline        +70%        88       59        29      2.0 : 1
-     Bastide        +30%        68       23        45      1 : 2.0
-     Calanque       -30%        36       24        12      2.0 : 1
-     Doriane        -70%        16        5        11      1 : 2.2
-     Estérel          0%        52       17        35      1 : 2.1
+     Aveline        +50%        78       52        26      2.0 : 1
+     Bastide        +20%        62       41        21      2.0 : 1
+     Calanque       -20%        42       28        14      2.0 : 1
+     Doriane        -50%        26        9        17      1 : 1.9
+     Estérel          0%        52       35        17      2.1 : 1
                                         ------------------
                           total 260  =  260 forecast
+                                       A 165     B  95
 
    Random around the curve, integers, no repeating pattern, capped at 3x
    each series' own weekly average, summing exactly to the totals above.
    ------------------------------------------------------------------------- */
 const DEMAND = {
-  aveline:  { A:[2,4,8,10,6,8,3,3,3,3,3,4,2],
-              B:[1,3,3, 5,4,2,3,1,1,1,1,2,2] },
-  bastide:  { A:[1,1,3, 3,4,2,1,1,1,1,1,2,2],
-              B:[2,3,4, 6,7,5,3,3,3,2,3,2,2] },
-  calanque: { A:[1,1,3, 5,3,2,2,2,1,1,1,1,1],
-              B:[0,1,1, 2,2,1,1,1,1,0,1,1,0] },
-  doriane:  { A:[0,0,1, 1,1,1,1,0,0,0,0,0,0],
-              B:[0,1,1, 1,2,1,1,0,1,1,0,1,1] },
-  esterel:  { A:[1,1,1, 3,3,1,1,1,1,1,1,1,1],
-              B:[1,3,5, 4,4,5,3,2,2,1,2,2,1] }
+  aveline:  { A:[2,4,5, 8,6,7,4,3,2,3,2,3,3],
+              B:[1,2,3, 5,4,2,2,1,1,1,1,2,1] },
+  bastide:  { A:[2,3,4, 5,6,4,2,2,3,3,3,2,2],
+              B:[1,2,2, 3,3,2,2,1,1,1,1,1,1] },
+  calanque: { A:[1,2,2, 5,4,2,2,2,2,2,1,1,2],
+              B:[0,1,1, 2,2,1,1,1,1,1,1,1,1] },
+  doriane:  { A:[0,1,1, 2,1,1,0,0,0,1,1,1,0],
+              B:[1,1,2, 2,2,2,1,1,1,1,1,1,1] },
+  esterel:  { A:[1,2,4, 6,5,4,2,2,2,1,2,3,1],
+              B:[1,1,2, 2,2,2,1,1,1,1,1,1,1] }
 };
 
 const SELL_THROUGH_OPTIONS = [60, 70, 80, 90, 100];
-const SPLIT_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90];   /* % to stores */
+const SPLIT_OPTIONS = [30, 40, 50, 60, 70, 80, 90];   /* % placed in the stores */
 
 /* The four sub-steps of a week. */
 const STEPS = [
@@ -933,6 +937,7 @@ function renderAction(){
     });
     btn.id = 'btn-ship';
     host.appendChild(btn);
+    setTimeout(focusShipCell, 30);
     const none = document.createElement('button');
     none.className = 'btn-ghost';
     none.style.marginTop = '8px';
@@ -1000,12 +1005,17 @@ function confirmShipment(){
 
     const row = document.createElement('div');
     row.className = 'row-buttons';
+    /* Sending is the default: highlighted and focused, so the whole week can
+       be played on Enter alone. The modal is still the checkpoint - the
+       figures are restated and the warning is read before it is reached. */
     const back = document.createElement('button');
+    back.id = 'btn-ship-back';
     back.textContent = 'Go back and change it';
     back.addEventListener('click', closeModal);
     const go = document.createElement('button');
     go.className = 'btn-primary btn-xl';
     go.id = 'btn-ship-confirm';
+    go.setAttribute('data-default', '1');
     go.textContent = 'Send them';
     go.addEventListener('click', function(){
       closeModal();
@@ -1025,9 +1035,11 @@ function showFlow(fn){
   const board = document.querySelector('.board');
   if(board){
     const r = board.getBoundingClientRect();
-    if(r.top < 60 || r.top > window.innerHeight * 0.45){
-      window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 150), behavior:'auto' });
-    }
+    /* Nudge only when the board really is out of view. Scrolling on every
+       action pulled the decision panel off the top of the screen and made
+       the page feel like it was drifting downwards on its own. */
+    const hidden = (r.bottom < 120) || (r.top > window.innerHeight - 160);
+    if(hidden) window.scrollTo({ top: Math.max(0, window.scrollY + r.top - 140), behavior:'auto' });
   }
   requestAnimationFrame(function(){ requestAnimationFrame(fn); });
 }
@@ -1083,6 +1095,17 @@ function buildAllocTable(){
   });
   t.appendChild(body);
   return t;
+}
+
+/* Put the cursor in the first cell (first bag, Store A) so the table can be
+   filled from the keyboard alone: arrows change the quantity, Tab moves on,
+   Enter confirms the lot. Called again whenever a guide bubble closes, since
+   the bubble takes focus while it is open. */
+function focusShipCell(){
+  if(!state || state.step !== 'allocate' || hintOpen) return;
+  if(el('modal-root').firstChild) return;
+  const first = el('ship-A-0');
+  if(first){ first.focus(); first.select(); }
 }
 
 /* Live "what is left in the warehouse" feedback + hard block on over-shipping. */
@@ -1259,7 +1282,7 @@ function animateArrivals(recv){
 const HINTS = [
   { id:'reveal',  week:1, step:'reveal',   anchor:function(){ return el('action-panel'); },
     title:'1 — Reveal the demand',
-    text:'Each week, customers walk into both shops. You never know what they want until you reveal it. Start here.' },
+    text:'Each week, customers walk into both shops. You never know what they want until you reveal it. Start here — or just press Enter, which always confirms whatever this panel is asking for.' },
   { id:'demand',  week:1, step:'sell',     anchor:function(){ return el('panel-A'); },
     title:'This is the demand',
     text:'The "Dem." column shows what customers ask for in this store, bag by bag. Compare it with the stock just to its left.' },
@@ -1268,7 +1291,7 @@ const HINTS = [
     text:'You serve demand from the stock already in that shop. Every bag sold earns 1 000 €. What you cannot serve is lost — it does not come back next week.' },
   { id:'alloc',   week:1, step:'allocate', anchor:function(){ return el('action-panel'); },
     title:'3 — Ship from the warehouse',
-    text:'Type how many pieces leave the central warehouse for each shop. They arrive at the start of next week, so you are always deciding one week ahead.' },
+    text:'Type how many pieces leave the central warehouse for each shop. The first box is already selected — use the ↑ and ↓ arrows to change a quantity, Tab to move to the next, and Enter when the whole table is right. Stock arrives at the start of next week, so you are always deciding one week ahead.' },
   { id:'confirm', week:1, step:'confirm',  anchor:function(){ return el('action-panel'); },
     title:'4 — Close the week',
     text:'That is the full cycle. Thirteen weeks, then the P&L is revealed.' },
@@ -1315,15 +1338,22 @@ function showHint(h){
   /* place under the anchor, flipping above if there is no room */
   const r = anchor.getBoundingClientRect();
   const bw = Math.min(330, window.innerWidth - 24);
-  let left = Math.min(Math.max(12, r.left), window.innerWidth - bw - 12);
-  let top = r.bottom + 12;
+  const left = Math.min(Math.max(12, r.left), window.innerWidth - bw - 12);
   box.style.left = left + 'px';
+
   const bh = box.offsetHeight;
+  let top = r.bottom + 12;
   if(top + bh > window.innerHeight - 12){
-    top = Math.max(12, r.top - bh - 12);
+    top = r.top - bh - 12;                       /* flip above the anchor */
     box.classList.add('above');
   }else{
     box.classList.add('below');
+  }
+  /* Last resort on a short screen: clamp into view. A bubble the room
+     cannot see is a bubble that stalls the room. */
+  if(top < 12 || top + bh > window.innerHeight - 12){
+    top = Math.max(12, Math.min(top, window.innerHeight - bh - 12));
+    box.classList.remove('above', 'below');      /* the pointer would lie */
   }
   box.style.top = top + 'px';
 
@@ -1333,6 +1363,7 @@ function showHint(h){
     mask.remove(); box.remove();
     hintOpen = false;
     maybeHint();                     /* several hints can share a step */
+    focusShipCell();                 /* the bubble had taken the cursor */
   };
   ok.addEventListener('click', close);
   mask.addEventListener('click', close);
@@ -1554,7 +1585,8 @@ function openModal(build){
   build(box); back.appendChild(box);
   back.addEventListener('click', function(e){ if(e.target === back) closeModal(); });
   el('modal-root').appendChild(back);
-  const f = box.querySelector('button, textarea'); if(f) f.focus();
+  const f = box.querySelector('[data-default]') || box.querySelector('button, textarea');
+  if(f) f.focus();
 }
 function askConfirm(o){
   openModal(function(box){
@@ -1601,7 +1633,7 @@ function toast(msg){
 /* =========================================================================
    11. SETUP SCREEN
    ========================================================================= */
-let draft = { sellThrough:80, storePct:40 };
+let draft = { sellThrough:80, storePct:50 };
 
 /* The briefing is written from the constants above rather than typed into the
    HTML, so changing WEEKS or the economics updates what players are told. */
@@ -1638,8 +1670,8 @@ function renderSetupOptions(){
   draft.sellThrough = Number(el('sl-st').value);
   draft.storePct    = Number(el('sl-sp').value);
 
-  el('val-st').textContent = draft.sellThrough + '%';
-  el('val-sp').textContent = draft.storePct + '%';
+  el('val-st').textContent = draft.sellThrough + '% sell-through';
+  el('val-sp').textContent = draft.storePct + '% in store';
   buildTicks('ticks-st', SELL_THROUGH_OPTIONS, draft.sellThrough);
   buildTicks('ticks-sp', SPLIT_OPTIONS, draft.storePct);
 
@@ -1692,9 +1724,9 @@ function resetToStart(){
   el('setup-card').classList.remove('hidden');
   el('in-team').value = '';
   el('in-game').value = 'Run 1';
-  draft = { sellThrough:80, storePct:40 };
+  draft = { sellThrough:80, storePct:50 };
   el('sl-st').value = '80';
-  el('sl-sp').value = '40';
+  el('sl-sp').value = '50';
   el('in-team').focus();
 }
 
