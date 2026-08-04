@@ -154,6 +154,23 @@
   .chip.part{ background:repeating-linear-gradient(45deg,#8d99a6,#8d99a6 6px,#7b8794 6px,#7b8794 12px); }
   .axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-size:13px;
            font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; }
+
+  /* ------------------------------------------------------------- detail */
+  .chips{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .chips button{ min-height:44px; padding:8px 14px; font-size:15px;
+                 display:flex; align-items:center; gap:8px; }
+  .chips button[aria-pressed="true"]{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .chips button .dot{ width:12px; height:12px; border-radius:50%; flex:none; }
+  .chips button:disabled{ opacity:.45; }
+  .legend{ display:flex; gap:18px; flex-wrap:wrap; margin-bottom:14px;
+           font-size:14px; font-weight:600; color:var(--ink-soft); }
+  .legend i{ display:inline-block; width:14px; height:14px; border-radius:3px;
+             margin-right:6px; vertical-align:-2px; }
+  .charts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:16px; }
+  .chartbox{ border:2px solid var(--line-soft); border-radius:var(--radius); padding:10px 12px; }
+  .chartbox h3{ font-size:16px; margin-bottom:2px; }
+  .chartbox .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:6px; }
+  .chartbox svg{ width:100%; height:auto; display:block; }
 </style>
 
 <!-- ======================================================= SCREEN: IMPORT -->
@@ -224,6 +241,30 @@
     </div>
     <div id="excluded" class="card hidden" style="margin-top:18px;"></div>
     <div id="matrix-wrap" class="card hidden" style="margin-top:18px;"></div>
+
+    <!-- deliberately below the fold and closed: the detail is for after the
+         reveal, when someone asks "but why did we lose those sales?" -->
+    <div class="card" id="detail-card" style="margin-top:18px;">
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;">
+        <h2 style="font-size:21px;">Where the stock was sitting</h2>
+        <button id="btn-detail" class="btn-ghost">Show</button>
+      </div>
+      <div id="detail-body" class="hidden">
+        <p class="muted small" style="margin:2px 0 14px;">
+          Pick a room. Bars are the stock left at the end of each week, split by where it was.
+          The strip underneath is that week's demand — dark for what was served, red for what walked out.
+        </p>
+        <div id="team-chips" class="chips"></div>
+        <div id="legend" class="legend hidden">
+          <span><i style="background:#9aa7b3"></i>Warehouse</span>
+          <span><i style="background:#12557f"></i>Store A</span>
+          <span><i style="background:#6ba3cd"></i>Store B</span>
+          <span><i style="background:#4d5560"></i>Sold</span>
+          <span><i style="background:#8a3115"></i>Missed</span>
+        </div>
+        <div id="charts" class="charts"></div>
+      </div>
+    </div>
   </main>
   <div class="footbar">
     <div class="footbar-inner">
@@ -632,6 +673,7 @@ function startReveal(){
   el('screen-import').classList.add('hidden');
   el('screen-reveal').classList.remove('hidden');
   buildRows();
+  renderDetail();
   renderStage();
 }
 
@@ -781,6 +823,132 @@ function scale(v, lo, hi){
 }
 
 /* =========================================================================
+   6b. DETAIL — where each room's stock actually sat, week by week
+   =========================================================================
+   Stock and demand differ by an order of magnitude (a bag can have 65 units
+   in the system against a demand of 6), so they are NOT put on a shared
+   axis. The stacked bars are stock; the strip underneath is demand, split
+   into what was served and what was lost. Nothing implies one scale. */
+let detailTeam = null;
+
+const CLR = { W:'#9aa7b3', A:'#12557f', B:'#6ba3cd', sold:'#4d5560', missed:'#8a3115' };
+
+function renderDetail(){
+  const host = el('team-chips');
+  host.textContent = '';
+  const list = sortedForDisplay();
+  list.forEach(function(g){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.disabled = g.source !== 'detail';
+    b.title = g.source === 'detail' ? '' : 'summary only — no week-by-week data in this file';
+    b.setAttribute('aria-pressed', String(detailTeam === g.id));
+    b.innerHTML = '<span class="dot" style="background:' + (g.colour || '#8d99a6') + '"></span>'
+                + esc(g.team) + ' · ' + esc(g.game)
+                + (g.source === 'detail' ? '' : ' (summary)');
+    b.addEventListener('click', function(){
+      detailTeam = (detailTeam === g.id) ? null : g.id;
+      renderDetail();
+    });
+    host.appendChild(b);
+  });
+
+  const g = games.find(function(x){ return x.id === detailTeam; });
+  el('legend').classList.toggle('hidden', !g);
+  const charts = el('charts');
+  charts.textContent = '';
+  if(!g) return;
+
+  /* group the flat rows into bag -> week -> location */
+  const bags = [];
+  const by = {};
+  g.rows.forEach(function(r){
+    if(!by[r.bag]){ by[r.bag] = {}; bags.push(r.bag); }
+    if(!by[r.bag][r.week]) by[r.bag][r.week] = {};
+    by[r.bag][r.week][r.loc] = r;
+  });
+
+  bags.forEach(function(bag){
+    const weeks = Object.keys(by[bag]).map(Number).sort(function(a, b){ return a - b; });
+    const series = weeks.map(function(w){
+      const c = by[bag][w];
+      const W = c['Warehouse'] || {}, A = c['Store A'] || {}, B = c['Store B'] || {};
+      return { w:w,
+               wh:W.closing || 0, a:A.closing || 0, b:B.closing || 0,
+               sold:(A.sold || 0) + (B.sold || 0),
+               missed:(A.missed || 0) + (B.missed || 0) };
+    });
+    const totMissed = series.reduce(function(a, x){ return a + x.missed; }, 0);
+    const totSold   = series.reduce(function(a, x){ return a + x.sold; }, 0);
+
+    const box = document.createElement('div');
+    box.className = 'chartbox';
+    box.innerHTML = '<h3>' + esc(bag) + '</h3><div class="sub">sold ' + totSold
+      + (totMissed ? ' · <b style="color:' + CLR.missed + '">' + totMissed + ' missed</b>' : ' · nothing missed')
+      + '</div>' + stockChart(series);
+    charts.appendChild(box);
+  });
+}
+
+function stockChart(series){
+  const W = 340, H = 168, L = 26, R = 6, T = 8;
+  const stockH = 96, gap = 10, stripH = 26;
+  const innerW = W - L - R;
+  const n = series.length;
+  const bw = Math.max(4, innerW / n * 0.68);
+  const x = function(i){ return L + innerW * (i + 0.5) / n; };
+
+  const maxStock = Math.max(1, Math.max.apply(null, series.map(function(s){ return s.wh + s.a + s.b; })));
+  const maxDem   = Math.max(1, Math.max.apply(null, series.map(function(s){ return s.sold + s.missed; })));
+  const yS = function(v){ return T + stockH - (v / maxStock) * stockH; };
+
+  let g = '';
+  /* stock: warehouse at the bottom, then the two shops */
+  series.forEach(function(s, i){
+    let acc = 0;
+    [['wh', CLR.W], ['a', CLR.A], ['b', CLR.B]].forEach(function(pair){
+      const v = s[pair[0]];
+      if(v <= 0) return;
+      const y0 = yS(acc), y1 = yS(acc + v);
+      g += '<rect x="' + (x(i) - bw / 2).toFixed(1) + '" y="' + y1.toFixed(1)
+         + '" width="' + bw.toFixed(1) + '" height="' + Math.max(0.8, y0 - y1).toFixed(1)
+         + '" fill="' + pair[1] + '"/>';
+      acc += v;
+    });
+  });
+  /* demand strip: served then missed, on its own baseline */
+  const sTop = T + stockH + gap;
+  series.forEach(function(s, i){
+    const tot = s.sold + s.missed;
+    if(tot <= 0) return;
+    const h = (tot / maxDem) * stripH;
+    const hm = (s.missed / maxDem) * stripH;
+    const bx = (x(i) - bw / 2).toFixed(1);
+    g += '<rect x="' + bx + '" y="' + (sTop + stripH - h).toFixed(1) + '" width="' + bw.toFixed(1)
+       + '" height="' + Math.max(0.8, h - hm).toFixed(1) + '" fill="' + CLR.sold + '"/>';
+    if(s.missed > 0)
+      g += '<rect x="' + bx + '" y="' + (sTop + stripH - hm).toFixed(1) + '" width="' + bw.toFixed(1)
+         + '" height="' + Math.max(0.8, hm).toFixed(1) + '" fill="' + CLR.missed + '"/>';
+  });
+
+  /* axes and labels, kept minimal */
+  const axis = '<line x1="' + L + '" y1="' + (T + stockH) + '" x2="' + (W - R) + '" y2="' + (T + stockH)
+             + '" stroke="#c6ced7"/>'
+    + '<line x1="' + L + '" y1="' + (sTop + stripH) + '" x2="' + (W - R) + '" y2="' + (sTop + stripH)
+    + '" stroke="#c6ced7"/>'
+    + '<text x="' + (L - 4) + '" y="' + (T + 8) + '" font-size="9" fill="#7b8794" text-anchor="end">'
+    + maxStock + '</text>'
+    + '<text x="' + (L - 4) + '" y="' + (sTop + 8) + '" font-size="9" fill="#7b8794" text-anchor="end">'
+    + maxDem + '</text>'
+    + '<text x="' + L + '" y="' + (H - 3) + '" font-size="9" fill="#7b8794">w1</text>'
+    + '<text x="' + (W - R) + '" y="' + (H - 3) + '" font-size="9" fill="#7b8794" text-anchor="end">w'
+    + n + '</text>'
+    + '<text x="' + (W - R) + '" y="' + (sTop - 2) + '" font-size="9" fill="#7b8794" text-anchor="end">demand</text>';
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img">' + axis + g + '</svg>';
+}
+
+/* =========================================================================
    7. WIRING
    ========================================================================= */
 function init(){
@@ -824,6 +992,13 @@ function init(){
     askConfirm('Remove all ' + games.length + ' loaded games?',
       'Nothing is deleted from the original files — you would just have to load them again.',
       function(){ games = []; conflicts = []; save(); renderImport(); });
+  });
+
+  el('btn-detail').addEventListener('click', function(){
+    const body = el('detail-body');
+    const open = body.classList.toggle('hidden');
+    el('btn-detail').textContent = open ? 'Show' : 'Hide';
+    if(!open) renderDetail();
   });
 
   el('btn-start').addEventListener('click', startReveal);
