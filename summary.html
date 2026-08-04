@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Product launch — debrief</title>
+
+<!--
+  ===========================================================================
+  DEBRIEF — reads the exports produced by index.html
+  ---------------------------------------------------------------------------
+  ONE standalone file. No network of any kind. Open by double-clicking.
+  It never plays the game; it only reads exports from it.
+
+  Import up to 20 team-games by dropping files, picking them, or pasting the
+  clipboard. Then a six-stage reveal:
+      names -> setup -> turnover -> sort -> margin -> sort -> matrix
+
+  See SUMMARY-SPEC.md for the reasoning behind the design decisions.
+  ===========================================================================
+-->
+
+<style>
+  :root{
+    --bg:#eef1f4; --surface:#fff; --ink:#12161b; --ink-soft:#525c68;
+    --line:#c6ced7; --line-soft:#e2e7ec;
+    --accent:#12557f; --accent-soft:#e7f0f7;
+    --good:#0f6b45; --bad:#8a3115; --warn-bg:#fdf7e8; --warn-line:#dcc389;
+    --radius:10px;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink);
+        font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+        font-size:18px; line-height:1.4; }
+  h1,h2,h3{ margin:0; font-weight:800; letter-spacing:-0.015em; }
+  .wrap{ max-width:1200px; margin:0 auto; padding:0 20px; }
+  .hidden{ display:none !important; }
+  .muted{ color:var(--ink-soft); }
+  .small{ font-size:15px; }
+  .tnum{ font-variant-numeric:tabular-nums; }
+
+  button{ font:inherit; font-weight:600; border:2px solid var(--line);
+          background:var(--surface); color:var(--ink); border-radius:var(--radius);
+          padding:12px 18px; min-height:52px; cursor:pointer; }
+  button:hover:not(:disabled){ border-color:var(--accent); }
+  button:focus-visible{ outline:3px solid var(--accent); outline-offset:2px; }
+  button:disabled{ opacity:.4; cursor:not-allowed; }
+  .btn-primary{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn-primary:hover:not(:disabled){ filter:brightness(1.15); }
+  .btn-ghost{ min-height:40px; padding:6px 12px; font-size:15px;
+              border-color:var(--line-soft); color:var(--ink-soft); background:transparent; }
+  .btn-danger{ color:var(--bad); border-color:#dcb5a5; }
+  .btn-xl{ font-size:23px; min-height:70px; padding:16px 30px; }
+  .kbd{ display:inline-block; margin-left:10px; font-size:13px; font-weight:700;
+        background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.5);
+        border-radius:6px; padding:2px 8px; vertical-align:middle; }
+
+  .card{ background:var(--surface); border:2px solid var(--line-soft);
+         border-radius:var(--radius); padding:22px; margin-bottom:18px; }
+  .card h2{ font-size:23px; margin-bottom:10px; }
+
+  /* ------------------------------------------------------------- import */
+  #drop{ border:3px dashed var(--line); border-radius:var(--radius);
+         background:var(--surface); padding:34px 24px; text-align:center;
+         transition:background .15s, border-color .15s; }
+  #drop.over{ border-color:var(--accent); background:var(--accent-soft); }
+  #drop h2{ font-size:24px; margin-bottom:6px; }
+  #drop .or{ margin:16px 0 0; }
+  #paste{ width:100%; min-height:130px; font-family:ui-monospace,Consolas,monospace;
+          font-size:13px; border:2px solid var(--line); border-radius:var(--radius); padding:10px; }
+
+  table.games{ width:100%; border-collapse:collapse; }
+  table.games th{ font-size:12px; text-transform:uppercase; letter-spacing:.05em;
+                  color:var(--ink-soft); text-align:right; padding:0 10px 8px; }
+  table.games th:first-child, table.games td:first-child{ text-align:left; }
+  table.games td{ padding:9px 10px; border-top:1px solid var(--line-soft);
+                  text-align:right; font-variant-numeric:tabular-nums; }
+  table.games td.nm{ font-weight:700; }
+
+  .badge{ display:inline-block; font-size:12px; font-weight:800; border-radius:5px;
+          padding:2px 8px; margin-left:8px; text-transform:uppercase; letter-spacing:.04em; }
+  .badge.part{ background:#fdf1ec; color:var(--bad); border:1px solid #e6c2b3; }
+  .badge.sum{ background:var(--line-soft); color:var(--ink-soft); }
+  .badge.assumed{ background:var(--warn-bg); color:#5a4413; border:1px solid var(--warn-line); }
+
+  .note{ border:2px solid var(--warn-line); background:var(--warn-bg); color:#5a4413;
+         border-radius:var(--radius); padding:14px 18px; margin-bottom:14px; }
+  .note.stop{ border-color:#dcb5a5; background:#fdf1ec; color:#6b2a12; }
+  .note h3{ font-size:17px; margin-bottom:6px; }
+  .note ul{ margin:6px 0 0; padding-left:20px; }
+  .note .row-buttons{ margin-top:12px; }
+  .row-buttons{ display:flex; gap:10px; flex-wrap:wrap; }
+
+  .econ-fields{ display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end; }
+  .econ-fields label{ display:block; font-size:13px; font-weight:700;
+                      text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); }
+  .econ-fields input{ font:inherit; width:170px; padding:10px 12px; min-height:48px;
+                      border:2px solid var(--line); border-radius:var(--radius);
+                      font-variant-numeric:tabular-nums; }
+
+  /* ------------------------------------------------------------- reveal */
+  header.topbar{ position:sticky; top:0; z-index:20; background:var(--surface);
+                 border-bottom:2px solid var(--line); }
+  .bar-inner{ display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+              padding:12px 20px; max-width:1200px; margin:0 auto; }
+  .stagepill{ background:var(--accent); color:#fff; border-radius:var(--radius);
+              padding:6px 16px; font-weight:800; font-size:19px; }
+  .stagetitle{ font-size:21px; font-weight:800; flex:1 1 240px; }
+
+  .board{ background:var(--surface); border:2px solid var(--line-soft);
+          border-radius:var(--radius); padding:8px 18px 18px; margin-top:20px; }
+  .rowhead, .trow{ display:grid; gap:10px; align-items:center;
+                   grid-template-columns:56px minmax(180px,2fr) 130px 130px 150px 150px 110px; }
+  @media (max-width:900px){
+    .rowhead, .trow{ grid-template-columns:44px minmax(120px,1.4fr) 90px 90px 110px 110px 90px;
+                     font-size:15px; }
+  }
+  .rowhead{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+            color:var(--ink-soft); padding:10px 0 8px; border-bottom:2px solid var(--line-soft); }
+  .rowhead span, .trow > *{ text-align:right; }
+  .rowhead span:nth-child(2), .trow > *:nth-child(2){ text-align:left; }
+  .trow{ padding:12px 0; border-bottom:1px solid var(--line-soft);
+         font-variant-numeric:tabular-nums; will-change:transform; }
+  .trow .nm{ font-weight:800; font-size:20px; display:flex; align-items:center; gap:9px; }
+  .trow .dot{ width:14px; height:14px; border-radius:50%; flex:none; }
+  .trow .rank{ font-size:22px; font-weight:800; color:var(--ink-soft); }
+  .trow .big{ font-size:22px; font-weight:800; }
+  .trow .neg{ color:var(--bad); }
+  .trow.part{ opacity:.55; }
+
+  /* columns appear as the stages advance; visibility (not display) keeps the
+     grid geometry fixed, so nothing jumps and the sort measurements hold */
+  .c-setup, .c-turnover, .c-margin, .c-rank{ visibility:hidden; }
+  .show-setup .c-setup, .show-turnover .c-turnover,
+  .show-margin .c-margin, .show-rank .c-rank{ visibility:visible; animation:fade .45s ease both; }
+  @keyframes fade{ from{ opacity:0; transform:translateY(-6px) } to{ opacity:1; transform:none } }
+
+  .footbar{ position:fixed; left:0; right:0; bottom:0; z-index:20; background:var(--surface);
+            border-top:2px solid var(--line); padding:14px 20px; }
+  .footbar-inner{ max-width:1200px; margin:0 auto; display:flex; gap:14px;
+                  align-items:center; flex-wrap:wrap; }
+  .footbar .btn-xl{ flex:1 1 300px; }
+
+  /* ------------------------------------------------------------- matrix */
+  .mwrap{ overflow-x:auto; }
+  table.matrix{ border-collapse:separate; border-spacing:6px; margin:0 auto; }
+  table.matrix th{ font-size:13px; font-weight:800; color:var(--ink-soft);
+                   text-transform:uppercase; letter-spacing:.04em; padding:4px 8px; }
+  table.matrix td{ min-width:120px; height:86px; vertical-align:top;
+                   background:var(--surface); border:2px solid var(--line-soft);
+                   border-radius:8px; padding:6px; }
+  .chip{ display:block; font-size:14px; font-weight:800; border-radius:6px;
+         padding:4px 8px; margin-bottom:4px; color:#fff; white-space:nowrap;
+         overflow:hidden; text-overflow:ellipsis; }
+  .chip .m{ font-weight:600; opacity:.9; }
+  .chip.part{ background:repeating-linear-gradient(45deg,#8d99a6,#8d99a6 6px,#7b8794 6px,#7b8794 12px); }
+  .axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-size:13px;
+           font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; }
+</style>
+
+<!-- ======================================================= SCREEN: IMPORT -->
+<section id="screen-import" class="wrap" style="padding:30px 0 70px;">
+  <h1 style="font-size:29px;">Product launch — debrief</h1>
+  <p class="muted" style="margin-top:6px;">Load the exports from each room, then reveal the results together.</p>
+
+  <div id="drop">
+    <h2>Drop the exported files here</h2>
+    <p class="muted" style="margin:4px 0 0;">All of them at once, or one at a time. CSV or the pasted clipboard.</p>
+    <div class="or row-buttons" style="justify-content:center;">
+      <button id="btn-pick" class="btn-primary">Choose files…</button>
+      <button id="btn-paste-toggle">Paste instead…</button>
+    </div>
+    <input id="file-input" type="file" multiple accept=".csv,.tsv,.txt,text/csv,text/plain" class="hidden">
+  </div>
+
+  <div id="paste-card" class="card hidden" style="margin-top:18px;">
+    <h2>Paste a room's results</h2>
+    <p class="muted small" style="margin-top:0;">Whatever the room's <b>Copy all data</b> button put on the clipboard.</p>
+    <textarea id="paste" placeholder="Paste here…"></textarea>
+    <div class="row-buttons" style="margin-top:12px;">
+      <button id="btn-paste-add" class="btn-primary">Add</button>
+      <button id="btn-paste-close" class="btn-ghost">Close</button>
+    </div>
+  </div>
+
+  <div id="notes" style="margin-top:20px;"></div>
+
+  <div id="econ-card" class="card hidden">
+    <h2>Economics</h2>
+    <p class="muted small" style="margin-top:0;" id="econ-why"></p>
+    <div class="econ-fields">
+      <div><label for="in-cost">Cost per bag</label><input id="in-cost" type="number" value="200"></div>
+      <div><label for="in-fixed">Fixed cost</label><input id="in-fixed" type="number" value="117000"></div>
+    </div>
+  </div>
+
+  <div id="loaded-card" class="card hidden">
+    <div style="display:flex;align-items:baseline;gap:12px;">
+      <h2 id="loaded-title">Loaded</h2>
+      <button id="btn-clear" class="btn-ghost btn-danger" style="margin-left:auto;">Remove all…</button>
+    </div>
+    <div style="overflow-x:auto;"><table class="games" id="games-table"></table></div>
+  </div>
+
+  <button id="btn-start" class="btn-primary btn-xl" style="width:100%;" disabled>Start the debrief</button>
+</section>
+
+<!-- ======================================================= SCREEN: REVEAL -->
+<section id="screen-reveal" class="hidden">
+  <header class="topbar">
+    <div class="bar-inner">
+      <span class="stagepill" id="stage-pill">1 / 7</span>
+      <span class="stagetitle" id="stage-title">—</span>
+      <button id="btn-back-import" class="btn-ghost">Back to files</button>
+    </div>
+  </header>
+  <main class="wrap" style="padding-bottom:130px;">
+    <div id="board" class="board">
+      <div class="rowhead">
+        <span class="c-rank">Rank</span><span>Team</span>
+        <span class="c-setup">Target S/T</span><span class="c-setup">% in store</span>
+        <span class="c-turnover">Turnover</span><span class="c-margin">Margin</span>
+        <span class="c-margin">Margin&nbsp;%</span>
+      </div>
+      <div id="rows"></div>
+    </div>
+    <div id="excluded" class="card hidden" style="margin-top:18px;"></div>
+    <div id="matrix-wrap" class="card hidden" style="margin-top:18px;"></div>
+  </main>
+  <div class="footbar">
+    <div class="footbar-inner">
+      <button id="btn-prev" class="btn-ghost">← Back</button>
+      <button id="btn-next" class="btn-primary btn-xl">Next<span class="kbd">↵ Enter</span></button>
+    </div>
+  </div>
+</section>
+
+<div id="modal-root"></div>
+
+<script>
+"use strict";
+
+/* =========================================================================
+   1. PARSING
+   ========================================================================= */
+const MAX_GAMES = 20;
+
+/* CSV/TSV field splitter that honours quoted fields and doubled quotes. */
+function splitLine(line, delim){
+  const out = []; let cur = '', q = false;
+  for(let i = 0; i < line.length; i++){
+    const ch = line[i];
+    if(q){
+      if(ch === '"'){ if(line[i + 1] === '"'){ cur += '"'; i++; } else q = false; }
+      else cur += ch;
+    }else{
+      if(ch === '"') q = true;
+      else if(ch === delim){ out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+const num = function(v){
+  if(v === undefined || v === null || v === '') return 0;
+  const n = Number(String(v).replace('%', '').replace(/\s/g, '').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+};
+
+function fnv(str){
+  let h = 2166136261 >>> 0;
+  for(let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h.toString(16);
+}
+
+/* Turns one blob of text into zero or more games. A single file may hold
+   several rooms concatenated, so rows are grouped by Team + Game. */
+function parseBlob(text, sourceName){
+  const clean = String(text).replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+  const lines = clean.split('\n').filter(function(l){ return l.trim() !== ''; });
+  if(lines.length < 2) return { games:[], error:'file is empty' };
+
+  /* delimiter: whichever the header uses more of */
+  const tabs = (lines[0].match(/\t/g) || []).length;
+  const commas = (lines[0].match(/,/g) || []).length;
+  const delim = tabs >= commas ? '\t' : ',';
+
+  const head = splitLine(lines[0], delim).map(function(h){ return h.trim(); });
+  const at = {};
+  head.forEach(function(h, i){ at[h] = i; });
+  if(at['Team'] === undefined || at['Game'] === undefined)
+    return { games:[], error:'not an export from the game — no Team/Game columns' };
+
+  const isDetail  = at['Week'] !== undefined && at['Location'] !== undefined;
+  const isSummary = at['Profit'] !== undefined;
+  if(!isDetail && !isSummary)
+    return { games:[], error:'unrecognised export layout' };
+
+  const groups = new Map();
+  for(let i = 1; i < lines.length; i++){
+    const c = splitLine(lines[i], delim);
+    if(c.length < head.length - 2) continue;                 /* stray line */
+    const team = (c[at['Team']] || '').trim(), game = (c[at['Game']] || '').trim();
+    if(!team && !game) continue;
+    if(team === 'Team') continue;                            /* a repeated header */
+    const key = team + '||' + game;
+    if(!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(c);
+  }
+
+  const games = [];
+  groups.forEach(function(rows, key){
+    games.push(isDetail ? buildDetail(key, rows, at, sourceName)
+                        : buildSummary(key, rows[0], at, sourceName));
+  });
+  return { games:games, error:null };
+}
+
+function buildDetail(key, rows, at, sourceName){
+  const g = {
+    id:key, source:'detail', file:sourceName,
+    team:rows[0][at['Team']], game:rows[0][at['Game']],
+    target:num(rows[0][at['TargetSellThrough']]),
+    storePct:num(rows[0][at['StorePctAtSetup']]),
+    producedPerBag:num(rows[0][at['ProducedPerBag']]),
+    producedTotal:num(rows[0][at['ProducedTotal']]),
+    unitCost:at['UnitCost'] !== undefined ? num(rows[0][at['UnitCost']]) : null,
+    fixedCost:at['FixedCost'] !== undefined ? num(rows[0][at['FixedCost']]) : null,
+    issues:[], rows:[]
+  };
+
+  let turnover = 0, sold = 0, missed = 0, maxWeek = 0, broken = 0;
+  const bags = new Set(), locs = new Set(), demandKeys = [];
+
+  rows.forEach(function(c){
+    const r = {
+      week:num(c[at['Week']]), bag:c[at['Bag']], loc:c[at['Location']],
+      opening:num(c[at['Opening']]), received:num(c[at['Received']]),
+      demand:num(c[at['Demand']]), sold:num(c[at['Sold']]),
+      missed:num(c[at['Missed']]), shipped:num(c[at['ShippedOut']]),
+      closing:num(c[at['Closing']]), revenue:num(c[at['Revenue']])
+    };
+    g.rows.push(r);
+    turnover += r.revenue; sold += r.sold; missed += r.missed;
+    maxWeek = Math.max(maxWeek, r.week);
+    bags.add(r.bag); locs.add(r.loc);
+    if(r.loc !== 'Warehouse'){
+      demandKeys.push(r.week + '|' + r.bag + '|' + r.loc + '|' + r.demand);
+      if(r.opening + r.received - r.sold !== r.closing) broken++;
+      if(r.sold + r.missed !== r.demand) broken++;
+    }else if(r.opening - r.shipped !== r.closing) broken++;
+  });
+
+  g.turnover = turnover; g.sold = sold; g.missed = missed;
+  g.weeks = maxWeek; g.bagCount = bags.size; g.locCount = locs.size;
+  g.rowCount = rows.length;
+  g.demandHash = fnv(demandKeys.sort().join(';'));
+  g.contentHash = fnv(rows.map(function(c){ return c.join(''); }).join('\n'));
+  if(broken) g.issues.push(broken + ' row(s) do not add up — the file may have been edited');
+  if(g.rowCount !== maxWeek * bags.size * locs.size)
+    g.issues.push('expected ' + (maxWeek * bags.size * locs.size) + ' rows, found ' + g.rowCount);
+  return g;
+}
+
+function buildSummary(key, c, at, sourceName){
+  const g = {
+    id:key, source:'summary', file:sourceName, rows:null,
+    team:c[at['Team']], game:c[at['Game']],
+    target:num(c[at['TargetSellThrough']]), storePct:num(c[at['StorePctAtSetup']]),
+    producedTotal:num(c[at['Produced']]), sold:num(c[at['Sold']]),
+    missed:num(c[at['Missed']]), turnover:num(c[at['Revenue']]),
+    unitCost:num(c[at['Produced']]) ? num(c[at['COGS']]) / num(c[at['Produced']]) : null,
+    fixedCost:at['FixedCost'] !== undefined ? num(c[at['FixedCost']]) : null,
+    weeks:null, demandHash:null, issues:[]
+  };
+  g.contentHash = fnv(c.join(''));
+  g.statedProfit = num(c[at['Profit']]);
+  return g;
+}
+
+/* =========================================================================
+   2. STATE
+   ========================================================================= */
+const STORAGE_KEY = 'wheretostock.debrief.v1';
+let games = [];                 /* loaded team-games            */
+let conflicts = [];             /* awaiting a keep/replace call */
+let messages = [];              /* one-off import feedback      */
+let fallbackCost = 200, fallbackFixed = 117000;
+
+const el = function(id){ return document.getElementById(id); };
+const fmt  = function(n){ return Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' '); };
+const fmtE = function(n){ return fmt(n) + ' €'; };
+
+/* Season length is taken from the data, not assumed: the longest game
+   loaded defines a full season, and anything shorter is a part game. */
+function seasonWeeks(){
+  return games.reduce(function(m, g){ return Math.max(m, g.weeks || 0); }, 0);
+}
+function isComplete(g){
+  if(g.source === 'summary') return true;
+  return g.weeks === seasonWeeks() && !g.issues.length;
+}
+function economics(g){
+  return { cost: g.unitCost !== null && g.unitCost !== undefined ? g.unitCost : fallbackCost,
+           fixed: g.fixedCost !== null && g.fixedCost !== undefined ? g.fixedCost : fallbackFixed,
+           assumed: g.unitCost === null || g.unitCost === undefined
+                 || g.fixedCost === null || g.fixedCost === undefined };
+}
+function margin(g){
+  const e = economics(g);
+  return g.turnover - g.producedTotal * e.cost - e.fixed;
+}
+function marginPct(g){ return g.turnover ? margin(g) / g.turnover * 100 : 0; }
+
+function save(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ games:games, fallbackCost:fallbackCost, fallbackFixed:fallbackFixed })); }
+  catch(err){ /* over quota — the session still works, it just will not survive a reload */ }
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const o = JSON.parse(raw);
+    if(o && Array.isArray(o.games)) games = o.games;
+    if(o && o.fallbackCost) fallbackCost = o.fallbackCost;
+    if(o && o.fallbackFixed) fallbackFixed = o.fallbackFixed;
+  }catch(err){ games = []; }
+}
+
+/* =========================================================================
+   3. TAKING FILES IN
+   ========================================================================= */
+function addBlob(text, sourceName){
+  const res = parseBlob(text, sourceName);
+  if(res.error){ messages.push({ kind:'bad', text:sourceName + ': ' + res.error }); return; }
+  if(!res.games.length){ messages.push({ kind:'bad', text:sourceName + ': no results found' }); return; }
+
+  res.games.forEach(function(g){
+    const existing = games.find(function(x){ return x.id === g.id; });
+    if(existing){
+      if(existing.contentHash === g.contentHash){
+        messages.push({ kind:'ok', text:g.team + ' · ' + g.game + ' — already loaded, skipped' });
+      }else if(existing.source !== g.source){
+        /* A one-line summary and a full export of the same game are not in
+           conflict — they are the same result at two levels of detail. Keep
+           the fuller one without bothering the facilitator. */
+        if(g.source === 'detail'){
+          games[games.indexOf(existing)] = g;
+          messages.push({ kind:'ok', text:g.team + ' · ' + g.game
+            + ' — full export replaces the summary that was loaded' });
+        }else{
+          messages.push({ kind:'ok', text:g.team + ' · ' + g.game
+            + ' — the full export is already loaded, summary ignored' });
+        }
+      }else{
+        conflicts.push({ incoming:g, existing:existing });
+      }
+      return;
+    }
+    if(games.length >= MAX_GAMES){
+      messages.push({ kind:'bad', text:'room for ' + MAX_GAMES + ' games only — ' + g.team + ' · ' + g.game + ' not added' });
+      return;
+    }
+    games.push(g);
+    messages.push({ kind:'ok', text:g.team + ' · ' + g.game + ' — added' });
+  });
+  save(); renderImport();
+}
+
+function readFiles(fileList){
+  const files = Array.prototype.slice.call(fileList || []);
+  if(!files.length) return;
+  messages = [];
+  let pending = files.length;
+  files.forEach(function(f){
+    const fr = new FileReader();
+    fr.onload = function(){ addBlob(fr.result, f.name); if(--pending === 0) renderImport(); };
+    fr.onerror = function(){ messages.push({ kind:'bad', text:f.name + ': could not be read' });
+                             if(--pending === 0) renderImport(); };
+    fr.readAsText(f);
+  });
+}
+
+/* =========================================================================
+   4. IMPORT SCREEN
+   ========================================================================= */
+function renderImport(){
+  /* ---- conflicts and warnings ---- */
+  const host = el('notes');
+  host.textContent = '';
+
+  conflicts.forEach(function(c, idx){
+    const n = document.createElement('div');
+    n.className = 'note stop';
+    n.innerHTML = '<h3>' + esc(c.incoming.team) + ' · ' + esc(c.incoming.game) + ' is already loaded, '
+      + 'but this file says something different</h3>'
+      + '<p class="small" style="margin:0">Loaded: turnover ' + fmtE(c.existing.turnover)
+      + ', ' + (c.existing.weeks || '?') + ' weeks &nbsp;·&nbsp; New: turnover ' + fmtE(c.incoming.turnover)
+      + ', ' + (c.incoming.weeks || '?') + ' weeks. Usually this means one of them was exported '
+      + 'before the game finished.</p>';
+    const row = document.createElement('div'); row.className = 'row-buttons';
+    row.appendChild(mkBtn('Replace with the new one', function(){
+      games[games.indexOf(c.existing)] = c.incoming; conflicts.splice(idx, 1); save(); renderImport();
+    }));
+    row.appendChild(mkBtn('Keep both', function(){
+      let n2 = 2; while(games.find(function(x){ return x.id === c.incoming.team + '||' + c.incoming.game + ' (' + n2 + ')'; })) n2++;
+      c.incoming.game = c.incoming.game + ' (' + n2 + ')';
+      c.incoming.id = c.incoming.team + '||' + c.incoming.game;
+      games.push(c.incoming); conflicts.splice(idx, 1); save(); renderImport();
+    }));
+    row.appendChild(mkBtn('Discard the new one', function(){
+      conflicts.splice(idx, 1); renderImport();
+    }));
+    n.appendChild(row);
+    host.appendChild(n);
+  });
+
+  /* version mismatch: every room must have played the same demand */
+  const hashes = {};
+  games.forEach(function(g){ if(g.demandHash) (hashes[g.demandHash] = hashes[g.demandHash] || []).push(g); });
+  const keys = Object.keys(hashes);
+  if(keys.length > 1){
+    keys.sort(function(a, b){ return hashes[b].length - hashes[a].length; });
+    const odd = keys.slice(1).reduce(function(a, k){ return a.concat(hashes[k]); }, []);
+    const n = document.createElement('div');
+    n.className = 'note stop';
+    n.innerHTML = '<h3>These rooms did not play the same game</h3>'
+      + '<p class="small" style="margin:0">Their weekly demand differs, which means they ran different '
+      + 'versions of the file. Their results cannot fairly be compared with the others: '
+      + '<b>' + odd.map(function(g){ return esc(g.team + ' · ' + g.game); }).join(', ') + '</b></p>';
+    host.appendChild(n);
+  }
+
+  /* part games */
+  const parts = games.filter(function(g){ return !isComplete(g); });
+  if(parts.length){
+    const n = document.createElement('div');
+    n.className = 'note';
+    n.innerHTML = '<h3>Part games — shown but not ranked</h3><ul>'
+      + parts.map(function(g){
+          return '<li>' + esc(g.team + ' · ' + g.game) + ' — reached week ' + (g.weeks || '?')
+               + ' of ' + seasonWeeks() + (g.issues.length ? '. ' + esc(g.issues.join('; ')) : '') + '</li>'; }).join('')
+      + '</ul>';
+    host.appendChild(n);
+  }
+
+  if(messages.length){
+    const n = document.createElement('div');
+    n.className = 'note' + (messages.some(function(m){ return m.kind === 'bad'; }) ? ' stop' : '');
+    n.innerHTML = '<ul>' + messages.map(function(m){ return '<li>' + esc(m.text) + '</li>'; }).join('') + '</ul>';
+    host.appendChild(n);
+  }
+
+  /* ---- economics fallback, only when something is missing it ---- */
+  const needFallback = games.some(function(g){ return economics(g).assumed; });
+  el('econ-card').classList.toggle('hidden', !needFallback);
+  if(needFallback){
+    el('econ-why').textContent = 'Some files were exported before the game carried its own costs, '
+      + 'so these numbers are assumed rather than read. Check them.';
+  }
+
+  /* ---- the loaded list ---- */
+  el('loaded-card').classList.toggle('hidden', games.length === 0);
+  el('loaded-title').textContent = 'Loaded — ' + games.length + ' of ' + MAX_GAMES;
+  const t = el('games-table');
+  if(games.length){
+    let html = '<thead><tr><th>Team</th><th>Target S/T</th><th>% in store</th><th>Weeks</th>'
+             + '<th>Turnover</th><th>Margin</th><th></th></tr></thead><tbody>';
+    sortedForDisplay().forEach(function(g, i){
+      const e = economics(g);
+      html += '<tr><td class="nm">' + esc(g.team) + ' · ' + esc(g.game)
+           + (isComplete(g) ? '' : '<span class="badge part">part</span>')
+           + (g.source === 'summary' ? '<span class="badge sum">summary only</span>' : '')
+           + (e.assumed ? '<span class="badge assumed">costs assumed</span>' : '')
+           + '</td><td>' + g.target + '%</td><td>' + g.storePct + '%</td>'
+           + '<td>' + (g.weeks || '—') + '</td><td>' + fmtE(g.turnover) + '</td>'
+           + '<td>' + fmtE(margin(g)) + '</td>'
+           + '<td><button class="btn-ghost" data-rm="' + i + '">Remove</button></td></tr>';
+    });
+    t.innerHTML = html + '</tbody>';
+    Array.prototype.forEach.call(t.querySelectorAll('[data-rm]'), function(b){
+      b.addEventListener('click', function(){
+        const g = sortedForDisplay()[Number(b.dataset.rm)];
+        games.splice(games.indexOf(g), 1); save(); renderImport();
+      });
+    });
+  }else t.textContent = '';
+
+  const rankable = games.filter(isComplete).length;
+  const start = el('btn-start');
+  start.disabled = rankable === 0 || conflicts.length > 0;
+  start.textContent = conflicts.length ? 'Resolve the conflicts above first'
+    : rankable === 0 ? 'Load at least one complete game'
+    : 'Start the debrief — ' + rankable + ' team' + (rankable > 1 ? 's' : '');
+}
+
+function sortedForDisplay(){
+  return games.slice().sort(function(a, b){
+    return (a.team + a.game).localeCompare(b.team + b.game, undefined, { numeric:true });
+  });
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
+  return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
+function mkBtn(label, fn){ const b = document.createElement('button'); b.textContent = label;
+  b.addEventListener('click', fn); return b; }
+
+/* =========================================================================
+   5. THE REVEAL
+   ========================================================================= */
+const STAGES = [
+  { key:'names',    title:'The rooms' },
+  { key:'setup',    title:'What each room decided' },
+  { key:'turnover', title:'Turnover — still in alphabetical order' },
+  { key:'sortT',    title:'Ranked by turnover' },
+  { key:'margin',   title:'…and here is the margin' },
+  { key:'sortM',    title:'Ranked by margin' },
+  { key:'matrix',   title:'Where everyone stood' }
+];
+let stage = 0;
+let ranked = [];                  /* the games being revealed, in display order */
+
+const PALETTE = ['#12395e','#2f6ea8','#6ba3cd','#8d99a6','#464f59','#0f6b45','#8a3115',
+                 '#4b3f72','#1d7874','#a26769','#5c6f7b','#2f4858','#86608e','#3d5a6c',
+                 '#7d5ba6','#00798c','#6a8532','#b07d62','#4f6d7a','#7a4419'];
+
+function startReveal(){
+  ranked = games.filter(isComplete).sort(function(a, b){
+    return (a.team + a.game).localeCompare(b.team + b.game, undefined, { numeric:true });
+  });
+  ranked.forEach(function(g, i){ g.colour = PALETTE[i % PALETTE.length]; });
+  stage = 0;
+  el('screen-import').classList.add('hidden');
+  el('screen-reveal').classList.remove('hidden');
+  buildRows();
+  renderStage();
+}
+
+function buildRows(){
+  const host = el('rows');
+  host.textContent = '';
+  ranked.forEach(function(g){
+    const d = document.createElement('div');
+    d.className = 'trow';
+    d.dataset.id = g.id;
+    const m = margin(g), mp = marginPct(g);
+    d.innerHTML =
+        '<div class="rank c-rank"></div>'
+      + '<div class="nm"><span class="dot" style="background:' + g.colour + '"></span>'
+      +   '<span>' + esc(g.team) + '<span class="muted small"> · ' + esc(g.game) + '</span></span></div>'
+      + '<div class="big c-setup">' + g.target + '%</div>'
+      + '<div class="big c-setup">' + g.storePct + '%</div>'
+      + '<div class="big c-turnover">' + fmtE(g.turnover) + '</div>'
+      + '<div class="big c-margin' + (m < 0 ? ' neg' : '') + '">' + fmtE(m) + '</div>'
+      + '<div class="big c-margin' + (m < 0 ? ' neg' : '') + '">' + mp.toFixed(1) + '%</div>';
+    host.appendChild(d);
+  });
+  renderExcluded();
+}
+
+function renderExcluded(){
+  const parts = games.filter(function(g){ return !isComplete(g); });
+  const box = el('excluded');
+  box.classList.toggle('hidden', parts.length === 0);
+  if(!parts.length) return;
+  box.innerHTML = '<h2 style="font-size:19px;">Not ranked — part games</h2>'
+    + '<p class="muted small" style="margin:4px 0 0;">'
+    + parts.map(function(g){ return esc(g.team + ' · ' + g.game) + ' (reached week ' + (g.weeks || '?') + ')'; }).join(' · ')
+    + '</p>';
+}
+
+/* First-Last-Invert-Play: rows glide to their new places, so a room can be
+   watched overtaking another rather than the list simply blinking. */
+function reorder(order){
+  const host = el('rows');
+  const kids = Array.prototype.slice.call(host.children);
+  const before = {};
+  kids.forEach(function(k){ before[k.dataset.id] = k.getBoundingClientRect().top; });
+
+  order.forEach(function(g){
+    const node = kids.find(function(k){ return k.dataset.id === g.id; });
+    if(node) host.appendChild(node);
+  });
+
+  kids.forEach(function(k, i){
+    const dy = before[k.dataset.id] - k.getBoundingClientRect().top;
+    if(!dy) return;
+    k.style.transition = 'none';
+    k.style.transform = 'translateY(' + dy + 'px)';
+    requestAnimationFrame(function(){
+      k.style.transition = 'transform 700ms cubic-bezier(.2,.8,.2,1) ' + (i * 25) + 'ms';
+      k.style.transform = '';
+    });
+  });
+}
+
+function setRanks(){
+  const kids = el('rows').children;
+  for(let i = 0; i < kids.length; i++) kids[i].querySelector('.rank').textContent = (i + 1);
+}
+
+function renderStage(){
+  const s = STAGES[stage];
+  el('stage-pill').textContent = (stage + 1) + ' / ' + STAGES.length;
+  el('stage-title').textContent = s.title;
+
+  const board = el('board');
+  board.classList.toggle('show-setup',    stage >= 1);
+  board.classList.toggle('show-turnover', stage >= 2);
+  board.classList.toggle('show-rank',     stage >= 3);
+  board.classList.toggle('show-margin',   stage >= 4);
+
+  el('matrix-wrap').classList.toggle('hidden', s.key !== 'matrix');
+  board.classList.toggle('hidden', s.key === 'matrix');
+  el('excluded').classList.toggle('hidden', s.key === 'matrix' || !games.some(function(g){ return !isComplete(g); }));
+
+  if(s.key === 'sortT'){
+    reorder(ranked.slice().sort(function(a, b){ return b.turnover - a.turnover; }));
+    setTimeout(setRanks, 40);
+  }
+  if(s.key === 'sortM'){
+    reorder(ranked.slice().sort(function(a, b){ return margin(b) - margin(a); }));
+    setTimeout(setRanks, 40);
+  }
+  if(s.key === 'matrix') renderMatrix();
+
+  el('btn-prev').disabled = stage === 0;
+  el('btn-next').disabled = stage === STAGES.length - 1;
+  el('btn-next').innerHTML = (stage === STAGES.length - 1 ? 'End' : 'Next')
+    + '<span class="kbd">↵ Enter</span>';
+}
+
+/* =========================================================================
+   6. THE MATRIX — where each room stood. Teams only, nothing counterfactual.
+   ========================================================================= */
+function renderMatrix(){
+  const all = games.slice();
+  const targets = uniqueSorted(all.map(function(g){ return g.target; }), [60,70,80,90,100]);
+  const splits  = uniqueSorted(all.map(function(g){ return g.storePct; }), [30,40,50,60,70,80,90]);
+
+  const ms = ranked.map(margin);
+  const lo = Math.min.apply(null, ms), hi = Math.max.apply(null, ms);
+
+  let html = '<h2 style="font-size:21px;">Where everyone stood</h2>'
+    + '<p class="muted small" style="margin:4px 0 16px;">Each room sits in the square it chose. '
+    + 'Colour is that room\'s own margin, from the best in the room to the worst.</p>'
+    + '<div class="mwrap"><table class="matrix"><thead><tr><th></th>'
+    + '<th colspan="' + splits.length + '">% in store at launch</th></tr><tr><th></th>'
+    + splits.map(function(s){ return '<th>' + s + '%</th>'; }).join('') + '</tr></thead><tbody>';
+
+  targets.forEach(function(t){
+    html += '<tr><th style="white-space:nowrap">S/T ' + t + '%</th>';
+    splits.forEach(function(sp){
+      const here = all.filter(function(g){ return g.target === t && g.storePct === sp; });
+      html += '<td>' + here.map(function(g){
+        if(!isComplete(g))
+          return '<span class="chip part" title="part game">' + esc(g.team) + '</span>';
+        return '<span class="chip" style="background:' + scale(margin(g), lo, hi) + '">'
+             + esc(g.team) + ' <span class="m">' + fmt(margin(g) / 1000) + 'k</span></span>';
+      }).join('') + '</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  el('matrix-wrap').innerHTML = html;
+}
+
+function uniqueSorted(values, fallback){
+  const set = {};
+  values.forEach(function(v){ set[v] = true; });
+  fallback.forEach(function(v){ set[v] = true; });
+  return Object.keys(set).map(Number).sort(function(a, b){ return a - b; });
+}
+
+/* red at the worst margin in the room, green at the best */
+function scale(v, lo, hi){
+  const t = hi === lo ? 1 : (v - lo) / (hi - lo);
+  const c = [[138,49,21],[176,110,40],[15,107,69]];
+  const i = t < 0.5 ? 0 : 1, f = t < 0.5 ? t * 2 : (t - 0.5) * 2;
+  const a = c[i], b = c[i + 1];
+  return 'rgb(' + a.map(function(x, k){ return Math.round(x + (b[k] - x) * f); }).join(',') + ')';
+}
+
+/* =========================================================================
+   7. WIRING
+   ========================================================================= */
+function init(){
+  load();
+  renderImport();
+
+  const drop = el('drop');
+  ['dragenter','dragover'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', function(e){ readFiles(e.dataTransfer.files); });
+
+  el('btn-pick').addEventListener('click', function(){ el('file-input').click(); });
+  el('file-input').addEventListener('change', function(e){ readFiles(e.target.files); e.target.value = ''; });
+
+  el('btn-paste-toggle').addEventListener('click', function(){
+    el('paste-card').classList.remove('hidden'); el('paste').focus();
+  });
+  el('btn-paste-close').addEventListener('click', function(){ el('paste-card').classList.add('hidden'); });
+  el('btn-paste-add').addEventListener('click', function(){
+    const v = el('paste').value.trim();
+    if(!v) return;
+    messages = [];
+    addBlob(v, 'pasted text');
+    el('paste').value = '';
+  });
+
+  ['in-cost','in-fixed'].forEach(function(id){
+    el(id).addEventListener('input', function(){
+      fallbackCost = Number(el('in-cost').value) || 0;
+      fallbackFixed = Number(el('in-fixed').value) || 0;
+      save(); renderImport();
+    });
+  });
+
+  el('btn-clear').addEventListener('click', function(){
+    if(!games.length) return;
+    askConfirm('Remove all ' + games.length + ' loaded games?',
+      'Nothing is deleted from the original files — you would just have to load them again.',
+      function(){ games = []; conflicts = []; save(); renderImport(); });
+  });
+
+  el('btn-start').addEventListener('click', startReveal);
+  el('btn-back-import').addEventListener('click', function(){
+    el('screen-reveal').classList.add('hidden');
+    el('screen-import').classList.remove('hidden');
+    renderImport();
+  });
+  el('btn-next').addEventListener('click', function(){
+    if(stage < STAGES.length - 1){ stage++; renderStage(); }
+  });
+  el('btn-prev').addEventListener('click', function(){
+    if(stage > 0){ stage--; renderStage(); }
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(el('modal-root').firstChild) return;
+    if(el('screen-reveal').classList.contains('hidden')) return;
+    if(e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight'){
+      e.preventDefault(); if(stage < STAGES.length - 1){ stage++; renderStage(); }
+    }else if(e.key === 'ArrowLeft'){
+      e.preventDefault(); if(stage > 0){ stage--; renderStage(); }
+    }
+  });
+}
+
+function askConfirm(title, body, onYes){
+  const back = document.createElement('div');
+  back.style.cssText = 'position:fixed;inset:0;z-index:70;background:rgba(12,16,22,.6);'
+    + 'display:flex;align-items:center;justify-content:center;padding:18px;';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:10px;max-width:560px;width:100%;padding:26px;';
+  box.innerHTML = '<h2 style="font-size:23px;margin-bottom:10px;">' + esc(title) + '</h2>'
+                + '<p style="margin:0 0 18px;">' + esc(body) + '</p>';
+  const row = document.createElement('div'); row.className = 'row-buttons';
+  row.appendChild(mkBtn('Cancel', function(){ back.remove(); }));
+  const yes = mkBtn('Yes, remove them', function(){ back.remove(); onYes(); });
+  yes.className = 'btn-danger btn-xl';
+  row.appendChild(yes);
+  box.appendChild(row); back.appendChild(box);
+  el('modal-root').appendChild(back);
+  yes.focus();
+}
+
+init();
+</script>
