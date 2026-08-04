@@ -1468,7 +1468,7 @@ const HINTS = [
   { id:'confirm', week:1, step:'confirm',  anchor:function(){ return el('action-panel'); },
     spot:function(){ return [document.querySelector('#action-panel button.btn-primary')]; }, place:'rightof',
     title:'4 — Close the week',
-    text:'That is the full cycle. Thirteen weeks, then the P&L is revealed.' },
+    text:'Well done, first week completed. Let\'s move on to the next!' },
   { id:'counters', week:2, step:'sell',    anchor:function(){ return el('panel-A'); }, place:'leftof',
     spot:function(){ return ['A','B'].reduce(function(a, s){
       return a.concat(BAGS.map(function(b, i){ return el(s + '-sold-' + i); }),
@@ -2010,7 +2010,7 @@ function renderSetupOptions(){
     'You produce <b>' + per + '</b> pieces of each bag — <b>' + fmt(tot)
     + '</b> in total, costing <b>' + fmtE(tot * ECON.cost) + '</b>.'
     + (draft.sellThrough === 100
-        ? ' That is exactly the forecast: nothing spare anywhere.'
+        ? ' That is exactly the forecast.'
         : ' That is <b>' + fmt(tot - FORECAST_TOTAL) + '</b> more than the forecast.');
 
   const sp2 = splitStock(per, draft.storePct);
