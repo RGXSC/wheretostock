@@ -593,49 +593,55 @@ const BAG_SHAPES = [
 
    Shape: a launch curve, not a flat line.
        weeks 1-3   growth      ~18 units / week (all bags, both stores)
-       weeks 4-5   peak        ~38
-       weeks 6-7   decline     ~22
-       weeks 8-13  flat tail   ~14
+       weeks 4-5   peak        ~36
+       weeks 6-7   decline     ~24
+       weeks 8-13  flat tail   ~15
    Half the season's demand lands in the first five weeks, so stock has to
    be committed before anyone knows where it is needed.
 
-   TWO PROPERTIES MAKE THE SETUP DECISIONS BITE:
+   THREE PROPERTIES MAKE THE SETUP DECISIONS BITE:
 
-   1. Total demand equals total forecast exactly (260 = 260) and the biases
-      are mild, so the best-selling bag only needs 78 against a 52 forecast.
-      Producing deep enough to cover it wastes a great deal on the bags that
-      never get there. The sell-through optimum therefore sits INSIDE the
-      range - around 70-80% - and both extremes lose money against it.
+   1. Total demand equals total forecast exactly (260 = 260) — the biases
+      sum to zero, so producing above the forecast can never be recovered
+      overall, only bag by bag.
 
-   2. Store A is much the bigger shop (165 of the 260 against 95), because
-      four of the five bags sell twice as much there. The launch split is
-      forced to be equal between the two shops, so a team that puts most of
-      its stock in the shops at launch has put half of it in the wrong one.
+   2. The biases are deliberately mild (±30 / ±10). The best seller needs 68
+      against a 52 forecast, so producing deep enough to cover it wastes a
+      great deal on the bags that never get there. That puts the
+      sell-through optimum at 80% — inside the range, with both extremes
+      losing money against it. A wider spread pushes the optimum down
+      towards 60%; a narrower one pushes it up towards 100%.
+
+   3. Store A is much the bigger shop (171 of the 260 against 89): every bag
+      sells about 2.5x more in one shop than the other, and four of the five
+      favour A. The launch split is forced to be equal between the shops, so
+      a team that puts most of its stock in the shops at launch has put half
+      of it in the wrong one.
 
      bag        vs forecast   total   store A   store B   ratio
-     Aveline        +50%        78       52        26      2.0 : 1
-     Bastide        +20%        62       41        21      2.0 : 1
-     Calanque       -20%        42       28        14      2.0 : 1
-     Doriane        -50%        26        9        17      1 : 1.9
-     Estérel          0%        52       35        17      2.1 : 1
+     Aveline        +30%        68       49        19      2.6 : 1
+     Bastide        +10%        57       41        16      2.6 : 1
+     Calanque       -10%        47       34        13      2.6 : 1
+     Doriane        -30%        36       10        26      1 : 2.6
+     Estérel          0%        52       37        15      2.5 : 1
                                         ------------------
                           total 260  =  260 forecast
-                                       A 165     B  95
+                                       A 171     B  89
 
    Random around the curve, integers, no repeating pattern, capped at 3x
    each series' own weekly average, summing exactly to the totals above.
    ------------------------------------------------------------------------- */
 const DEMAND = {
-  aveline:  { A:[2,4,5, 8,6,7,4,3,2,3,2,3,3],
-              B:[1,2,3, 5,4,2,2,1,1,1,1,2,1] },
+  aveline:  { A:[2,4,5, 7,5,7,3,3,2,3,2,3,3],
+              B:[1,1,2, 4,3,1,1,1,1,1,1,1,1] },
   bastide:  { A:[2,3,4, 5,6,4,2,2,3,3,3,2,2],
-              B:[1,2,2, 3,3,2,2,1,1,1,1,1,1] },
-  calanque: { A:[1,2,2, 5,4,2,2,2,2,2,1,1,2],
-              B:[0,1,1, 2,2,1,1,1,1,1,1,1,1] },
-  doriane:  { A:[0,1,1, 2,1,1,0,0,0,1,1,1,0],
-              B:[1,1,2, 2,2,2,1,1,1,1,1,1,1] },
-  esterel:  { A:[1,2,4, 6,5,4,2,2,2,1,2,3,1],
-              B:[1,1,2, 2,2,2,1,1,1,1,1,1,1] }
+              B:[1,1,2, 2,2,2,1,1,1,1,1,0,1] },
+  calanque: { A:[2,2,4, 4,5,3,3,2,2,1,2,2,2],
+              B:[0,1,1, 2,2,1,1,1,1,1,0,1,1] },
+  doriane:  { A:[0,1,1, 2,1,1,1,0,0,1,1,1,0],
+              B:[0,2,3, 3,3,3,2,1,2,2,2,1,2] },
+  esterel:  { A:[0,3,3, 6,5,5,3,2,2,2,2,2,2],
+              B:[1,1,1, 2,2,2,1,1,1,1,0,1,1] }
 };
 
 const SELL_THROUGH_OPTIONS = [60, 70, 80, 90, 100];
