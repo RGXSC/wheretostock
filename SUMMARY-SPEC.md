@@ -55,10 +55,14 @@ Each game is checked and badged, never silently dropped:
 
 ### Economics
 
-Unit cost and fixed cost are **not** in the current export. Two editable
-fields at the top, defaulting to **200 €** and **117 000 €**, used for every
-margin. If the columns are later added to the game's export (recommended, see
-§6) the fields auto-fill from the file and lock, with a note.
+`UnitCost` and `FixedCost` are carried on every export row (added to the game
+for this purpose), so margin is computed from the file alone:
+
+    margin = Σ Revenue − ProducedTotal × UnitCost − FixedCost
+
+Older exports without those columns fall back to editable fields defaulting
+to 200 € and 117 000 €, with a visible warning that the numbers were assumed
+rather than read.
 
 ---
 
@@ -146,15 +150,12 @@ four selected teams, force small-multiples instead of overlay.
 
 ---
 
-## 6. One change wanted in `index.html`
+## 6. Change already made in `index.html`
 
-Add `UnitCost` and `FixedCost` as constant columns on every export row.
-
-Two extra columns, no behaviour change. It lets the summary compute margin
-from the file alone and stay correct if the economics are ever retuned — the
-alternative is two files that can drift apart silently and show wrong margins
-with no error. Rooms that exported before the change would need to re-export,
-so this wants doing before the session, not after.
+`UnitCost` and `FixedCost` are now constant columns on every exported row, so
+the debrief needs no assumptions about the game's economics and cannot drift
+out of step with them. **Any export taken before this change lacks the two
+columns** — re-export those rooms rather than relying on the fallback.
 
 ---
 

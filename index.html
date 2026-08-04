@@ -1658,12 +1658,17 @@ function showHint(h){
    repeat on every row, as requested.
    ========================================================================= */
 function buildTable(){
+  /* UnitCost and FixedCost are repeated on every row on purpose: the debrief
+     file then computes margin from the export alone, and cannot drift out of
+     step if the economics are ever retuned. */
   const head = ['Team','Game','TargetSellThrough','StorePctAtSetup','ProducedPerBag','ProducedTotal',
+                'UnitCost','FixedCost',
                 'Week','Bag','Location','Opening','Received','Demand','Sold','Missed','ShippedOut','Closing',
                 'Revenue','LostRevenue'];
   const s = state.setup;
   const rows = state.log.map(function(r){
     return [state.team, state.game, s.sellThrough + '%', s.storePct + '%', s.perBag, s.perBag * BAGS.length,
+            ECON.cost, ECON.fixed,
             r.week, r.bag, r.loc, r.opening, r.received, r.demand, r.sold, r.missed, r.shipped, r.closing,
             r.sold * ECON.price, r.missed * ECON.price];
   });
