@@ -175,14 +175,43 @@
   /* ------------------------------------------------------------- board */
   main{ padding:16px 0 40px; }
   .board{ display:grid; grid-template-columns:minmax(280px,1fr) minmax(360px,1.35fr);
-          gap:16px; align-items:start; }
+          gap:16px 42px; align-items:start; }
   @media (max-width:900px){ .board{ grid-template-columns:1fr; } }
 
+  /* The three physical places share one look — tinted, connected by arrows —
+     so they read as one supply chain, clearly apart from the white decision
+     card which is the only thing the team actually acts on. */
   .panel{ background:var(--surface); border:2px solid var(--line-soft);
           border-radius:var(--radius); padding:14px 16px; }
   .panel + .panel{ margin-top:16px; }
+  .panel.phys{ background:var(--phys); border-color:var(--phys-line); }
   .panel.wh{ border-left:8px solid var(--ink-soft); }
-  .panel.st{ border-left:8px solid var(--accent); }
+  .panel.st{ border-left:8px solid var(--accent); position:relative; }
+
+  /* the flow marker sitting in the gutter, pointing into each shop */
+  .panel.st::before{
+    content:'▶'; position:absolute; left:-31px; top:26px;
+    width:26px; height:26px; border-radius:50%;
+    background:var(--accent); color:#fff; font-size:11px;
+    display:grid; place-items:center; box-shadow:0 1px 4px rgba(10,30,50,.3);
+  }
+  @media (max-width:900px){ .panel.st::before{ display:none; } }
+  .stores{ position:relative; }
+  .flowlabel{ font-size:11px; font-weight:800; text-transform:uppercase;
+              letter-spacing:.08em; color:var(--ink-soft); margin:0 0 7px 2px; }
+
+  /* the decision card announces itself as a decision */
+  .action .tagline{ display:inline-block; font-size:11px; font-weight:800;
+                    text-transform:uppercase; letter-spacing:.08em;
+                    background:var(--live); color:#fff; border-radius:5px;
+                    padding:3px 9px; margin-bottom:8px; }
+
+  /* the Enter shortcut, stated on the button rather than only in the guide */
+  .kbd{ display:inline-block; margin-left:10px; font-size:13px; font-weight:700;
+        background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.5);
+        border-radius:6px; padding:2px 8px; vertical-align:middle; }
+  button:not(.btn-primary) .kbd{ background:var(--line-soft);
+        border-color:var(--line); color:var(--ink-soft); }
   .panel-head{ display:flex; align-items:center; gap:11px; margin-bottom:10px;
                padding-bottom:8px; border-bottom:2px solid var(--line-soft); }
   .panel-head svg.place{ flex:none; }
@@ -222,19 +251,24 @@
 
   /* ------------------------------------------------------------ action */
   .action{ margin-bottom:16px; background:var(--surface); border:2px solid var(--live);
-           border-radius:var(--radius); padding:16px 18px; }
-  .action h3{ font-size:20px; margin-bottom:4px; }
-  .action p{ margin:0 0 14px; color:var(--ink-soft); font-size:16px; }
+           border-radius:var(--radius); padding:14px 16px; }
+  .action h3{ font-size:19px; margin-bottom:3px; }
+  .action p{ margin:0 0 11px; color:var(--ink-soft); font-size:15px; line-height:1.35; }
 
   table.alloc{ width:100%; border-collapse:collapse; margin-bottom:14px; }
   table.alloc th{ font-size:12px; text-transform:uppercase; letter-spacing:.05em;
                   color:var(--ink-soft); text-align:center; padding:0 4px 6px; }
   table.alloc th:first-child{ text-align:left; }
-  table.alloc td{ padding:4px 4px; border-top:1px solid var(--line-soft); }
+  table.alloc td{ padding:2px 4px; border-top:1px solid var(--line-soft); }
   table.alloc td.nm{ font-weight:700; font-size:15px; }
+  /* icon on the same line as the name — it was wrapping above it and made
+     every row twice as tall as it needed to be */
+  table.alloc td.nm > span{ display:flex; align-items:center; gap:7px; white-space:nowrap; }
+  table.alloc td.nm svg{ flex:none; }
   table.alloc td.avail{ text-align:center; font-variant-numeric:tabular-nums;
                         font-weight:800; font-size:18px; }
-  table.alloc input{ min-height:48px; padding:8px; font-size:19px; }
+  table.alloc input{ min-height:42px; padding:6px; font-size:18px; }
+  table.alloc th{ white-space:nowrap; }
   table.alloc input.bad{ border-color:var(--warn); background:#fdf1ec; }
   @keyframes clampflash{ 0%,100%{ background:var(--surface); border-color:var(--line) }
                          30%{ background:#fdf1ec; border-color:var(--warn) } }
@@ -298,11 +332,24 @@
                background:var(--ink); transform:rotate(45deg); }
   .hint.below:after{ top:-7px; left:28px; }
   .hint.above:after{ bottom:-7px; left:28px; }
-  .hint-mask{ position:fixed; inset:0; z-index:55; background:rgba(10,14,20,.35); }
+  .hint.rightof:after{ left:-7px; top:26px; }
+  .hint.leftof:after{ right:-7px; top:26px; }
+  .hint.clamped:after{ display:none; }
+  .hint-mask{ position:fixed; inset:0; z-index:55; background:rgba(10,14,20,.42); }
+  /* when a hint names something, cut a hole in the dimming over it — the
+     huge spread shadow IS the dimming, so the mask stays transparent */
+  .hint-mask.spotlit{ background:transparent; }
+  .hint-hole{ position:fixed; z-index:56; pointer-events:none; border-radius:9px;
+              border:3px solid #ffd479; box-shadow:0 0 0 9999px rgba(10,14,20,.42);
+              transition:all .18s ease; }
 
   /* -------------------------------------------------------------- modal */
   .modal-back{ position:fixed; inset:0; z-index:70; background:rgba(12,16,22,.6);
                display:flex; align-items:center; justify-content:center; padding:18px; }
+  /* placed against the decision column, with a light veil so the board behind
+     it stays readable while the shipment is checked */
+  .modal-back.beside{ display:block; padding:0; background:rgba(12,16,22,.18); }
+  .modal-back.beside .modal{ box-shadow:0 12px 40px rgba(8,16,26,.4); }
   .modal{ background:var(--surface); border-radius:var(--radius); max-width:660px;
           width:100%; padding:26px; max-height:92vh; overflow:auto; }
   .modal h2{ font-size:25px; margin-bottom:10px; }
@@ -311,6 +358,15 @@
                    font-size:13px; border:2px solid var(--line); border-radius:var(--radius); padding:10px; }
 
   /* ----------------------------------------------------------- P&L end */
+  table.shiplist{ width:100%; border-collapse:collapse; margin:0 0 18px; }
+  table.shiplist th{ font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+                     color:var(--ink-soft); text-align:right; padding:0 6px 5px; }
+  table.shiplist th:first-child{ text-align:left; }
+  table.shiplist td{ padding:6px; border-top:1px solid var(--line-soft); font-size:17px;
+                     text-align:right; font-weight:800; font-variant-numeric:tabular-nums; }
+  table.shiplist td:first-child{ text-align:left; font-weight:600; font-size:16px; }
+  table.shiplist td:first-child svg{ vertical-align:-3px; margin-right:5px; }
+
   .pnl{ width:100%; border-collapse:collapse; margin:18px 0; }
   .pnl td{ padding:11px 8px; border-bottom:1px solid var(--line-soft); font-size:19px; }
   .pnl td:last-child{ text-align:right; font-weight:800; font-variant-numeric:tabular-nums; }
@@ -438,7 +494,8 @@
            warehouse it applies to, so the two are always on screen together -->
       <div>
         <div class="action" id="action-panel"></div>
-        <div class="panel wh" id="panel-wh">
+        <p class="flowlabel">Physical stock</p>
+        <div class="panel wh phys" id="panel-wh">
           <div class="panel-head">
             <svg class="place" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#4d5560" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2 9.5 12 4l10 5.5"/><path d="M4 9.5V20h16V9.5"/><path d="M9.5 20v-5.5h5V20"/><path d="M6.3 12.6h2M15.7 12.6h2"/></svg><h3>Central warehouse</h3>
             <span class="sub" id="wh-total">—</span>
@@ -448,15 +505,16 @@
         </div>
       </div>
       <!-- stores -->
-      <div>
-        <div class="panel st" id="panel-A">
+      <div class="stores">
+        <p class="flowlabel">Shops &nbsp;—&nbsp; stock arrives here from the warehouse</p>
+        <div class="panel st phys" id="panel-A">
           <div class="panel-head"><svg class="place" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#12557f" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3.5 9.2h17V20h-17z"/><path d="M3.5 9.2 5 4.6h14l1.5 4.6"/><path d="M8 9.2V4.6M12 9.2V4.6M16 9.2V4.6"/><path d="M6.3 20v-5.4h4.4V20"/><path d="M13.6 13.8h4.1v3.4h-4.1z"/></svg><h3>Store A</h3><span class="sub" id="A-total">—</span></div>
           <div class="colhead">
             <span></span><span>Bag</span><span>Stock</span><span>Dem.</span><span>Sold</span><span>Missed</span>
           </div>
           <div id="A-rows"></div>
         </div>
-        <div class="panel st" id="panel-B">
+        <div class="panel st phys" id="panel-B">
           <div class="panel-head"><svg class="place" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#12557f" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3.5 9.2h17V20h-17z"/><path d="M3.5 9.2 5 4.6h14l1.5 4.6"/><path d="M8 9.2V4.6M12 9.2V4.6M16 9.2V4.6"/><path d="M6.3 20v-5.4h4.4V20"/><path d="M13.6 13.8h4.1v3.4h-4.1z"/></svg><h3>Store B</h3><span class="sub" id="B-total">—</span></div>
           <div class="colhead">
             <span></span><span>Bag</span><span>Stock</span><span>Dem.</span><span>Sold</span><span>Missed</span>
@@ -900,6 +958,10 @@ function renderStore(s){
 function renderAction(){
   const host = el('action-panel');
   host.textContent = '';
+  const tag = document.createElement('span');
+  tag.className = 'tagline';
+  tag.textContent = 'Your decision';
+  host.appendChild(tag);
   const h = document.createElement('h3');
   const p = document.createElement('p');
 
@@ -981,6 +1043,7 @@ function confirmShipment(){
 
   openModal(function(box){
     const h = document.createElement('h2');
+    h.style.fontSize = '21px';
     h.textContent = 'Send ' + fmt(total) + ' units out of the warehouse?';
     box.appendChild(h);
 
@@ -990,13 +1053,10 @@ function confirmShipment(){
       + 'and not to the other shop.';
     box.appendChild(p);
 
-    let t = '<table class="pnl" style="margin:0 0 20px"><tbody>';
+    let t = '<table class="shiplist"><thead><tr><th>Bag</th><th>→ A</th><th>→ B</th></tr></thead><tbody>';
     lines.forEach(function(l){
-      const bits = [];
-      if(l.a) bits.push('<b>' + l.a + '</b> → Store A');
-      if(l.b) bits.push('<b>' + l.b + '</b> → Store B');
-      t += '<tr><td>' + bagIcon(l.i, 18) + ' ' + l.name + '</td><td style="font-weight:600">'
-         + bits.join(' &nbsp;·&nbsp; ') + '</td></tr>';
+      t += '<tr><td>' + bagIcon(l.i, 16) + ' ' + l.name + '</td>'
+         + '<td>' + (l.a || '—') + '</td><td>' + (l.b || '—') + '</td></tr>';
     });
     t += '</tbody></table>';
     const wrap = document.createElement('div');
@@ -1016,7 +1076,7 @@ function confirmShipment(){
     go.className = 'btn-primary btn-xl';
     go.id = 'btn-ship-confirm';
     go.setAttribute('data-default', '1');
-    go.textContent = 'Send them';
+    go.innerHTML = '<span>Send them</span><span class="kbd">↵ Enter</span>';
     go.addEventListener('click', function(){
       closeModal();
       doShip();
@@ -1026,7 +1086,7 @@ function confirmShipment(){
     });
     row.appendChild(back); row.appendChild(go);
     box.appendChild(row);
-  });
+  }, { beside:true });
 }
 
 /* The flow is the point of the animation, so make sure the warehouse and
@@ -1048,7 +1108,9 @@ function bigButton(label, fn){
   const b = document.createElement('button');
   b.className = 'btn-primary btn-xl';
   b.style.width = '100%';
-  b.textContent = label;
+  /* Enter works on every step, so say so on the button itself rather than
+     only once in the guide. */
+  b.innerHTML = '<span>' + label + '</span><span class="kbd">↵ Enter</span>';
   b.addEventListener('click', fn);
   return b;
 }
@@ -1057,12 +1119,12 @@ function bigButton(label, fn){
 function buildAllocTable(){
   const t = document.createElement('table');
   t.className = 'alloc';
-  t.innerHTML = '<thead><tr><th>Bag</th><th>In warehouse</th><th>→ Store A</th><th>→ Store B</th></tr></thead>';
+  t.innerHTML = '<thead><tr><th>Bag</th><th>Warehouse</th><th>→ Store A</th><th>→ Store B</th></tr></thead>';
   const body = document.createElement('tbody');
 
   BAGS.forEach(function(b, i){
     const tr = document.createElement('tr');
-    tr.innerHTML = '<td class="nm">' + bagIcon(i, 18) + ' ' + b.name + '</td>' +
+    tr.innerHTML = '<td class="nm"><span>' + bagIcon(i, 18) + b.name + '</span></td>' +
                    '<td class="avail" id="avail-' + i + '">' + fmt(state.stock.W[i]) + '</td>';
 
     ['A','B'].forEach(function(s){
@@ -1281,35 +1343,83 @@ function animateArrivals(recv){
    ========================================================================= */
 const HINTS = [
   { id:'reveal',  week:1, step:'reveal',   anchor:function(){ return el('action-panel'); },
+    spot:function(){ return [document.querySelector('#action-panel button.btn-primary')]; }, place:'rightof',
     title:'1 — Reveal the demand',
     text:'Each week, customers walk into both shops. You never know what they want until you reveal it. Start here — or just press Enter, which always confirms whatever this panel is asking for.' },
-  { id:'demand',  week:1, step:'sell',     anchor:function(){ return el('panel-A'); },
+  { id:'demand',  week:1, step:'sell',     anchor:function(){ return el('panel-A'); }, place:'leftof',
+    spot:function(){ return ['A','B'].reduce(function(a, s){
+      return a.concat(BAGS.map(function(b, i){ return el(s + '-dem-' + i); })); }, []); },
     title:'This is the demand',
-    text:'The "Dem." column shows what customers ask for in this store, bag by bag. Compare it with the stock just to its left.' },
+    text:'The highlighted "Dem." column is what customers are asking for this week, bag by bag. Compare it with the stock just to its left — anything you cannot cover is lost.' },
   { id:'sell',    week:1, step:'sell',     anchor:function(){ return el('action-panel'); },
+    spot:function(){ return [document.querySelector('#action-panel button.btn-primary')]; }, place:'rightof',
     title:'2 — Sell what you can',
     text:'You serve demand from the stock already in that shop. Every bag sold earns 1 000 €. What you cannot serve is lost — it does not come back next week.' },
-  { id:'alloc',   week:1, step:'allocate', anchor:function(){ return el('action-panel'); },
+  { id:'alloc',   week:1, step:'allocate', anchor:function(){ return el('action-panel'); }, place:'rightof',
+    spot:function(){ return [document.querySelector('#action-panel table.alloc')]; },
     title:'3 — Ship from the warehouse',
     text:'Type how many pieces leave the central warehouse for each shop. The first box is already selected — use the ↑ and ↓ arrows to change a quantity, Tab to move to the next, and Enter when the whole table is right. Stock arrives at the start of next week, so you are always deciding one week ahead.' },
   { id:'confirm', week:1, step:'confirm',  anchor:function(){ return el('action-panel'); },
+    spot:function(){ return [document.querySelector('#action-panel button.btn-primary')]; }, place:'rightof',
     title:'4 — Close the week',
     text:'That is the full cycle. Thirteen weeks, then the P&L is revealed.' },
-  { id:'counters', week:2, step:'sell',    anchor:function(){ return el('panel-A'); },
+  { id:'counters', week:2, step:'sell',    anchor:function(){ return el('panel-A'); }, place:'leftof',
+    spot:function(){ return ['A','B'].reduce(function(a, s){
+      return a.concat(BAGS.map(function(b, i){ return el(s + '-sold-' + i); }),
+                      BAGS.map(function(b, i){ return el(s + '-miss-' + i); })); }, []); },
     title:'Watch the two right-hand columns',
-    text:'"Sold" and "Missed" are running totals for the whole season, with this week\'s change underneath. A missed-sales counter climbing on one bag is your signal to move stock.' },
-  { id:'wh',      week:2, step:'allocate', anchor:function(){ return el('panel-wh'); },
+    text:'The two highlighted columns are running totals for the whole season, with this week\'s change underneath. A missed-sales counter climbing on one bag is your signal to move stock.' },
+  { id:'wh',      week:2, step:'allocate', anchor:function(){ return el('panel-wh'); }, place:'rightof',
+    spot:function(){ return [el('panel-wh')]; },
     title:'Your reserve',
     text:'Everything still here is uncommitted — you can send it wherever demand actually shows up. But it earns nothing while it sits, and you already paid to produce it.' },
   { id:'kpi',     week:3, step:'reveal',   anchor:function(){ return el('hdr-rev'); },
+    spot:function(){ return [el('hdr-sold'), el('hdr-missed'), el('hdr-rev')]; },
     title:'Revenue only, for now',
     text:'You see units and revenue during the game. Costs and the final profit stay hidden until the last week.' },
   { id:'hist',    week:3, step:'confirm',  anchor:function(){ return el('hist'); },
+    spot:function(){ return [el('hist')]; }, place:'above',
     title:'The full history',
     text:'Every closed week is recorded here, and the Export button gives you the complete week-by-week data for the debrief.' }
 ];
 
 let hintOpen = false;
+
+/* Smallest rectangle containing all of the given elements. */
+function unionRect(list){
+  let r = null;
+  (list || []).filter(Boolean).forEach(function(e){
+    const b = e.getBoundingClientRect();
+    if(!b.width && !b.height) return;
+    r = r ? { left:Math.min(r.left, b.left), top:Math.min(r.top, b.top),
+              right:Math.max(r.right, b.right), bottom:Math.max(r.bottom, b.bottom) }
+          : { left:b.left, top:b.top, right:b.right, bottom:b.bottom };
+  });
+  return r;
+}
+
+/* Put the bubble on a side of the highlighted area where it fits without
+   covering it. Only if no side fits does it clamp into the viewport. */
+function placeBubble(box, avoid, prefer){
+  const bw = box.offsetWidth, bh = box.offsetHeight, M = 14;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const clampX = function(x){ return Math.min(Math.max(M, x), vw - bw - M); };
+  const clampY = function(y){ return Math.min(Math.max(M, y), vh - bh - M); };
+  const cand = {
+    below:   { left:clampX(avoid.left),      top:avoid.bottom + M,  side:'below'   },
+    above:   { left:clampX(avoid.left),      top:avoid.top - bh - M, side:'above'  },
+    rightof: { left:avoid.right + M,         top:clampY(avoid.top),  side:'rightof'},
+    leftof:  { left:avoid.left - bw - M,     top:clampY(avoid.top),  side:'leftof' }
+  };
+  const order = [prefer, 'below', 'rightof', 'above', 'leftof'].filter(Boolean);
+  for(let i = 0; i < order.length; i++){
+    const c = cand[order[i]];
+    if(!c) continue;
+    if(c.left >= M && c.top >= M && c.left + bw <= vw - M && c.top + bh <= vh - M) return c;
+  }
+  return { left:clampX(avoid.left), top:clampY(avoid.bottom + M), side:'clamped' };
+}
+
 function maybeHint(){
   if(hintOpen || !state || state.finished) return;
   const h = HINTS.find(function(x){
@@ -1335,32 +1445,37 @@ function showHint(h){
   el('hint-root').appendChild(mask);
   el('hint-root').appendChild(box);
 
-  /* place under the anchor, flipping above if there is no room */
-  const r = anchor.getBoundingClientRect();
-  const bw = Math.min(330, window.innerWidth - 24);
-  const left = Math.min(Math.max(12, r.left), window.innerWidth - bw - 12);
-  box.style.left = left + 'px';
+  /* If the hint names something on screen, cut a hole in the dimming over
+     exactly that thing — the column, the counters, the table — so there is
+     no ambiguity about what is being pointed at. */
+  let avoid = anchor.getBoundingClientRect();
+  let hole = null;
+  if(h.spot){
+    const r = unionRect(h.spot());
+    if(r){
+      const pad = 6;
+      hole = document.createElement('div');
+      hole.className = 'hint-hole';
+      hole.style.left   = (r.left - pad) + 'px';
+      hole.style.top    = (r.top - pad) + 'px';
+      hole.style.width  = (r.right - r.left + pad * 2) + 'px';
+      hole.style.height = (r.bottom - r.top + pad * 2) + 'px';
+      mask.classList.add('spotlit');
+      el('hint-root').appendChild(hole);
+      avoid = { left:r.left - pad, top:r.top - pad, right:r.right + pad, bottom:r.bottom + pad };
+    }
+  }
 
-  const bh = box.offsetHeight;
-  let top = r.bottom + 12;
-  if(top + bh > window.innerHeight - 12){
-    top = r.top - bh - 12;                       /* flip above the anchor */
-    box.classList.add('above');
-  }else{
-    box.classList.add('below');
-  }
-  /* Last resort on a short screen: clamp into view. A bubble the room
-     cannot see is a bubble that stalls the room. */
-  if(top < 12 || top + bh > window.innerHeight - 12){
-    top = Math.max(12, Math.min(top, window.innerHeight - bh - 12));
-    box.classList.remove('above', 'below');      /* the pointer would lie */
-  }
-  box.style.top = top + 'px';
+  const pos = placeBubble(box, avoid, h.place);
+  box.style.left = pos.left + 'px';
+  box.style.top  = pos.top + 'px';
+  box.classList.add(pos.side);
 
   const close = function(){
     state.hintsSeen[h.id] = true;
     save();
     mask.remove(); box.remove();
+    if(hole) hole.remove();
     hintOpen = false;
     maybeHint();                     /* several hints can share a step */
     focusShipCell();                 /* the bubble had taken the cursor */
@@ -1578,13 +1693,32 @@ function renderEnd(){
    10. MODAL / TOAST
    ========================================================================= */
 function closeModal(){ el('modal-root').textContent = ''; }
-function openModal(build){
+function openModal(build, opts){
   closeModal();
   const back = document.createElement('div'); back.className = 'modal-back';
   const box = document.createElement('div'); box.className = 'modal';
   build(box); back.appendChild(box);
   back.addEventListener('click', function(e){ if(e.target === back) closeModal(); });
   el('modal-root').appendChild(back);
+
+  /* "beside" keeps the board readable: the panel sits over the decision
+     column instead of the middle of the screen, so the warehouse and both
+     shops stay visible while the shipment is being checked. */
+  if(opts && opts.beside){
+    const ref = el('action-panel'), stores = document.querySelector('.stores');
+    if(ref && stores){
+      const r = ref.getBoundingClientRect(), sr = stores.getBoundingClientRect();
+      const room = sr.left - r.left - 14;
+      if(room >= 330){
+        back.classList.add('beside');
+        box.style.position = 'fixed';
+        box.style.left  = Math.max(12, r.left) + 'px';
+        box.style.top   = Math.max(12, r.top) + 'px';
+        box.style.width = Math.min(520, room) + 'px';
+        box.style.maxHeight = (window.innerHeight - Math.max(12, r.top) - 20) + 'px';
+      }
+    }
+  }
   const f = box.querySelector('[data-default]') || box.querySelector('button, textarea');
   if(f) f.focus();
 }
