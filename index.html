@@ -101,6 +101,7 @@
          border-radius:var(--radius); padding:18px 22px; margin-bottom:22px; }
   .econ ul{ margin:10px 0 0; padding-left:22px; }
   .econ li{ margin-bottom:6px; }
+  .curvesketch{ display:block; margin:8px 0 2px 0; }
   .econ b{ font-variant-numeric:tabular-nums; }
 
   /* ------------------------------------------------------- setup sliders */
@@ -429,7 +430,6 @@
   <p class="muted" style="margin-top:4px;" id="setup-who"></p>
 
   <div class="econ">
-    <h3 style="font-size:19px;">The numbers, before you decide</h3>
     <!-- filled from the constants in the script, so the briefing can never
          disagree with the rules actually being played -->
     <ul id="econ-list"></ul>
@@ -438,9 +438,8 @@
   <div class="card">
     <h2>Decision 1 — target sell-through</h2>
     <p class="muted" style="margin-top:0;">
-      How much of what you produce do you expect to sell? A <b>100%</b> target means producing exactly the
-      forecast. A lower target means producing more than the forecast, to protect against under-estimating.
-      <b>You choose once, and it cannot be changed.</b>
+      A <b>100%</b> target means producing exactly the forecast. A lower target means producing
+      more than the forecast. <b>You choose once, and it cannot be changed.</b>
     </p>
     <div class="sliderbox">
       <div class="slidernow" id="val-st">80% sell-through</div>
@@ -452,11 +451,11 @@
   </div>
 
   <div class="card">
-    <h2>Decision 2 — where does the stock start?</h2>
+    <h2>Decision 2 — where does the stock go at product launch?</h2>
     <p class="muted" style="margin-top:0;">
-      Part of the production goes to the shops before opening; the rest stays in the central warehouse,
-      where you can send it week by week — but it takes <b>one week to arrive</b>.
-      The shop share is <b>always split equally between Store A and Store B</b>.
+      Decide which part of the production goes to the shops before launch; the rest stays in the
+      central warehouse, where you can send it week by week — it takes <b>one week to arrive</b>.
+      The shop share is <b>split equally between Store A and Store B</b>.
     </p>
     <div class="sliderbox">
       <div class="slidernow" id="val-sp">50% in store</div>
@@ -1882,17 +1881,55 @@ let draft = { sellThrough:80, storePct:50 };
 function renderBriefing(){
   const items = [
     'You are launching <b>' + BAGS.length + ' bags</b> in <b>2 stores</b>, supplied by '
-      + '<b>1 central warehouse</b>, over <b>' + WEEKS + ' weeks</b>.',
+      + '<b>1 central warehouse</b>.',
+    'You will simulate <b>' + WEEKS + ' rounds</b> — every round is one week.',
     'The forecast is <b>2 pieces per week, per store, per bag</b> → <b>' + FORECAST_PER_BAG
-      + ' pieces per bag</b>, <b>' + FORECAST_TOTAL + ' in total</b>.',
-    'Every bag sells for <b>' + fmtE(ECON.price) + '</b> and costs <b>' + fmtE(ECON.cost) + '</b> to produce.',
-    'You pay the ' + fmtE(ECON.cost) + ' for <b>everything you produce</b> — whether it sells or not.',
+      + ' pieces per bag</b> over the ' + WEEKS + ' weeks. <b>' + FORECAST_TOTAL + '</b> in total.',
+    'Forecasted demand has a <b>curve</b> shape:' + curveSketch(),
+    'Every bag sells for <b>' + fmtE(ECON.price) + '</b> and costs <b>' + fmtE(ECON.cost)
+      + '</b> to produce.',
+    'You pay the ' + fmtE(ECON.cost) + ' for <b>everything produced</b> — whether it sells or not.',
     'A <b>fixed cost of ' + fmtE(ECON.fixed) + '</b> (' + Math.round(ECON.fixedPct * 100)
-      + '% of forecast sales) is charged at the end.',
-    'Missed sales are <b>lost for good</b>. There are no back-orders.',
-    'Your profit is revealed at <b>week ' + WEEKS + '</b>. During the game you only see units and revenue.'
+      + '% of forecasted sales) is charged at the end.',
+    'Missed sales are <b>lost for good</b>. There are no back-orders.'
   ];
   el('econ-list').innerHTML = items.map(function(t){ return '<li>' + t + '</li>'; }).join('');
+}
+
+/* A sketch of the demand profile — slow start, peak, then a long tail.
+   Drawn from the real table and smoothed, so it conveys the shape without
+   handing over the week-by-week figures, and cannot drift if the table
+   changes. */
+function curveSketch(){
+  const per = [];
+  for(let w = 0; w < WEEKS; w++){
+    let t = 0;
+    BAGS.forEach(function(b){ t += DEMAND[b.key].A[w] + DEMAND[b.key].B[w]; });
+    per.push(t);
+  }
+  /* 3-point moving average: the shape, not the noise */
+  const sm = per.map(function(v, i){
+    const a = per[Math.max(0, i - 1)], c = per[Math.min(WEEKS - 1, i + 1)];
+    return (a + v + c) / 3;
+  });
+  const max = Math.max.apply(null, sm) || 1;
+  const W = 190, H = 46, pad = 4;
+  const X = function(i){ return pad + i * (W - 2 * pad) / (WEEKS - 1); };
+  const Y = function(v){ return H - pad - (v / max) * (H - 2 * pad - 2); };
+
+  let line = '';
+  sm.forEach(function(v, i){ line += (i ? 'L' : 'M') + X(i).toFixed(1) + ',' + Y(v).toFixed(1) + ' '; });
+  const area = line + 'L' + X(WEEKS - 1).toFixed(1) + ',' + (H - pad)
+             + ' L' + X(0).toFixed(1) + ',' + (H - pad) + ' Z';
+
+  return '<svg class="curvesketch" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H
+       + '" aria-label="demand rises, peaks early, then settles lower">'
+       + '<path d="' + area + '" fill="#12557f" opacity=".16"/>'
+       + '<path d="' + line + '" fill="none" stroke="#12557f" stroke-width="2.4" '
+       + 'stroke-linejoin="round" stroke-linecap="round"/>'
+       + '<text x="' + pad + '" y="' + (H - 1) + '" font-size="9" fill="#68727d">week 1</text>'
+       + '<text x="' + (W - pad) + '" y="' + (H - 1) + '" font-size="9" fill="#68727d" '
+       + 'text-anchor="end">week ' + WEEKS + '</text></svg>';
 }
 
 /* Both setup decisions are sliders: one drag, snapped to steps of 10, with
