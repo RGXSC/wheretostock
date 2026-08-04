@@ -175,7 +175,7 @@
   /* ------------------------------------------------------------- board */
   main{ padding:16px 0 40px; }
   .board{ display:grid; grid-template-columns:minmax(280px,1fr) minmax(360px,1.35fr);
-          gap:16px 42px; align-items:start; }
+          gap:16px 74px; align-items:start; }
   @media (max-width:900px){ .board{ grid-template-columns:1fr; } }
 
   /* The three physical places share one look — tinted, connected by arrows —
@@ -188,15 +188,11 @@
   .panel.wh{ border-left:8px solid var(--ink-soft); }
   .panel.st{ border-left:8px solid var(--accent); position:relative; }
 
-  /* the flow marker sitting in the gutter, pointing into each shop */
-  .panel.st::before{
-    content:'▶'; position:absolute; left:-31px; top:26px;
-    width:26px; height:26px; border-radius:50%;
-    background:var(--accent); color:#fff; font-size:11px;
-    display:grid; place-items:center; box-shadow:0 1px 4px rgba(10,30,50,.3);
-  }
-  @media (max-width:900px){ .panel.st::before{ display:none; } }
   .stores{ position:relative; }
+  /* real arrows, drawn from the warehouse into each shop across the gutter */
+  .board{ position:relative; }
+  #flow-svg{ position:absolute; inset:0; pointer-events:none; z-index:2; overflow:visible; }
+  @media (max-width:900px){ #flow-svg{ display:none !important; } }
   .flowlabel{ font-size:11px; font-weight:800; text-transform:uppercase;
               letter-spacing:.08em; color:var(--ink-soft); margin:0 0 7px 2px; }
 
@@ -285,6 +281,13 @@
   table.h th{ font-size:11px; text-transform:uppercase; color:var(--ink-soft);
               position:sticky; top:0; background:var(--surface); }
   table.h td:first-child, table.h th:first-child{ text-align:left; }
+  table.h tr.wk td{ background:var(--accent-soft); font-weight:800; font-size:15px;
+                    border-top:2px solid var(--line); }
+  table.h tr.sku td{ color:var(--ink-soft); }
+  table.h tr.sku td:first-child{ padding-left:20px; font-weight:600; color:var(--ink); }
+  table.h tr.sku td:first-child svg{ vertical-align:-2px; margin-right:5px; }
+  table.h td.bad{ color:var(--warn); font-weight:800; }
+  .histwrap{ max-height:60vh; overflow:auto; }
 
   /* ------------------------------------------------- decisions reminder */
   .decisions{ display:flex; gap:8px; flex-wrap:wrap; padding:0 18px 10px;
@@ -490,6 +493,7 @@
 
   <main class="wrap">
     <div class="board">
+      <svg id="flow-svg" aria-hidden="true"></svg>
       <!-- left column: what you have to decide, sitting on top of the
            warehouse it applies to, so the two are always on screen together -->
       <div>
@@ -877,6 +881,7 @@ function renderGame(){
   renderStore('B');
   renderAction();
   renderHistory();
+  requestAnimationFrame(drawFlowArrows);
 }
 
 function renderSteps(){
@@ -1006,7 +1011,8 @@ function renderAction(){
     none.textContent = 'Ship nothing this week';
     none.addEventListener('click', function(){
       state.ship = { A:zeros(), B:zeros() };
-      doShip(); renderGame(); maybeHint();
+      save();
+      confirmShipment();
     });
     host.appendChild(none);
     return;
@@ -1038,30 +1044,36 @@ function confirmShipment(){
     lines.push({ name:b.name, i:i, a:a, b:bq });
   });
 
-  /* nothing to move — no point asking */
-  if(total === 0){ doShip(); renderGame(); maybeHint(); return; }
-
   openModal(function(box){
     const h = document.createElement('h2');
     h.style.fontSize = '21px';
-    h.textContent = 'Send ' + fmt(total) + ' units out of the warehouse?';
+    h.textContent = total === 0
+      ? 'Send nothing out of the warehouse?'
+      : 'Send ' + fmt(total) + ' units out of the warehouse?';
     box.appendChild(h);
 
     const p = document.createElement('p');
-    p.innerHTML = 'They arrive at the shops at the start of week ' + (state.week + 1)
-      + '. <b>Stock sent to a shop cannot be brought back</b> — not to the warehouse, '
-      + 'and not to the other shop.';
+    p.innerHTML = total === 0
+      ? 'The shops will receive <b>no new stock</b> for week ' + (state.week + 1)
+        + '. Whatever is on their shelves now is all they will have to sell — and '
+        + '<b>' + fmt(state.stock.W.reduce(function(a, b){ return a + b; }, 0))
+        + '</b> units stay sitting in the warehouse earning nothing.'
+      : 'They arrive at the shops at the start of week ' + (state.week + 1)
+        + '. <b>Stock sent to a shop cannot be brought back</b> — not to the warehouse, '
+        + 'and not to the other shop.';
     box.appendChild(p);
 
-    let t = '<table class="shiplist"><thead><tr><th>Bag</th><th>→ A</th><th>→ B</th></tr></thead><tbody>';
-    lines.forEach(function(l){
-      t += '<tr><td>' + bagIcon(l.i, 16) + ' ' + l.name + '</td>'
-         + '<td>' + (l.a || '—') + '</td><td>' + (l.b || '—') + '</td></tr>';
-    });
-    t += '</tbody></table>';
-    const wrap = document.createElement('div');
-    wrap.innerHTML = t;
-    box.appendChild(wrap);
+    if(lines.length){
+      let t = '<table class="shiplist"><thead><tr><th>Bag</th><th>→ A</th><th>→ B</th></tr></thead><tbody>';
+      lines.forEach(function(l){
+        t += '<tr><td>' + bagIcon(l.i, 16) + ' ' + l.name + '</td>'
+           + '<td>' + (l.a || '—') + '</td><td>' + (l.b || '—') + '</td></tr>';
+      });
+      t += '</tbody></table>';
+      const wrap = document.createElement('div');
+      wrap.innerHTML = t;
+      box.appendChild(wrap);
+    }
 
     const row = document.createElement('div');
     row.className = 'row-buttons';
@@ -1076,7 +1088,8 @@ function confirmShipment(){
     go.className = 'btn-primary btn-xl';
     go.id = 'btn-ship-confirm';
     go.setAttribute('data-default', '1');
-    go.innerHTML = '<span>Send them</span><span class="kbd">↵ Enter</span>';
+    go.innerHTML = '<span>' + (total === 0 ? 'Send nothing' : 'Send them')
+                 + '</span><span class="kbd">↵ Enter</span>';
     go.addEventListener('click', function(){
       closeModal();
       doShip();
@@ -1197,32 +1210,106 @@ function refreshAlloc(){
 function allocValid(){ return refreshAlloc(); }
 
 /* ------------------------------------------------------------- history */
+/* One block per closed week, newest first: the week's totals, then the state
+   of every bag in all three places. This is the debrief material. */
 function renderHistory(){
   const t = el('hist-table');
   t.textContent = '';
   if(!state.log.length){
-    t.innerHTML = '<tbody><tr><td class="muted">Nothing yet — the first week appears here once it is closed.</td></tr></tbody>';
+    t.innerHTML = '<tbody><tr><td class="muted">Nothing yet — the first week appears '
+                + 'here once it is closed.</td></tr></tbody>';
     return;
   }
-  /* Compact per-week view; the CSV export carries the full detail. */
+
+  /* index the flat log by week -> bag -> location */
   const byWeek = {};
   state.log.forEach(function(r){
-    const w = byWeek[r.week] || (byWeek[r.week] = { week:r.week, sold:0, missed:0, shipped:0, wh:0, sa:0, sb:0 });
+    const w = byWeek[r.week] || (byWeek[r.week] = { week:r.week, bags:{},
+                                 sold:0, missed:0, shipped:0, wh:0, sa:0, sb:0 });
+    const b = w.bags[r.bag] || (w.bags[r.bag] = {});
+    b[r.loc] = r;
     w.sold += r.sold; w.missed += r.missed; w.shipped += r.shipped;
     if(r.loc === 'Warehouse') w.wh += r.closing;
     if(r.loc === 'Store A')   w.sa += r.closing;
     if(r.loc === 'Store B')   w.sb += r.closing;
   });
-  let html = '<thead><tr><th>Week</th><th>Sold</th><th>Missed</th><th>Revenue</th>'
-           + '<th>Shipped</th><th>Warehouse</th><th>Store A</th><th>Store B</th></tr></thead><tbody>';
+
+  let html = '<thead><tr><th>Week / bag</th><th>Whse</th><th>Store A</th><th>Store B</th>'
+           + '<th>Demand</th><th>Sold</th><th>Missed</th><th>Shipped</th><th>Revenue</th>'
+           + '</tr></thead><tbody>';
+
   Object.keys(byWeek).sort(function(a, b){ return b - a; }).forEach(function(k){
     const w = byWeek[k];
-    html += '<tr><td><b>' + w.week + '</b></td><td>' + w.sold + '</td>'
-          + '<td style="color:var(--warn)">' + (w.missed || '') + '</td>'
-          + '<td>' + fmtE(w.sold * ECON.price) + '</td><td>' + (w.shipped || '') + '</td>'
-          + '<td>' + w.wh + '</td><td>' + w.sa + '</td><td>' + w.sb + '</td></tr>';
+    html += '<tr class="wk"><td><b>Week ' + w.week + '</b></td>'
+          + '<td>' + w.wh + '</td><td>' + w.sa + '</td><td>' + w.sb + '</td>'
+          + '<td>' + (w.sold + w.missed) + '</td><td>' + w.sold + '</td>'
+          + '<td' + (w.missed ? ' class="bad"' : '') + '>' + (w.missed || '') + '</td>'
+          + '<td>' + (w.shipped || '') + '</td><td>' + fmtE(w.sold * ECON.price) + '</td></tr>';
+
+    BAGS.forEach(function(b, i){
+      const g = w.bags[b.name];
+      if(!g) return;
+      const W = g['Warehouse'] || {}, A = g['Store A'] || {}, B = g['Store B'] || {};
+      const dem  = (A.demand || 0) + (B.demand || 0);
+      const sold = (A.sold || 0) + (B.sold || 0);
+      const miss = (A.missed || 0) + (B.missed || 0);
+      html += '<tr class="sku"><td>' + bagIcon(i, 15) + ' ' + b.name + '</td>'
+            + '<td>' + (W.closing || 0) + '</td><td>' + (A.closing || 0) + '</td>'
+            + '<td>' + (B.closing || 0) + '</td><td>' + dem + '</td><td>' + sold + '</td>'
+            + '<td' + (miss ? ' class="bad"' : '') + '>' + (miss || '') + '</td>'
+            + '<td>' + ((W.shipped || 0) || '') + '</td><td></td></tr>';
+    });
   });
   t.innerHTML = html + '</tbody>';
+}
+
+/* Full arrows from the warehouse into each shop, drawn across the gutter and
+   re-measured whenever the board changes shape. Small badges said nothing;
+   an arrow that actually spans the distance says "this stock moves there". */
+function drawFlowArrows(){
+  const board = document.querySelector('.board');
+  const svg = el('flow-svg');
+  const wh = el('panel-wh'), A = el('panel-A'), B = el('panel-B');
+  if(!board || !svg || !wh || !A || !B) return;
+  if(window.innerWidth <= 900){ svg.innerHTML = ''; return; }
+
+  const br = board.getBoundingClientRect();
+  svg.setAttribute('viewBox', '0 0 ' + br.width + ' ' + br.height);
+  svg.setAttribute('width', br.width);
+  svg.setAttribute('height', br.height);
+
+  const wr = wh.getBoundingClientRect();
+  const x1 = wr.right - br.left;
+  const y1 = wr.top - br.top + Math.min(wr.height * 0.45, 90);
+
+  let d = '<defs><marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" '
+        + 'markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">'
+        + '<path d="M0,1 L9,5 L0,9 z" fill="#12557f"/></marker></defs>';
+
+  [A, B].forEach(function(st){
+    const sr = st.getBoundingClientRect();
+    const x2 = sr.left - br.left - 9;
+    const y2 = sr.top - br.top + Math.min(sr.height * 0.5, 70);
+    const mx = x1 + (x2 - x1) * 0.55;
+    d += '<path d="M' + x1 + ',' + y1 + ' C' + mx + ',' + y1 + ' ' + mx + ',' + y2
+       + ' ' + x2 + ',' + y2 + '" fill="none" stroke="#12557f" stroke-width="3"'
+       + ' stroke-linecap="round" opacity=".55" marker-end="url(#ah)"/>';
+  });
+
+  /* the outbound leg: shelves to customers */
+  [A, B].forEach(function(st){
+    const sr = st.getBoundingClientRect();
+    const x = sr.right - br.left;
+    const y = sr.top - br.top + Math.min(sr.height * 0.5, 70);
+    d += '<path d="M' + (x + 4) + ',' + y + ' L' + (x + 30) + ',' + y + '" fill="none"'
+       + ' stroke="#0f6b45" stroke-width="3" stroke-linecap="round" opacity=".5"'
+       + ' marker-end="url(#ah2)"/>';
+  });
+  d = d.replace('</defs>',
+      '<marker id="ah2" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5.5" '
+    + 'markerHeight="5.5" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" '
+    + 'fill="#0f6b45"/></marker></defs>');
+  svg.innerHTML = d;
 }
 
 /* =========================================================================
@@ -1342,6 +1429,22 @@ function animateArrivals(recv){
    7. GUIDED HINTS — fade in over the first three weeks, one per new step
    ========================================================================= */
 const HINTS = [
+  /* first, who is who — the three places the stock lives */
+  { id:'intro-wh', week:1, step:'reveal', anchor:function(){ return el('panel-wh'); }, place:'rightof',
+    spot:function(){ return [el('panel-wh')]; },
+    title:'1 of 3 — the central warehouse',
+    text:'Everything you produced that did not go to the shops at launch is here. '
+       + 'It is safe, it is flexible — and it earns nothing until you move it.' },
+  { id:'intro-a', week:1, step:'reveal', anchor:function(){ return el('panel-A'); }, place:'leftof',
+    spot:function(){ return [el('panel-A')]; },
+    title:'2 of 3 — Store A',
+    text:'One of your two shops. Only stock sitting here can be sold to the '
+       + 'customers who walk into it. The arrow shows where that stock comes from.' },
+  { id:'intro-b', week:1, step:'reveal', anchor:function(){ return el('panel-B'); }, place:'leftof',
+    spot:function(){ return [el('panel-B')]; },
+    title:'3 of 3 — Store B',
+    text:'Your second shop, supplied from the same warehouse. The two shops do not '
+       + 'sell the same amounts, and they cannot pass stock to each other.' },
   { id:'reveal',  week:1, step:'reveal',   anchor:function(){ return el('action-panel'); },
     spot:function(){ return [document.querySelector('#action-panel button.btn-primary')]; }, place:'rightof',
     title:'1 — Reveal the demand',
@@ -1709,13 +1812,18 @@ function openModal(build, opts){
     if(ref && stores){
       const r = ref.getBoundingClientRect(), sr = stores.getBoundingClientRect();
       const room = sr.left - r.left - 14;
+      /* never let it slide under the sticky header — that looked like the
+         panel had jumped somewhere unrelated to the table it belongs to */
+      const bar = document.querySelector('header.topbar');
+      const floor = bar ? bar.getBoundingClientRect().bottom + 10 : 12;
       if(room >= 330){
         back.classList.add('beside');
+        const top = Math.max(floor, Math.min(r.top, window.innerHeight - 260));
         box.style.position = 'fixed';
         box.style.left  = Math.max(12, r.left) + 'px';
-        box.style.top   = Math.max(12, r.top) + 'px';
+        box.style.top   = top + 'px';
         box.style.width = Math.min(520, room) + 'px';
-        box.style.maxHeight = (window.innerHeight - Math.max(12, r.top) - 20) + 'px';
+        box.style.maxHeight = (window.innerHeight - top - 20) + 'px';
       }
     }
   }
@@ -1954,6 +2062,8 @@ function init(){
      setup screen, or the current step of the week (including the shipping
      table, so figures can be typed and committed without reaching for the
      mouse). */
+  window.addEventListener('resize', function(){ if(state && state.setup) drawFlowArrows(); });
+
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){ closeModal(); return; }
     if(e.key !== 'Enter' || e.shiftKey) return;
