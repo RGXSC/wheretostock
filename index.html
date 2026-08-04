@@ -1486,6 +1486,8 @@ const HINTS = [
 ];
 
 let hintOpen = false;
+let hintPending = false;      /* a hint is queued but not yet on screen */
+let closeOpenHint = null;     /* tears down whichever hint is currently up   */
 
 /* Smallest rectangle containing all of the given elements. */
 function unionRect(list){
@@ -1523,14 +1525,27 @@ function placeBubble(box, avoid, prefer){
 }
 
 function maybeHint(){
-  if(hintOpen || !state || state.finished) return;
+  if(hintOpen || hintPending || !state || state.finished) return;
   const h = HINTS.find(function(x){
     return !state.hintsSeen[x.id] && x.week === state.week && x.step === state.step;
   });
-  if(h) setTimeout(function(){ showHint(h); }, 260);
+  if(!h) return;
+  /* Claim the slot NOW, not in 260ms. hintOpen only became true once the
+     bubble appeared, so during the delay a keystroke could advance the game
+     and a second hint could be queued — which is how three bubbles ended up
+     stacked on screen at once. */
+  hintPending = true;
+  setTimeout(function(){
+    hintPending = false;
+    if(!state || state.finished) return;
+    /* the step may have moved on while we waited — that hint is now stale */
+    if(h.week !== state.week || h.step !== state.step){ maybeHint(); return; }
+    showHint(h);
+  }, 260);
 }
 
 function showHint(h){
+  if(closeOpenHint) closeOpenHint(true);      /* belt and braces: only ever one */
   const anchor = h.anchor();
   if(!anchor){ state.hintsSeen[h.id] = true; save(); return; }
   hintOpen = true;
@@ -1617,7 +1632,7 @@ function showHint(h){
   window.addEventListener('resize', relayout);
   window.addEventListener('scroll', layout, true);
 
-  const close = function(){
+  const close = function(silent){
     state.hintsSeen[h.id] = true;
     save();
     if(ro) ro.disconnect();
@@ -1626,11 +1641,14 @@ function showHint(h){
     mask.remove(); box.remove();
     if(hole) hole.remove();
     hintOpen = false;
+    closeOpenHint = null;
+    if(silent === true) return;      /* being replaced, don't chain */
     maybeHint();                     /* several hints can share a step */
     focusShipCell();                 /* the bubble had taken the cursor */
   };
-  ok.addEventListener('click', close);
-  mask.addEventListener('click', close);
+  closeOpenHint = close;
+  ok.addEventListener('click', function(){ close(); });
+  mask.addEventListener('click', function(){ close(); });
   ok.focus();
 }
 
@@ -2149,6 +2167,7 @@ function init(){
 
     if(el('modal-root').firstChild) return;          /* modals focus their own button */
 
+    if(hintPending){ e.preventDefault(); return; }   /* a bubble is about to appear */
     if(hintOpen){
       const hb = document.querySelector('.hint button');
       if(hb){ e.preventDefault(); hb.click(); }
