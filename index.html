@@ -1479,10 +1479,6 @@ const HINTS = [
     spot:function(){ return [el('panel-wh')]; },
     title:'Your stock not yet allocated',
     text:'Everything still here is uncommitted.' },
-  { id:'kpi',     week:3, step:'reveal',   anchor:function(){ return el('hdr-rev'); },
-    spot:function(){ return [el('hdr-sold'), el('hdr-missed'), el('hdr-rev')]; },
-    title:'Revenue only, for now',
-    text:'You see units and revenue during the game. Costs and the final profit stay hidden until the last week.' },
   { id:'hist',    week:3, step:'confirm',  anchor:function(){ return el('hist'); },
     spot:function(){ return [el('hist')]; }, place:'above',
     title:'The full history',
@@ -1797,7 +1793,9 @@ function renderEnd(){
     +   '<div><div class="k">Missed sales</div><div class="v" style="color:var(--warn)">' + fmt(t.missed) + '</div></div>'
     +   '<div><div class="k">Left unsold</div><div class="v">' + fmt(t.leftover) + '</div></div>'
     +   '<div><div class="k">Sell-through</div><div class="v">' + t.sellThrough.toFixed(1) + '%</div></div>'
-    +   '<div><div class="k">Target was</div><div class="v">' + s.sellThrough + '%</div></div>'
+    +   '<div><div class="k">Profit / turnover</div><div class="v"'
+    +     (t.profit < 0 ? ' style="color:var(--warn)"' : '') + '>'
+    +     (t.revenue ? (t.profit / t.revenue * 100).toFixed(1) + '%' : '—') + '</div></div>'
     + '</div>'
     + '<table class="pnl">'
     +   '<tr><td>Revenue — ' + fmt(t.sold) + ' bags sold at 1 000 €</td><td>' + fmtE(t.revenue) + '</td></tr>'
@@ -1805,9 +1803,6 @@ function renderEnd(){
     +   '<tr class="neg"><td>Fixed cost — 45% of forecast sales</td><td>− ' + fmtE(t.fixed) + '</td></tr>'
     +   '<tr class="total' + (t.profit < 0 ? ' neg' : '') + '"><td>Profit</td><td>' + fmtE(t.profit) + '</td></tr>'
     + '</table>'
-    + '<p class="muted">Those ' + fmt(t.missed) + ' missed sales were <b>' + fmtE(t.missed * ECON.price)
-    + '</b> of revenue that walked out of the shop. The ' + fmt(t.leftover)
-    + ' unsold bags cost <b>' + fmtE(t.leftover * ECON.cost) + '</b> to produce and earned nothing.</p>'
     + '<div class="card"><h2>Bag by bag</h2><table class="h" style="width:100%">'
     + '<thead><tr><th>Bag</th><th>Produced</th><th>Real demand</th><th>Sold</th><th>Missed</th><th>Left</th></tr></thead><tbody>';
 
@@ -1818,20 +1813,16 @@ function renderEnd(){
           + '<td>' + s.perBag + '</td><td>' + realDemand + '</td><td>' + r.sold + '</td>'
           + '<td style="color:var(--warn)">' + (r.miss || '') + '</td><td>' + r.left + '</td></tr>';
   });
-  html += '</tbody></table>'
-        + '<p class="small muted" style="margin-top:12px;">The forecast was ' + FORECAST_PER_BAG + ' per bag for all five, '
-        + 'and total demand came to exactly the forecast. The mix did not.</p></div>'
+  html += '</tbody></table></div>'
         + '<div class="row-buttons">'
         + '<button class="btn-primary btn-xl" id="end-dl">⭳ Download CSV</button>'
         + '<button class="btn-xl" id="end-copy">⧉ Copy all data</button>'
         + '</div>'
-        + '<button class="btn-ghost" id="end-summary" style="margin-top:12px;">⧉ Copy the one-line summary</button>'
-        + '<button class="btn-ghost" id="end-new" style="margin-top:12px;margin-left:10px;">Start another game…</button>';
+        + '<button class="btn-ghost" id="end-new" style="margin-top:12px;">Start another game…</button>';
 
   el('end-body').innerHTML = html;
   el('end-dl').addEventListener('click', downloadCSV);
   el('end-copy').addEventListener('click', function(){ copyText(toTSV(buildTable()), 'All data copied'); });
-  el('end-summary').addEventListener('click', function(){ copyText(toTSV(buildSummary()), 'Summary copied'); });
   el('end-new').addEventListener('click', function(){
     askConfirm({
       title:'Start another game?',
