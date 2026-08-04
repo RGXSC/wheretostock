@@ -1432,35 +1432,33 @@ const HINTS = [
   { id:'intro-wh', week:1, step:'reveal', anchor:function(){ return el('panel-wh'); }, place:'rightof',
     spot:function(){ return [el('panel-wh')]; },
     title:'1 of 3 — the central warehouse',
-    text:'Everything you produced that did not go to the shops at launch is here. '
-       + 'It is safe, it is flexible — and it earns nothing until you move it.' },
+    text:'Everything you produced that did not go to the shops is here.' },
   { id:'intro-a', week:1, step:'reveal', anchor:function(){ return el('panel-A'); }, place:'leftof',
     spot:function(){ return [el('panel-A')]; },
     title:'2 of 3 — Store A',
-    text:'One of your two shops. Only stock sitting here can be sold to the '
-       + 'customers who walk into it. The arrow shows where that stock comes from.' },
+    text:'One of your two shops. Stock sitting here can be sold to the customers who walk in.' },
   { id:'intro-b', week:1, step:'reveal', anchor:function(){ return el('panel-B'); }, place:'leftof',
     spot:function(){ return [el('panel-B')]; },
     title:'3 of 3 — Store B',
-    text:'Your second shop, supplied from the same warehouse. The two shops do not '
-       + 'sell the same amounts, and they cannot pass stock to each other.' },
+    text:'Your second shop. The two shops sell different amounts, and cannot pass stock '
+       + 'to each other.' },
   { id:'reveal',  week:1, step:'reveal',   anchor:function(){ return el('action-panel'); },
     spot:function(){ return [document.querySelector('#action-panel button.btn-primary')]; }, place:'rightof',
     title:'1 — Reveal the demand',
-    text:'Each week, customers walk into both shops. You never know what they want until you reveal it. Start here — or just press Enter, which always confirms whatever this panel is asking for.' },
+    text:'Each week, customers walk into both shops. You never know what they want until you reveal it.' },
   { id:'demand',  week:1, step:'sell',     anchor:function(){ return el('panel-A'); }, place:'leftof',
     spot:function(){ return ['A','B'].reduce(function(a, s){
       return a.concat(BAGS.map(function(b, i){ return el(s + '-dem-' + i); })); }, []); },
     title:'This is the demand',
-    text:'The highlighted "Dem." column is what customers are asking for this week, bag by bag. Compare it with the stock just to its left — anything you cannot cover is lost.' },
+    text:'The highlighted column is what customers ask for this week. Compare it with the stock to its left.' },
   { id:'sell',    week:1, step:'sell',     anchor:function(){ return el('action-panel'); },
     spot:function(){ return [document.querySelector('#action-panel button.btn-primary')]; }, place:'rightof',
     title:'2 — Sell what you can',
-    text:'You serve demand from the stock already in that shop. Every bag sold earns 1 000 €. What you cannot serve is lost — it does not come back next week.' },
+    text:'You sell from the stock already in the shop. What you cannot serve is lost for good.' },
   { id:'alloc',   week:1, step:'allocate', anchor:function(){ return el('action-panel'); }, place:'rightof',
     spot:function(){ return [document.querySelector('#action-panel table.alloc')]; },
     title:'3 — Ship from the warehouse',
-    text:'Type how many pieces leave the central warehouse for each shop. The first box is already selected — use the ↑ and ↓ arrows to change a quantity, Tab to move to the next, and Enter when the whole table is right. Stock arrives at the start of next week, so you are always deciding one week ahead.' },
+    text:'Type how many pieces leave the warehouse for each shop. ↑ ↓ change a quantity, Tab moves on, Enter confirms. Stock arrives next week.' },
   { id:'confirm', week:1, step:'confirm',  anchor:function(){ return el('action-panel'); },
     spot:function(){ return [document.querySelector('#action-panel button.btn-primary')]; }, place:'rightof',
     title:'4 — Close the week',
@@ -1470,11 +1468,11 @@ const HINTS = [
       return a.concat(BAGS.map(function(b, i){ return el(s + '-sold-' + i); }),
                       BAGS.map(function(b, i){ return el(s + '-miss-' + i); })); }, []); },
     title:'Watch the two right-hand columns',
-    text:'The two highlighted columns are running totals for the whole season, with this week\'s change underneath. A missed-sales counter climbing on one bag is your signal to move stock.' },
+    text:'The two highlighted columns are running totals for the whole season, with this week\'s change underneath.' },
   { id:'wh',      week:2, step:'allocate', anchor:function(){ return el('panel-wh'); }, place:'rightof',
     spot:function(){ return [el('panel-wh')]; },
-    title:'Your reserve',
-    text:'Everything still here is uncommitted — you can send it wherever demand actually shows up. But it earns nothing while it sits, and you already paid to produce it.' },
+    title:'Your stock not yet allocated',
+    text:'Everything still here is uncommitted.' },
   { id:'kpi',     week:3, step:'reveal',   anchor:function(){ return el('hdr-rev'); },
     spot:function(){ return [el('hdr-sold'), el('hdr-missed'), el('hdr-rev')]; },
     title:'Revenue only, for now',
@@ -1550,32 +1548,79 @@ function showHint(h){
   /* If the hint names something on screen, cut a hole in the dimming over
      exactly that thing — the column, the counters, the table — so there is
      no ambiguity about what is being pointed at. */
-  let avoid = anchor.getBoundingClientRect();
   let hole = null;
   if(h.spot){
-    const r = unionRect(h.spot());
-    if(r){
-      const pad = 6;
-      hole = document.createElement('div');
-      hole.className = 'hint-hole';
-      hole.style.left   = (r.left - pad) + 'px';
-      hole.style.top    = (r.top - pad) + 'px';
-      hole.style.width  = (r.right - r.left + pad * 2) + 'px';
-      hole.style.height = (r.bottom - r.top + pad * 2) + 'px';
-      mask.classList.add('spotlit');
-      el('hint-root').appendChild(hole);
-      avoid = { left:r.left - pad, top:r.top - pad, right:r.right + pad, bottom:r.bottom + pad };
-    }
+    hole = document.createElement('div');
+    hole.className = 'hint-hole';
+    mask.classList.add('spotlit');
+    el('hint-root').appendChild(hole);
   }
 
-  const pos = placeBubble(box, avoid, h.place);
-  box.style.left = pos.left + 'px';
-  box.style.top  = pos.top + 'px';
-  box.classList.add(pos.side);
+  /* Everything is measured from the live element positions, so this has to
+     be re-run whenever the page can move underneath it: a window resize, a
+     projector switching resolution, a scroll. Positioning once at open time
+     left the spotlight stranded where the target used to be. */
+  const layout = function(){
+    const a = h.anchor();
+    if(!a) return;
+    let avoid = a.getBoundingClientRect();
+
+    if(hole){
+      const r = unionRect(h.spot());
+      if(r){
+        const pad = 6;
+        hole.style.display = 'block';
+        hole.style.left   = (r.left - pad) + 'px';
+        hole.style.top    = (r.top - pad) + 'px';
+        hole.style.width  = (r.right - r.left + pad * 2) + 'px';
+        hole.style.height = (r.bottom - r.top + pad * 2) + 'px';
+        avoid = { left:r.left - pad, top:r.top - pad, right:r.right + pad, bottom:r.bottom + pad };
+      }else{
+        hole.style.display = 'none';
+      }
+    }
+
+    box.classList.remove('below', 'above', 'rightof', 'leftof', 'clamped');
+    const pos = placeBubble(box, avoid, h.place);
+    box.style.left = pos.left + 'px';
+    box.style.top  = pos.top + 'px';
+    box.classList.add(pos.side);
+  };
+
+  /* Bring the subject into view before pointing at it — a spotlight on
+     something below the fold helps nobody. Done once, before the listeners
+     are attached, so it cannot feed back into itself. */
+  const target = (h.spot && unionRect(h.spot())) || anchor.getBoundingClientRect();
+  if(target && (target.top < 80 || target.bottom > window.innerHeight - 20)){
+    const bar = document.querySelector('header.topbar');
+    const barH = bar ? bar.getBoundingClientRect().height : 0;
+    window.scrollTo({ top:Math.max(0, window.scrollY + target.top - barH - 24), behavior:'auto' });
+  }
+  layout();
+
+  /* A resize event fires before the page has finished reflowing — when a
+     scrollbar appears or disappears the centred board shifts again
+     afterwards, which left the spotlight a few pixels out. A ResizeObserver
+     reports after layout is complete, so it measures the settled position;
+     the resize/scroll listeners stay as a belt-and-braces fallback and
+     re-run on the next frame for the same reason. */
+  const relayout = function(){ layout(); requestAnimationFrame(layout); };
+  let ro = null;
+  if(window.ResizeObserver){
+    ro = new ResizeObserver(function(){ layout(); });
+    ro.observe(document.documentElement);
+    const a0 = h.anchor();
+    if(a0) ro.observe(a0);
+  }
+  window.addEventListener('resize', relayout);
+  window.addEventListener('scroll', layout, true);
 
   const close = function(){
     state.hintsSeen[h.id] = true;
     save();
+    if(ro) ro.disconnect();
+    window.removeEventListener('resize', relayout);
+    window.removeEventListener('scroll', layout, true);
     mask.remove(); box.remove();
     if(hole) hole.remove();
     hintOpen = false;
