@@ -831,10 +831,10 @@ function totals(){
   const produced = state.setup.perBag * BAGS.length;
   const revenue  = sold * ECON.price;
   const cogs     = produced * ECON.cost;
-  const profit   = revenue - cogs - ECON.fixed;
+  const margin   = revenue - cogs - ECON.fixed;
   return {
     sold:sold, missed:missed, produced:produced, leftover:produced - sold,
-    revenue:revenue, cogs:cogs, fixed:ECON.fixed, profit:profit,
+    revenue:revenue, cogs:cogs, fixed:ECON.fixed, margin:margin,
     sellThrough: produced ? (sold / produced * 100) : 0
   };
 }
@@ -1708,9 +1708,9 @@ function buildTable(){
 function buildSummary(){
   const t = totals(), s = state.setup;
   const head = ['Team','Game','TargetSellThrough','StorePctAtSetup','Produced','Sold','Missed',
-                'Leftover','ActualSellThrough','Revenue','COGS','FixedCost','Profit'];
+                'Leftover','ActualSellThrough','Revenue','COGS','FixedCost','Margin'];
   const row = [state.team, state.game, s.sellThrough + '%', s.storePct + '%', t.produced, t.sold, t.missed,
-               t.leftover, t.sellThrough.toFixed(1) + '%', t.revenue, t.cogs, t.fixed, t.profit];
+               t.leftover, t.sellThrough.toFixed(1) + '%', t.revenue, t.cogs, t.fixed, t.margin];
   return [head, row];
 }
 
@@ -1845,15 +1845,15 @@ function renderEnd(){
     +   '<div><div class="k">Missed sales</div><div class="v" style="color:var(--warn)">' + fmt(t.missed) + '</div></div>'
     +   '<div><div class="k">Left unsold</div><div class="v">' + fmt(t.leftover) + '</div></div>'
     +   '<div><div class="k">Sell-through</div><div class="v">' + t.sellThrough.toFixed(1) + '%</div></div>'
-    +   '<div><div class="k">Profit / turnover</div><div class="v"'
-    +     (t.profit < 0 ? ' style="color:var(--warn)"' : '') + '>'
-    +     (t.revenue ? (t.profit / t.revenue * 100).toFixed(1) + '%' : '—') + '</div></div>'
+    +   '<div><div class="k">Margin / turnover</div><div class="v"'
+    +     (t.margin < 0 ? ' style="color:var(--warn)"' : '') + '>'
+    +     (t.revenue ? (t.margin / t.revenue * 100).toFixed(1) + '%' : '—') + '</div></div>'
     + '</div>'
     + '<table class="pnl">'
     +   '<tr><td>Revenue — ' + fmt(t.sold) + ' bags sold at 1 000 €</td><td>' + fmtE(t.revenue) + '</td></tr>'
     +   '<tr class="neg"><td>Cost of goods — ' + fmt(t.produced) + ' bags produced at 200 €</td><td>− ' + fmtE(t.cogs) + '</td></tr>'
     +   '<tr class="neg"><td>Fixed cost — 45% of forecast sales</td><td>− ' + fmtE(t.fixed) + '</td></tr>'
-    +   '<tr class="total' + (t.profit < 0 ? ' neg' : '') + '"><td>Profit</td><td>' + fmtE(t.profit) + '</td></tr>'
+    +   '<tr class="total' + (t.margin < 0 ? ' neg' : '') + '"><td>Margin</td><td>' + fmtE(t.margin) + '</td></tr>'
     + '</table>'
     + '<div class="card"><h2>Bag by bag</h2><table class="h" style="width:100%">'
     + '<thead><tr><th>Bag</th><th>Produced</th><th>Real demand</th><th>Sold</th><th>Missed</th><th>Left</th></tr></thead><tbody>';

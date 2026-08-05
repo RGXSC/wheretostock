@@ -209,6 +209,56 @@
   .zoomstore h4{ font-size:16px; }
   .zoomstore .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:4px; }
   .zoomstore svg{ width:100%; height:auto; display:block; }
+
+  /* --------------------------------------------------------- team panel */
+  .teambig{ font-size:34px; font-weight:800; line-height:1; }
+  .teambig.g, .bmargin.g{ color:#0f6b45; }
+  .teambig.r, .bmargin.r{ color:var(--bad); }
+
+  /* the money bridge: label, bar, value — three fixed lanes, so a long
+     value can never sit on a bar and a long label can never be clipped */
+  .bridge{ margin-top:4px; }
+  .brow{ display:grid; grid-template-columns:190px 1fr auto; align-items:center;
+         gap:12px; min-height:30px; }
+  .brow.ruled{ border-top:2px solid var(--line-soft); margin-top:6px; padding-top:8px; }
+  .brow.leak{ margin-top:6px; }
+  .blab{ font-size:14px; font-weight:800; text-align:right; }
+  .brow.leak .blab{ color:var(--ink-soft); font-weight:700; }
+  .btrack{ position:relative; height:18px; }
+  .btrack i{ position:absolute; left:0; top:0; bottom:0; border-radius:3px; display:block; }
+  .btrack i.pos{ background:#0f6b45; }
+  .btrack i.neg{ background:#8b96a1; }
+  .btrack i.bad{ background:var(--bad); }
+  .btrack i.ghost{ background:none; border:2px dashed #8b96a1; }
+  .btrack i.ghost.bad{ border-color:var(--bad); }
+  .bval{ font-size:13px; font-weight:800; color:var(--ink-soft); white-space:nowrap;
+         font-variant-numeric:tabular-nums; }
+
+  /* five bags down, Store A / Store B / warehouse across. NOT .board — that
+     class already belongs to the reveal's ranking table. */
+  .bagboard{ display:grid; grid-template-columns:112px 1fr 1fr 1fr 120px;
+             gap:6px 12px; align-items:center; }
+  .bhead{ font-size:12px; font-weight:800; color:var(--ink-soft);
+          text-transform:uppercase; letter-spacing:.05em; }
+  .bhead.right{ text-align:right; }
+  .bname{ font-size:15px; font-weight:800; }
+  .bcell{ min-width:0; }
+  .cbar{ display:flex; height:16px; border-radius:3px; overflow:hidden; background:#eef2f6; }
+  .cbar i{ display:block; height:100%; }
+  .csub{ display:block; font-size:11.5px; font-weight:700; color:var(--ink-soft);
+         margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bmargin{ font-size:14px; font-weight:800; text-align:right;
+            font-variant-numeric:tabular-nums; }
+
+  .punch{ margin-top:10px; font-size:17px; font-weight:800; color:var(--bad);
+          border-left:4px solid var(--bad); padding-left:12px; }
+  .causes{ display:flex; height:36px; border-radius:4px; overflow:hidden; }
+  .cseg{ display:flex; align-items:center; padding-left:8px; min-width:0; }
+  .cseg b{ color:#fff; font-size:15px; }
+  .clabs{ display:flex; gap:18px; flex-wrap:wrap; margin:6px 0 4px;
+          font-size:12.5px; font-weight:700; color:var(--ink-soft); }
+  .clabs i{ display:inline-block; width:12px; height:12px; border-radius:3px;
+            margin-right:6px; vertical-align:-2px; }
 </style>
 
 <!-- ======================================================= SCREEN: IMPORT -->
@@ -293,6 +343,9 @@
           The strip underneath is that week's demand — dark for what was served, red for what walked out.
         </p>
         <div id="team-chips" class="chips"></div>
+        <button id="btn-teampanel" class="btn-primary hidden"
+                style="margin-bottom:16px;min-height:52px;font-size:17px;">
+          Where the margin went ›</button>
         <div id="legend" class="legend hidden">
           <span><i style="background:#9aa7b3"></i>Warehouse</span>
           <span><i style="background:#12557f"></i>Store A</span>
@@ -371,7 +424,10 @@ function parseBlob(text, sourceName){
     return { games:[], error:'not an export from the game — no Team/Game columns' };
 
   const isDetail  = at['Week'] !== undefined && at['Location'] !== undefined;
-  const isSummary = at['Profit'] !== undefined;
+  /* the game used to call this column Profit and now calls it Margin; both
+     are read, so summaries taken before the rename still import */
+  if(at['Margin'] === undefined && at['Profit'] !== undefined) at['Margin'] = at['Profit'];
+  const isSummary = at['Margin'] !== undefined;
   if(!isDetail && !isSummary)
     return { games:[], error:'unrecognised export layout' };
 
@@ -453,7 +509,7 @@ function buildSummary(key, c, at, sourceName){
     weeks:null, demandHash:null, issues:[]
   };
   g.contentHash = fnv(c.join(''));
-  g.statedProfit = num(c[at['Profit']]);
+  g.statedMargin = num(c[at['Margin']]);
   return g;
 }
 
@@ -950,7 +1006,8 @@ function renderDetail(){
   list.forEach(function(g){
     const b = document.createElement('button');
     b.type = 'button';
-    b.disabled = g.source !== 'detail';
+    /* Summary-only teams are selectable too: they have no week data, so no
+       charts, but the money panel is computable from the one line they sent. */
     b.title = g.source === 'detail' ? '' : 'summary only — no week-by-week data in this file';
     b.setAttribute('aria-pressed', String(detailTeam === g.id));
     b.innerHTML = '<span class="dot" style="background:' + (g.colour || '#8d99a6') + '"></span>'
@@ -964,10 +1021,20 @@ function renderDetail(){
   });
 
   const g = games.find(function(x){ return x.id === detailTeam; });
-  el('legend').classList.toggle('hidden', !g);
+  el('legend').classList.toggle('hidden', !g || g.source !== 'detail');
+  el('btn-teampanel').classList.toggle('hidden', !g);
   const charts = el('charts');
   charts.textContent = '';
+  detailSeries = [];
   if(!g) return;
+  if(g.source !== 'detail'){
+    const note = document.createElement('p');
+    note.className = 'muted';
+    note.textContent = g.team + ' was imported as a one-line summary, so there is no '
+      + 'week-by-week data to chart. The money panel above still works.';
+    charts.appendChild(note);
+    return;
+  }
 
   /* group the flat rows into bag -> week -> location */
   const bags = [];
@@ -1091,8 +1158,10 @@ function stockChart(series, opt){
    the entire point of the 2:1 skew in the demand table. */
 let zoomIdx = -1;
 let zoomKeys = null;
+let zoomMode = 'bag';           /* 'bag' = one bag of one team, 'team' = the whole team */
 
 function openZoom(i){
+  zoomMode = 'bag';
   zoomIdx = i;
   drawZoom();
   if(!zoomKeys){
@@ -1106,8 +1175,10 @@ function openZoom(i){
 }
 
 function stepZoom(d){
-  zoomIdx = (zoomIdx + d + detailSeries.length) % detailSeries.length;
-  drawZoom();
+  const n = zoomMode === 'team' ? teamList().length : detailSeries.length;
+  if(!n) return;
+  zoomIdx = (zoomIdx + d + n) % n;
+  if(zoomMode === 'team') drawTeamZoom(); else drawZoom();
 }
 
 function closeZoom(){
@@ -1223,6 +1294,319 @@ function storePanel(name, series, key, colour, maxStock, maxDem, sold, missed){
 }
 
 /* =========================================================================
+   6d. THE TEAM PANEL — where one team made its margin, and where it lost it
+   =========================================================================
+   The point of this screen is a lesson: under variability it pays to hold
+   stock centrally, because a unit in the warehouse can still be sent to
+   whichever shop turns out to need it, while a unit pushed into a shop at
+   launch is committed there for good — this game has no shop-to-shop
+   transfer.
+
+   Everything here is measured, never counterfactual. The tool does NOT say
+   "you would have made X with a different split": that would need the demand
+   replayed under an assumed shipping policy, and it is not the tool's place
+   to invent one. It says what the export contains — where the stock was,
+   where the customers were, and what the two never managed to meet.
+
+   The screen must also not teach the opposite error. Holding everything
+   centrally and never shipping loses sales too, which is why every lost sale
+   is attributed to one of three causes and "still in the warehouse" is one
+   of them. */
+
+/* Which teams the ‹ › buttons walk through. */
+function teamList(){ return sortedForDisplay(); }
+
+/* Every lost sale gets exactly ONE cause. The attribution is done over the
+   SEASON, not week by week, and every bucket is bounded by units that really
+   existed — an earlier week-by-week version charged a miss to "the other
+   shop" whenever that shop happened to hold stock, which counted the same
+   seven physical bags seventeen times.
+
+   Per bag, with left = made − sold (which includes anything still on a truck
+   when the season ended):
+     short   - made fewer than the season asked for: max(0, missed − left).
+               No placement could have fixed these.
+     central - of what remains, as many as were still central or in transit:
+               the team had them, they were simply not in the shop yet.
+     wrong   - the rest, capped by what the OTHER shop finished with unsold:
+               the bag existed, in the wrong shop, and nothing could move it.
+   Central is charged before wrong on purpose: when both could explain a
+   miss, the reading that does NOT blame placement is the conservative one. */
+function teamStats(g){
+  if(g.source !== 'detail' || !g.rows) return null;
+  const bags = [], by = {};
+  let maxW = 0;
+  g.rows.forEach(function(r){
+    if(!by[r.bag]){ by[r.bag] = {}; bags.push(r.bag); }
+    if(!by[r.bag][r.week]) by[r.bag][r.week] = {};
+    by[r.bag][r.week][r.loc] = r;
+    if(r.week > maxW) maxW = r.week;
+  });
+
+  const per = {}, weekly = [];
+  for(let w = 1; w <= maxW; w++) weekly.push({ w:w, wh:0, a:0, b:0, sold:0, missed:0 });
+
+  bags.forEach(function(bag){
+    const p = { soldA:0, soldB:0, missA:0, missB:0, endA:0, endB:0, endW:0,
+                late:0, wrong:0, short:0 };
+    for(let w = 1; w <= maxW; w++){
+      const c = by[bag][w] || {};
+      const A = c['Store A'] || {}, B = c['Store B'] || {}, W = c['Warehouse'] || {};
+      const y = weekly[w - 1];
+      p.soldA += A.sold || 0; p.soldB += B.sold || 0;
+      p.missA += A.missed || 0; p.missB += B.missed || 0;
+      y.wh += W.closing || 0; y.a += A.closing || 0; y.b += B.closing || 0;
+      y.sold += (A.sold || 0) + (B.sold || 0);
+      y.missed += (A.missed || 0) + (B.missed || 0);
+      if(w === maxW){ p.endA = A.closing || 0; p.endB = B.closing || 0; p.endW = W.closing || 0; }
+    }
+    /* made − sold is the honest count of what was never bought: the closing
+       columns miss anything shipped in the last week, which left the
+       warehouse and never reached a shop */
+    p.left = (g.producedPerBag || 0) - p.soldA - p.soldB;
+    p.transit = Math.max(0, p.left - p.endA - p.endB - p.endW);
+    const missed = p.missA + p.missB;
+    p.short = Math.max(0, missed - Math.max(0, p.left));
+    let rest = missed - p.short;
+    p.late = Math.min(rest, p.endW + p.transit);
+    rest -= p.late;
+    p.wrong = Math.min(rest, Math.min(p.endB, p.missA) + Math.min(p.endA, p.missB));
+    /* anything the three cannot explain stays with the production bucket, so
+       the parts always add up to the misses on screen */
+    p.short += rest - p.wrong;
+    per[bag] = p;
+  });
+
+  const sum = function(k){ return bags.reduce(function(a, b){ return a + per[b][k]; }, 0); };
+  let emptyAt = 0;
+  for(let i = 0; i < weekly.length; i++){ if(weekly[i].wh === 0){ emptyAt = i + 1; break; } }
+
+  /* the sharpest single fact on the screen: stock that finished the season
+     unsold in one shop while the other shop was turning customers away */
+  let worst = null;
+  bags.forEach(function(b){
+    const p = per[b];
+    const n = Math.min(p.endB, p.missA) + Math.min(p.endA, p.missB);
+    if(n > 0 && (!worst || n > worst.n)) worst = { bag:b, n:n };
+  });
+
+  return { bags:bags, per:per, weekly:weekly, maxW:maxW, emptyAt:emptyAt, worst:worst,
+           late:sum('late'), wrong:sum('wrong'), short:sum('short'),
+           deadW:sum('endW'), deadA:sum('endA'), deadB:sum('endB'),
+           transit:sum('transit') };
+}
+
+/* Scales shared by every team, so stepping ‹ › compares like with like
+   instead of re-normalising each team to itself. */
+function teamScales(){
+  let euro = 1, unit = 1, missed = 1;
+  teamList().forEach(function(g){
+    const e = economics(g);
+    euro = Math.max(euro, g.turnover, g.producedTotal * e.cost + e.fixed);
+    missed = Math.max(missed, g.missed || 0);
+    const st = teamStats(g);
+    if(st) st.bags.forEach(function(b){
+      const p = st.per[b];
+      unit = Math.max(unit, p.soldA + p.missA + p.endA, p.soldB + p.missB + p.endB, p.endW);
+    });
+  });
+  return { euro:euro, unit:unit, missed:missed };
+}
+
+function openTeamZoom(id){
+  const list = teamList();
+  const i = list.findIndex(function(g){ return g.id === id; });
+  if(i < 0) return;
+  zoomMode = 'team';
+  zoomIdx = i;
+  drawTeamZoom();
+  if(!zoomKeys){
+    zoomKeys = function(e){
+      if(e.key === 'Escape'){ e.preventDefault(); closeZoom(); }
+      else if(e.key === 'ArrowRight'){ e.preventDefault(); stepZoom(1); }
+      else if(e.key === 'ArrowLeft'){ e.preventDefault(); stepZoom(-1); }
+    };
+    document.addEventListener('keydown', zoomKeys, true);
+  }
+}
+
+function drawTeamZoom(){
+  const list = teamList(), g = list[zoomIdx];
+  if(!g) return;
+  const st = teamStats(g), sc = teamScales(), e = economics(g);
+  const m = margin(g);
+  const dead = Math.max(0, g.producedTotal - g.sold);
+
+  el('modal-root').textContent = '';
+  const back = document.createElement('div');
+  back.className = 'zoomback';
+  back.addEventListener('click', function(ev){ if(ev.target === back) closeZoom(); });
+
+  const box = document.createElement('div');
+  box.className = 'zoombox';
+  box.innerHTML =
+      '<div class="zoomhead">'
+    +   '<div><h2 style="font-size:26px;">' + esc(g.team) + ' <span class="muted" style="font-weight:700;">'
+    +     esc(g.game) + '</span></h2>'
+    +     '<div class="muted small" style="margin-top:4px;">' + g.target + '% sell-through target · '
+    +     g.storePct + '% of production into the shops at launch · ' + fmt(g.producedTotal)
+    +     ' bags made</div></div>'
+    +   '<div style="text-align:right;">'
+    +     '<div class="teambig ' + (m > 0 ? 'g' : 'r') + '">' + fmtE(m) + '</div>'
+    +     '<div class="muted small" style="letter-spacing:.06em;text-transform:uppercase;font-weight:800;">margin</div>'
+    +   '<div class="zoomnav" style="margin-top:10px;justify-content:flex-end;">'
+    +     '<button type="button" class="btn-ghost" id="z-prev">‹</button>'
+    +     '<span class="muted small">' + (zoomIdx + 1) + ' / ' + list.length + '</span>'
+    +     '<button type="button" class="btn-ghost" id="z-next">›</button>'
+    +     '<button type="button" class="btn-ghost" id="z-close">Close <span class="kbd">Esc</span></button>'
+    +   '</div>'
+    +   '</div>'
+    + '</div>'
+    + '<h3 class="zh3">Where the money went</h3>'
+    + bridgePanel(g, e, m, dead, sc)
+    + (st
+        ? '<h3 class="zh3">Which bag, which shop</h3>'
+          + '<div class="legend" style="margin:0 0 8px;">'
+          +   '<span><i style="background:' + CLR.A + '"></i>sold in A</span>'
+          +   '<span><i style="background:' + CLR.B + '"></i>sold in B</span>'
+          +   '<span><i style="background:' + CLR.missed + '"></i>customers turned away</span>'
+          +   '<span><i style="background:' + CLR.W + ';opacity:.5"></i>still unsold at the end</span>'
+          + '</div>'
+          + boardPanel(g, st, sc)
+          + '<h3 class="zh3">All five bags, week by week — and how much was still central</h3>'
+          + teamStockChart(st)
+          + (st.worst
+              ? '<p class="punch">' + st.worst.n + ' ' + esc(st.worst.bag) + ' finished the season '
+                + 'unsold in one shop while the other shop was turning customers away.</p>'
+              : '')
+          + '<h3 class="zh3">Why those sales were lost</h3>'
+          + causesPanel(st, g.missed || 0, sc)
+        : '<p class="muted" style="margin-top:18px;">' + esc(g.team) + ' was imported as a one-line '
+          + 'summary, so there is no week-by-week data: no bags, no shops, no causes. '
+          + 'Re-import the CSV to see the rest.</p>');
+
+  back.appendChild(box);
+  el('modal-root').appendChild(back);
+  box.querySelector('#z-prev').addEventListener('click', function(){ stepZoom(-1); });
+  box.querySelector('#z-next').addEventListener('click', function(){ stepZoom(1); });
+  box.querySelector('#z-close').addEventListener('click', closeZoom);
+  box.querySelector('#z-close').focus();
+}
+
+/* --- panel 1: turnover, costs, margin, and the two leaks underneath ----- */
+function bridgePanel(g, e, m, dead, sc){
+  const rows = [
+    { lab:'Sold ' + fmt(g.sold) + ' bags', v:g.turnover, cls:'pos', sign:'+' },
+    { lab:'Made ' + fmt(g.producedTotal) + ' bags', v:-g.producedTotal * e.cost, cls:'neg', sign:'−' },
+    { lab:'Fixed costs', v:-e.fixed, cls:'neg', sign:'−' },
+    { lab:'Margin', v:m, cls:m > 0 ? 'pos' : 'bad', sign:'=', rule:true }
+  ];
+  let html = '<div class="bridge">';
+  rows.forEach(function(r){
+    html += '<div class="brow' + (r.rule ? ' ruled' : '') + '">'
+      + '<span class="blab">' + esc(r.lab) + '</span>'
+      + '<span class="btrack"><i class="' + r.cls + '" style="width:'
+      + (Math.abs(r.v) / sc.euro * 100).toFixed(1) + '%"></i></span>'
+      + '<span class="bval">' + r.sign + ' ' + fmtE(Math.abs(r.v)) + '</span></div>';
+  });
+  /* the two leaks: both are facts about the season, not estimates */
+  html += '<div class="brow leak"><span class="blab">Sales it could not serve</span>'
+    + '<span class="btrack"><i class="ghost bad" style="width:'
+    + ((g.missed || 0) * 1000 / sc.euro * 100).toFixed(1) + '%"></i></span>'
+    + '<span class="bval">' + fmt(g.missed || 0) + ' bags · ' + fmtE((g.missed || 0) * 1000)
+    + ' of margin not taken</span></div>';
+  html += '<div class="brow leak"><span class="blab">Bags nobody bought</span>'
+    + '<span class="btrack"><i class="ghost" style="width:'
+    + (dead * e.cost / sc.euro * 100).toFixed(1) + '%"></i></span>'
+    + '<span class="bval">' + fmt(dead) + ' bags · ' + fmtE(dead * e.cost)
+    + ' already spent</span></div>';
+  return html + '</div>';
+}
+
+/* --- panel 2: the game board, 5 bags x Store A / Store B / warehouse ---- */
+function boardPanel(g, st, sc){
+  const cell = function(sold, miss, left, colour, transit){
+    const w = function(v){ return (v / sc.unit * 100).toFixed(1) + '%'; };
+    let bar = '<span class="cbar">';
+    if(sold) bar += '<i style="width:' + w(sold) + ';background:' + colour + '"></i>';
+    if(miss) bar += '<i style="width:' + w(miss) + ';background:' + CLR.missed + '"></i>';
+    if(left) bar += '<i style="width:' + w(left) + ';background:' + CLR.W + ';opacity:.5"></i>';
+    bar += '</span>';
+    const bits = [];
+    if(sold) bits.push(sold + ' sold');
+    if(miss) bits.push('<b style="color:' + CLR.missed + '">' + miss + ' turned away</b>');
+    /* a last-week shipment left the warehouse and never reached a shop; it is
+       still the team's stock, so it is said rather than quietly dropped */
+    if(left) bits.push(left + ' left' + (transit ? ' (' + transit + ' still in transit)' : ''));
+    return '<div class="bcell">' + bar + '<span class="csub">'
+         + (bits.length ? bits.join(' · ') : 'nothing') + '</span></div>';
+  };
+  let html = '<div class="bagboard"><div class="bhead"></div>'
+    + '<div class="bhead">Store A</div><div class="bhead">Store B</div>'
+    /* per-bag margin cannot carry the fixed cost — that belongs to the whole
+       season, not to any one bag — so the header says so rather than letting
+       the five figures look as though they should add up to the margin */
+    + '<div class="bhead">Warehouse</div>'
+    + '<div class="bhead right">This bag, before fixed costs</div>';
+  st.bags.forEach(function(b){
+    const p = st.per[b];
+    const bm = (p.soldA + p.soldB) * 1000 - g.producedPerBag * economics(g).cost;
+    html += '<div class="bname">' + esc(b) + '</div>'
+      + cell(p.soldA, p.missA, p.endA, CLR.A)
+      + cell(p.soldB, p.missB, p.endB, CLR.B)
+      + cell(0, 0, p.endW + p.transit, CLR.W, p.transit)
+      + '<div class="bmargin ' + (bm > 0 ? 'g' : 'r') + '">' + fmtE(bm) + '</div>';
+  });
+  return html + '</div><p class="muted small" style="margin-top:6px;">'
+    + 'All the bars share one scale, across every team loaded.</p>';
+}
+
+/* --- panel 3: the team's whole stock, week by week --------------------- */
+function teamStockChart(st){
+  const svg = stockChart(st.weekly, { W:960, stockH:190, stripH:80, fs:12 });
+  if(!st.emptyAt) return svg;
+  /* mark the week the warehouse ran out: from there on nothing could be
+     redirected. Stated as a fact — it is not always a mistake. */
+  const W = 960, L = 28, R = 8, T = 10, stockH = 190, stripH = 80;
+  const innerW = W - L - R, n = st.weekly.length;
+  const bw = Math.max(4, innerW / n * 0.68);
+  const x = L + innerW * (st.emptyAt - 1 + 0.5) / n - bw / 2 - 3;
+  const mark = '<line x1="' + x.toFixed(1) + '" y1="' + T + '" x2="' + x.toFixed(1)
+    + '" y2="' + (T + stockH + 14 + stripH) + '" stroke="' + CLR.missed
+    + '" stroke-width="2" stroke-dasharray="5 4"/>'
+    + '<text x="' + (x + 6).toFixed(1) + '" y="' + (T + 13) + '" font-size="12" font-weight="800" fill="'
+    + CLR.missed + '">warehouse empty from week ' + st.emptyAt + '</text>';
+  return svg.replace('</svg>', mark + '</svg>');
+}
+
+/* --- panel 4: one cause per lost sale ---------------------------------- */
+function causesPanel(st, missed, sc){
+  if(!missed)
+    return '<p class="punch" style="color:#0f6b45;border-color:#0f6b45;">'
+         + 'Every customer who asked for a bag got one.</p>';
+  const parts = [
+    { v:st.late,  c:'#b06e28', lab:'still central — not in the shop yet' },
+    { v:st.wrong, c:CLR.missed, lab:'stranded in the other shop' },
+    { v:st.short, c:'#6b7580', lab:'never made — the bag sold out everywhere' }
+  ];
+  /* the bar's full width is the worst team in the session, so stepping
+     between teams compares counts and not just proportions */
+  let html = '<div class="causes" style="width:' + (missed / sc.missed * 100).toFixed(1) + '%">';
+  parts.forEach(function(p){
+    if(p.v <= 0) return;
+    html += '<div class="cseg" style="width:' + (p.v / missed * 100).toFixed(1) + '%;background:'
+      + p.c + '"><b>' + p.v + '</b></div>';
+  });
+  html += '</div><div class="clabs">'
+    + parts.filter(function(p){ return p.v > 0; })
+           .map(function(p){ return '<span><i style="background:' + p.c + '"></i>' + p.lab + '</span>'; })
+           .join('') + '</div>'
+    + '<p class="muted small">All ' + missed + ' lost sales, by what the export shows was in the '
+    + 'system that week. Bar width compares teams: the widest is the team that lost the most.</p>';
+  return html;
+}
+
+/* =========================================================================
    7. WIRING
    ========================================================================= */
 function init(){
@@ -1273,6 +1657,10 @@ function init(){
     const open = body.classList.toggle('hidden');
     el('btn-detail').textContent = open ? 'Show' : 'Hide';
     if(!open) renderDetail();
+  });
+
+  el('btn-teampanel').addEventListener('click', function(){
+    if(detailTeam) openTeamZoom(detailTeam);
   });
 
   el('btn-start').addEventListener('click', startReveal);
