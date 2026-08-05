@@ -183,7 +183,8 @@ against 116px.
 
 ## 4b. The team panel — where one team made its margin, and where it lost it
 
-Opened from a button beside the team chips. Four beats, in order:
+Opened from the **Zoom on margin** button beside the team chips, under
+**Overview by team**. Four beats, in order:
 
 1. **Where the money went.** Turnover, production, fixed cost, margin — then
    two leaks stated as facts: *sales it could not serve* and *bags nobody
