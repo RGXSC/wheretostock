@@ -522,7 +522,7 @@
     <p class="muted" style="margin-top:0;">
       Decide which part of the production goes to the shops before launch; the rest stays in the
       central warehouse, where you can send it week by week — it takes <b>one week to arrive</b>.
-      The shop share is <b>split equally between Store A and Store B</b>.
+      The shop share is <b>split equally between Paris and Tokyo</b>.
     </p>
     <div class="sliderbox">
       <div class="slidernow" id="val-sp">50% in store</div>
@@ -578,14 +578,14 @@
       <div class="stores">
         <p class="flowlabel">Shops &nbsp;—&nbsp; stock arrives here from the warehouse</p>
         <div class="panel st phys" id="panel-A">
-          <div class="panel-head"><svg class="place" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#12557f" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3.5 9.2h17V20h-17z"/><path d="M3.5 9.2 5 4.6h14l1.5 4.6"/><path d="M8 9.2V4.6M12 9.2V4.6M16 9.2V4.6"/><path d="M6.3 20v-5.4h4.4V20"/><path d="M13.6 13.8h4.1v3.4h-4.1z"/></svg><h3>Store A</h3><span class="sub" id="A-total">—</span></div>
+          <div class="panel-head"><svg class="place" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#12557f" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3.5 9.2h17V20h-17z"/><path d="M3.5 9.2 5 4.6h14l1.5 4.6"/><path d="M8 9.2V4.6M12 9.2V4.6M16 9.2V4.6"/><path d="M6.3 20v-5.4h4.4V20"/><path d="M13.6 13.8h4.1v3.4h-4.1z"/></svg><h3>Paris</h3><span class="sub" id="A-total">—</span></div>
           <div class="colhead">
             <span></span><span>Bag</span><span>Stock</span><span>Dem.</span><span>Sold</span><span>Missed</span>
           </div>
           <div id="A-rows"></div>
         </div>
         <div class="panel st phys" id="panel-B">
-          <div class="panel-head"><svg class="place" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#12557f" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3.5 9.2h17V20h-17z"/><path d="M3.5 9.2 5 4.6h14l1.5 4.6"/><path d="M8 9.2V4.6M12 9.2V4.6M16 9.2V4.6"/><path d="M6.3 20v-5.4h4.4V20"/><path d="M13.6 13.8h4.1v3.4h-4.1z"/></svg><h3>Store B</h3><span class="sub" id="B-total">—</span></div>
+          <div class="panel-head"><svg class="place" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#12557f" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3.5 9.2h17V20h-17z"/><path d="M3.5 9.2 5 4.6h14l1.5 4.6"/><path d="M8 9.2V4.6M12 9.2V4.6M16 9.2V4.6"/><path d="M6.3 20v-5.4h4.4V20"/><path d="M13.6 13.8h4.1v3.4h-4.1z"/></svg><h3>Tokyo</h3><span class="sub" id="B-total">—</span></div>
           <div class="colhead">
             <span></span><span>Bag</span><span>Stock</span><span>Dem.</span><span>Sold</span><span>Missed</span>
           </div>
@@ -633,6 +633,12 @@ const ECON = {
 
 /* The five bags. Colours are a blue/grey scale; each also has its own
    silhouette so they stay distinguishable without relying on colour. */
+/* The two shops carry city names — the same naming the other pages use, so a
+   room never has to translate "Store A" into anything. Slots stay A and B
+   internally; only the label and the exported Location change. */
+const STORES = { A:'Paris', B:'Tokyo' };
+const SN = function(slot){ return STORES[slot]; };
+
 const BAGS = [
   { key:'aveline',  name:'Aveline',  color:'#12395e' },
   { key:'bastide',  name:'Bastide',  color:'#2f6ea8' },
@@ -682,7 +688,7 @@ const BAG_SHAPES = [
       losing money against it. A wider spread pushes the optimum down
       towards 60%; a narrower one pushes it up towards 100%.
 
-   3. Store A is much the bigger shop (171 of the 260 against 89): every bag
+   3. Paris is much the bigger shop (171 of the 260 against 89): every bag
       sells about 2.5x more in one shop than the other, and four of the five
       favour A. The launch split is forced to be equal between the shops, so
       a team that puts most of its stock in the shops at launch has put half
@@ -859,7 +865,7 @@ function closeWeek(){
     });
     ['A','B'].forEach(function(s){
       state.log.push({
-        week:w, bag:b.name, loc:'Store ' + s,
+        week:w, bag:b.name, loc:SN(s),
         opening:o[s][i],
         received:(s === 'A' ? o.recvA[i] : o.recvB[i]),
         demand:demandOf(i, s, w),
@@ -1210,7 +1216,7 @@ function bigButton(label, fn){
 function buildAllocTable(){
   const t = document.createElement('table');
   t.className = 'alloc';
-  t.innerHTML = '<thead><tr><th>Bag</th><th>Warehouse</th><th>→ Store A</th><th>→ Store B</th></tr></thead>';
+  t.innerHTML = '<thead><tr><th>Bag</th><th>Warehouse</th><th>→ Paris</th><th>→ Tokyo</th></tr></thead>';
   const body = document.createElement('tbody');
 
   BAGS.forEach(function(b, i){
@@ -1223,7 +1229,7 @@ function buildAllocTable(){
       const inp = document.createElement('input');
       inp.type = 'number'; inp.min = '0'; inp.value = state.ship[s][i] || 0;
       inp.id = 'ship-' + s + '-' + i;
-      inp.setAttribute('aria-label', 'Ship ' + b.name + ' to Store ' + s);
+      inp.setAttribute('aria-label', 'Ship ' + b.name + ' to ' + SN(s));
       /* Typing more than the warehouse holds is simply not possible: the
          value is clamped to what is left, and the cell flashes to say so. */
       inp.addEventListener('input', function(){
@@ -1250,7 +1256,7 @@ function buildAllocTable(){
   return t;
 }
 
-/* Put the cursor in the first cell (first bag, Store A) so the table can be
+/* Put the cursor in the first cell (first bag, Paris) so the table can be
    filled from the keyboard alone: arrows change the quantity, Tab moves on,
    Enter confirms the lot. Called again whenever a guide bubble closes, since
    the bubble takes focus while it is open. */
@@ -1290,8 +1296,8 @@ function allocValid(){ return refreshAlloc(); }
 /* ------------------------------------------------------------- history */
 /* One block per closed week, newest first: the week's totals, then every bag
    in all three places. Sales and missed sales are split by shop, because
-   "we lost 6" is a different conversation from "we lost 6 in Store A while
-   Store B sat on stock". The filter narrows to one shop when the full width
+   "we lost 6" is a different conversation from "we lost 6 in Paris while
+   Tokyo sat on stock". The filter narrows to one shop when the full width
    is more than the room can read. */
 let histFilter = 'both';                       /* 'both' | 'A' | 'B' */
 
@@ -1314,8 +1320,8 @@ function renderHistory(){
 
   const showA = histFilter !== 'B', showB = histFilter !== 'A';
   let head = '<thead><tr><th>Week / bag</th><th>Whse</th>';
-  if(showA) head += '<th>A stock</th><th>A sold</th><th>A missed</th>';
-  if(showB) head += '<th>B stock</th><th>B sold</th><th>B missed</th>';
+  if(showA) head += '<th>Paris stock</th><th>Paris sold</th><th>Paris missed</th>';
+  if(showB) head += '<th>Tokyo stock</th><th>Tokyo sold</th><th>Tokyo missed</th>';
   head += '<th>Shipped</th></tr></thead><tbody>';
   let html = head;
 
@@ -1324,7 +1330,7 @@ function renderHistory(){
     const tot = { wh:0, as:0, aso:0, am:0, bs:0, bso:0, bm:0, sh:0 };
     BAGS.forEach(function(b){
       const g = w.bags[b.name]; if(!g) return;
-      const W = g['Warehouse'] || {}, A = g['Store A'] || {}, B = g['Store B'] || {};
+      const W = g['Warehouse'] || {}, A = g[SN('A')] || {}, B = g[SN('B')] || {};
       tot.wh += W.closing || 0; tot.sh += W.shipped || 0;
       tot.as += A.closing || 0; tot.aso += A.sold || 0; tot.am += A.missed || 0;
       tot.bs += B.closing || 0; tot.bso += B.sold || 0; tot.bm += B.missed || 0;
@@ -1338,7 +1344,7 @@ function renderHistory(){
 
     BAGS.forEach(function(b, i){
       const g = w.bags[b.name]; if(!g) return;
-      const W = g['Warehouse'] || {}, A = g['Store A'] || {}, B = g['Store B'] || {};
+      const W = g['Warehouse'] || {}, A = g[SN('A')] || {}, B = g[SN('B')] || {};
       html += '<tr class="sku"><td>' + bagIcon(i, 15) + ' ' + b.name + '</td>'
             + '<td>' + (W.closing || 0) + '</td>'
             + (showA ? '<td>' + (A.closing || 0) + '</td><td>' + (A.sold || 0) + '</td>'
@@ -1355,7 +1361,7 @@ function renderHistFilter(){
   const host = el('hist-filter');
   if(!host) return;
   host.textContent = '';
-  [['both','Both shops'], ['A','Store A only'], ['B','Store B only']].forEach(function(o){
+  [['both','Both shops'], ['A','Paris only'], ['B','Tokyo only']].forEach(function(o){
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'btn-ghost';
@@ -1539,11 +1545,11 @@ const HINTS = [
     text:'Everything you produced that did not go to the shops is here.' },
   { id:'intro-a', week:1, step:'reveal', anchor:function(){ return el('panel-A'); }, place:'leftof',
     spot:function(){ return [el('panel-A')]; },
-    title:'2 of 3 — Store A',
+    title:'2 of 3 — Paris',
     text:'One of your two shops. Stock sitting here can be sold to the customers who walk in.' },
   { id:'intro-b', week:1, step:'reveal', anchor:function(){ return el('panel-B'); }, place:'leftof',
     spot:function(){ return [el('panel-B')]; },
-    title:'3 of 3 — Store B',
+    title:'3 of 3 — Tokyo',
     text:'Your second shop. The two shops sell different amounts, and cannot pass stock '
        + 'to each other.' },
   { id:'reveal',  week:1, step:'reveal',   anchor:function(){ return el('action-panel'); },
@@ -1999,13 +2005,13 @@ function teamDetail(){
   state.log.forEach(function(r){
     const p = per[r.bag], y = weekly[r.week - 1];
     if(!p || !y) return;
-    if(r.loc === 'Store A'){ p.soldA += r.sold; p.missA += r.missed; y.a += r.closing; }
-    else if(r.loc === 'Store B'){ p.soldB += r.sold; p.missB += r.missed; y.b += r.closing; }
+    if(r.loc === SN('A')){ p.soldA += r.sold; p.missA += r.missed; y.a += r.closing; }
+    else if(r.loc === SN('B')){ p.soldB += r.sold; p.missB += r.missed; y.b += r.closing; }
     else y.wh += r.closing;
     y.sold += r.sold; y.missed += r.missed;
     if(r.week === maxW){
-      if(r.loc === 'Store A') p.endA = r.closing;
-      else if(r.loc === 'Store B') p.endB = r.closing;
+      if(r.loc === SN('A')) p.endA = r.closing;
+      else if(r.loc === SN('B')) p.endB = r.closing;
       else p.endW = r.closing;
     }
   });
@@ -2131,7 +2137,7 @@ function panelBoard(d, unit, perBag){
          + (bits.length ? bits.join(' · ') : 'nothing') + '</span></div>';
   };
   let html = '<div class="bagboard"><div class="bhead"></div>'
-    + '<div class="bhead">Store A</div><div class="bhead">Store B</div>'
+    + '<div class="bhead">' + SN('A') + '</div><div class="bhead">' + SN('B') + '</div>'
     + '<div class="bhead">Warehouse</div>'
     /* the fixed cost belongs to the season, not to any one bag, so the column
        says so rather than letting the five figures look like they should add
@@ -2405,8 +2411,8 @@ function renderSetupOptions(){
 
   const sp2 = splitStock(per, draft.storePct);
   el('cons-split').innerHTML =
-    'Per bag: <b>' + sp2.store + '</b> to Store A and <b>' + sp2.store
-    + '</b> to Store B, <b>' + sp2.central + '</b> kept central.<br>'
+    'Per bag: <b>' + sp2.store + '</b> to Paris and <b>' + sp2.store
+    + '</b> to Tokyo, <b>' + sp2.central + '</b> kept central.<br>'
     + 'Across the five bags: <b>' + fmt(sp2.store * BAGS.length) + '</b> units in each shop, <b>'
     + fmt(sp2.central * BAGS.length) + '</b> units in the warehouse.';
 

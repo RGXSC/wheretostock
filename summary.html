@@ -234,7 +234,7 @@
   .bval{ font-size:13px; font-weight:800; color:var(--ink-soft); white-space:nowrap;
          font-variant-numeric:tabular-nums; }
 
-  /* five bags down, Store A / Store B / warehouse across. NOT .board — that
+  /* five bags down, Paris / Tokyo / warehouse across. NOT .board — that
      class already belongs to the reveal's ranking table. */
   .bagboard{ display:grid; grid-template-columns:112px 1fr 1fr 1fr 120px;
              gap:6px 12px; align-items:center; }
@@ -348,8 +348,8 @@
           Zoom on margin ›</button>
         <div id="legend" class="legend hidden">
           <span><i style="background:#9aa7b3"></i>Warehouse</span>
-          <span><i style="background:#12557f"></i>Store A</span>
-          <span><i style="background:#6ba3cd"></i>Store B</span>
+          <span><i style="background:#12557f"></i>Paris</span>
+          <span><i style="background:#6ba3cd"></i>Tokyo</span>
           <span><i style="background:#4d5560"></i>Sold</span>
           <span><i style="background:#8a3115"></i>Missed</span>
         </div>
@@ -451,6 +451,16 @@ function parseBlob(text, sourceName){
   return { games:games, error:null };
 }
 
+/* The two shops now carry city names. Old exports say "Store A" / "Store B",
+   new ones say "Paris" / "Tokyo", and both must load — so every row is
+   normalised to a slot on the way in and nothing downstream reads the label.
+   A location the tool has never heard of is kept as itself rather than
+   silently folded into a shop. */
+const SHOPS = { A:'Paris', B:'Tokyo' };
+const SLOTS = { 'Store A':'A', 'Paris':'A', 'Store B':'B', 'Tokyo':'B', 'Warehouse':'W' };
+function slotOf(loc){ return SLOTS[loc] || loc; }
+function shopName(slot){ return SHOPS[slot] || slot; }
+
 function buildDetail(key, rows, at, sourceName){
   const g = {
     id:key, source:'detail', file:sourceName,
@@ -475,12 +485,16 @@ function buildDetail(key, rows, at, sourceName){
       missed:num(c[at['Missed']]), shipped:num(c[at['ShippedOut']]),
       closing:num(c[at['Closing']]), revenue:num(c[at['Revenue']])
     };
+    r.slot = slotOf(r.loc);
     g.rows.push(r);
     turnover += r.revenue; sold += r.sold; missed += r.missed;
     maxWeek = Math.max(maxWeek, r.week);
-    bags.add(r.bag); locs.add(r.loc);
-    if(r.loc !== 'Warehouse'){
-      demandKeys.push(r.week + '|' + r.bag + '|' + r.loc + '|' + r.demand);
+    bags.add(r.bag); locs.add(r.slot);
+    if(r.slot !== 'W'){
+      /* keyed on the slot, not the label: the game used to export "Store A"
+         and now exports "Paris", and two rooms that played the same demand
+         table must not be flagged as different versions over a rename */
+      demandKeys.push(r.week + '|' + r.bag + '|' + r.slot + '|' + r.demand);
       if(r.opening + r.received - r.sold !== r.closing) broken++;
       if(r.sold + r.missed !== r.demand) broken++;
     }else if(r.opening - r.shipped !== r.closing) broken++;
@@ -1042,7 +1056,7 @@ function renderDetail(){
   g.rows.forEach(function(r){
     if(!by[r.bag]){ by[r.bag] = {}; bags.push(r.bag); }
     if(!by[r.bag][r.week]) by[r.bag][r.week] = {};
-    by[r.bag][r.week][r.loc] = r;
+    by[r.bag][r.week][r.slot] = r;
   });
 
   /* Built once and kept: the zoom reads the same series, so the big view can
@@ -1051,7 +1065,7 @@ function renderDetail(){
     const weeks = Object.keys(by[bag]).map(Number).sort(function(a, b){ return a - b; });
     const series = weeks.map(function(w){
       const c = by[bag][w];
-      const W = c['Warehouse'] || {}, A = c['Store A'] || {}, B = c['Store B'] || {};
+      const W = c['W'] || {}, A = c['A'] || {}, B = c['B'] || {};
       return { w:w,
                wh:W.closing || 0, a:A.closing || 0, b:B.closing || 0,
                aSold:A.sold || 0, aMissed:A.missed || 0,
@@ -1153,7 +1167,7 @@ function stockChart(series, opt){
    =========================================================================
    The card answers "where did the stock sit"; the zoom answers "and which
    shop was it wrong in". Layout: the whole-bag stack across the top, then
-   Store A and Store B side by side underneath, drawn on ONE shared pair of
+   the two shops side by side underneath, drawn on ONE shared pair of
    scales — a store selling half as much must look half as tall, which is
    the entire point of the 2:1 skew in the demand table. */
 let zoomIdx = -1;
@@ -1220,8 +1234,8 @@ function drawZoom(){
     + '</div>'
     + '<div class="legend" style="margin:12px 0 6px;">'
     +   '<span><i style="background:' + CLR.W + '"></i>Warehouse</span>'
-    +   '<span><i style="background:' + CLR.A + '"></i>Store A</span>'
-    +   '<span><i style="background:' + CLR.B + '"></i>Store B</span>'
+    +   '<span><i style="background:' + CLR.A + '"></i>' + shopName('A') + '</span>'
+    +   '<span><i style="background:' + CLR.B + '"></i>' + shopName('B') + '</span>'
     +   '<span><i style="background:' + CLR.sold + '"></i>Sold</span>'
     +   '<span><i style="background:' + CLR.missed + '"></i>Missed</span>'
     + '</div>'
@@ -1229,8 +1243,8 @@ function drawZoom(){
     + stockChart(s, { W:960, stockH:180, stripH:86, fs:12 })
     + '<h3 class="zh3">Shop by shop — same scale on both, so the difference is the point</h3>'
     + '<div class="zoomstores">'
-    +   storePanel('Store A', s, 'a', CLR.A, maxStock, maxDem, tot('aSold'), tot('aMissed'))
-    +   storePanel('Store B', s, 'b', CLR.B, maxStock, maxDem, tot('bSold'), tot('bMissed'))
+    +   storePanel(shopName('A'), s, 'a', CLR.A, maxStock, maxDem, tot('aSold'), tot('aMissed'))
+    +   storePanel(shopName('B'), s, 'b', CLR.B, maxStock, maxDem, tot('bSold'), tot('bMissed'))
     + '</div>';
 
   back.appendChild(box);
@@ -1339,7 +1353,7 @@ function teamStats(g){
   g.rows.forEach(function(r){
     if(!by[r.bag]){ by[r.bag] = {}; bags.push(r.bag); }
     if(!by[r.bag][r.week]) by[r.bag][r.week] = {};
-    by[r.bag][r.week][r.loc] = r;
+    by[r.bag][r.week][r.slot] = r;
     if(r.week > maxW) maxW = r.week;
   });
 
@@ -1351,7 +1365,7 @@ function teamStats(g){
                 late:0, wrong:0, short:0 };
     for(let w = 1; w <= maxW; w++){
       const c = by[bag][w] || {};
-      const A = c['Store A'] || {}, B = c['Store B'] || {}, W = c['Warehouse'] || {};
+      const A = c['A'] || {}, B = c['B'] || {}, W = c['W'] || {};
       const y = weekly[w - 1];
       p.soldA += A.sold || 0; p.soldB += B.sold || 0;
       p.missA += A.missed || 0; p.missB += B.missed || 0;
@@ -1467,8 +1481,8 @@ function drawTeamZoom(){
     + (st
         ? '<h3 class="zh3">Which bag, which shop</h3>'
           + '<div class="legend" style="margin:0 0 8px;">'
-          +   '<span><i style="background:' + CLR.A + '"></i>sold in A</span>'
-          +   '<span><i style="background:' + CLR.B + '"></i>sold in B</span>'
+          +   '<span><i style="background:' + CLR.A + '"></i>sold in ' + shopName('A') + '</span>'
+          +   '<span><i style="background:' + CLR.B + '"></i>sold in ' + shopName('B') + '</span>'
           +   '<span><i style="background:' + CLR.missed + '"></i>customers turned away</span>'
           +   '<span><i style="background:' + CLR.W + ';opacity:.5"></i>still unsold at the end</span>'
           + '</div>'
@@ -1523,7 +1537,7 @@ function bridgePanel(g, e, m, dead, sc){
   return html + '</div>';
 }
 
-/* --- panel 2: the game board, 5 bags x Store A / Store B / warehouse ---- */
+/* --- panel 2: the game board, 5 bags x the two shops and the warehouse -- */
 function boardPanel(g, st, sc){
   const cell = function(sold, miss, left, colour, transit){
     const w = function(v){ return (v / sc.unit * 100).toFixed(1) + '%'; };
@@ -1542,7 +1556,7 @@ function boardPanel(g, st, sc){
          + (bits.length ? bits.join(' · ') : 'nothing') + '</span></div>';
   };
   let html = '<div class="bagboard"><div class="bhead"></div>'
-    + '<div class="bhead">Store A</div><div class="bhead">Store B</div>'
+    + '<div class="bhead">' + shopName('A') + '</div><div class="bhead">' + shopName('B') + '</div>'
     /* per-bag margin cannot carry the fixed cost — that belongs to the whole
        season, not to any one bag — so the header says so rather than letting
        the five figures look as though they should add up to the margin */
