@@ -181,3 +181,39 @@ a replay under a second game name, an exact duplicate, a same-name conflict,
 a part game stopped at week 8, a pasted clipboard, a one-line summary, two
 rooms concatenated into one sheet, a legacy export with no cost columns, and
 a room that played a different demand table.
+
+---
+
+## 8. Collecting results from many rooms — decided against a backend
+
+The question came up of hosting the game on GitHub Pages, letting 20 rooms
+play it there, and having the debrief pull "today's results" automatically,
+with an admin login to weed out games that were not part of the session.
+
+**Not possible on Pages, and the login would be worse than useless.** Pages
+serves static files: there is no server to receive a result and no database
+to hold one. Each room's game lives entirely in its own browser storage,
+invisible to everyone else. A username and password checked in JavaScript on
+a public page is not a security control — the source is readable by anyone —
+and there would be nothing behind it to protect, because nothing was ever
+stored centrally.
+
+Automatic collection would need a real backend (a free-tier Supabase or
+Firebase project, say). That would buy genuine session codes, real admin
+auth and real deletion — at the cost of an account to maintain, corporate
+network access to a third party, and the game no longer being offline, which
+is the property the whole thing was built around.
+
+**Decided: keep collection manual.** It is already built and it scales:
+
+- 20 rooms' full exports concatenated into one sheet → **20 entries in
+  643 ms**, one demand fingerprint, no false version warning.
+- 20 one-line summaries pasted straight out of a chat channel — each with
+  its own repeated header row — parse into 20 entries in a single paste.
+- The reveal renders and sorts 20 rows without stalling, and the matrix
+  stacks rooms that chose the same square (4 deep in the test).
+
+The practical trade-off to tell facilitators about: **pasting the one-line
+summary into a chat is the easy route for 20 rooms, but it carries no
+week-by-week data**, so those rooms get no stock charts. Rooms whose detail
+matters should send the CSV.
