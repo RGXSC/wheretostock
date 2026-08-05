@@ -84,14 +84,14 @@
 
   /* ------------------------------------------------------------- matrix */
   .mwrap{ overflow-x:auto; }
-  table.matrix{ border-collapse:separate; border-spacing:5px; margin:0 auto; }
+  table.matrix{ border-collapse:separate; border-spacing:4px; margin:0 auto; }
   table.matrix th{ font-size:12px; font-weight:800; color:var(--ink-soft);
                    text-transform:uppercase; letter-spacing:.04em; padding:3px 6px; }
-  table.matrix td{ min-width:88px; height:54px; padding:0; }
+  table.matrix td{ min-width:78px; height:52px; padding:0; }
   .mcell{ width:100%; height:100%; border-radius:7px; border:2px solid var(--line-soft);
           background:var(--surface); display:flex; flex-direction:column;
           justify-content:center; align-items:center; gap:3px; position:relative; }
-  .mcell .v{ font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .mcell .v{ font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
   .mcell .b{ width:76%; height:6px; border-radius:3px; background:var(--line-soft); overflow:hidden; }
   .mcell .b i{ display:block; height:100%; }
   .mcell.on{ color:#fff; border-color:transparent; }
@@ -111,6 +111,7 @@
         font-variant-numeric:tabular-nums; }
   .mcfield input[type=range]{ width:100%; height:34px; }
   .mcfield .hint{ font-size:13px; color:var(--ink-soft); margin-top:3px; }
+  .shape svg{ width:100%; height:62px; display:block; }
   .bar{ height:14px; border-radius:7px; background:var(--line-soft); overflow:hidden; margin-top:12px; }
   .bar i{ display:block; height:100%; background:var(--accent); width:0; transition:width .1s linear; }
   .runline{ font-size:15px; font-weight:700; color:var(--ink-soft); margin-top:8px;
@@ -218,11 +219,13 @@
       <div class="mcfield">
         <label>Collection concentration</label>
         <input type="range" id="mc-askew" min="0" max="100" value="55">
+        <div class="shape" id="mc-askew-s"></div>
         <div class="hint" id="mc-askew-h"></div>
       </div>
       <div class="mcfield">
         <label>Network concentration</label>
         <input type="range" id="mc-bskew" min="0" max="100" value="45">
+        <div class="shape" id="mc-bskew-s"></div>
         <div class="hint" id="mc-bskew-h"></div>
       </div>
       <div class="mcfield">
@@ -369,7 +372,9 @@ const CITY_SHARE = CITIES.map(function(c, j){
 });
 
 const ST_LEVELS = [60, 70, 80, 90, 100];
-const SP_LEVELS = [0, 20, 40, 60, 80, 100];
+/* No boutique opens a launch with an empty window, so the axis starts at 30%
+   rather than 0 — the same floor the game uses. */
+const SP_LEVELS = [30, 40, 50, 60, 70, 80, 90, 100];
 
 const el = function(id){ return document.getElementById(id); };
 const fmt  = function(n){ return Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' '); };
@@ -694,9 +699,61 @@ function topShare(w, frac){
   for(let i = 0; i < n; i++) s += w[i];
   return s;
 }
+/* The curve the slider is actually shaping: one bar per bag or boutique,
+   biggest first, each as tall as its share of the forecast. Drawn live, so
+   "concentration" stops being an abstract number. Above 60 items the bars
+   would be thinner than a hairline, so they are pooled into 60 buckets and
+   the caption says so. */
+function shapeSVG(w){
+  const W = 260, H = 54, n = w.length, MAX = 60;
+  let bars = w;
+  let pooled = false;
+  if(n > MAX){
+    pooled = true;
+    bars = [];
+    for(let k = 0; k < MAX; k++){
+      const from = Math.floor(k * n / MAX), to = Math.floor((k + 1) * n / MAX);
+      let s = 0;
+      for(let i = from; i < to; i++) s += w[i];
+      bars.push(s / Math.max(1, to - from));
+    }
+  }
+  const hi = Math.max.apply(null, bars);
+  const bw = W / bars.length;
+  const base = H - 11;
+  let g = '';
+  bars.forEach(function(v, i){
+    const h = Math.max(1, v / hi * (base - 4));
+    g += '<rect x="' + (i * bw).toFixed(2) + '" y="' + (base - h).toFixed(2)
+       + '" width="' + Math.max(0.6, bw - 0.7).toFixed(2) + '" height="' + h.toFixed(2)
+       + '" fill="' + (i < bars.length / 5 ? '#12557f' : '#9aa7b3') + '"/>';
+  });
+  /* the bars alone say little once the curve is steep — one item towers and
+     the rest is a flat line. The cumulative share on top is what the eye can
+     actually read: how fast it reaches the ceiling IS the concentration. */
+  let acc = 0, pts = ['0,' + base.toFixed(1)];
+  w.forEach(function(v, i){
+    acc += v;
+    pts.push(((i + 1) / w.length * W).toFixed(2) + ',' + (base - acc * (base - 4)).toFixed(2));
+  });
+  const x = W / 5;
+  g += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#8a3115" stroke-width="2"/>'
+     + '<line x1="' + x + '" y1="0" x2="' + x + '" y2="' + base
+     + '" stroke="#8a3115" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>'
+     + '<line x1="0" y1="' + base + '" x2="' + W + '" y2="' + base + '" stroke="#c6ced7"/>'
+     + '<text x="0" y="' + (H - 1) + '" font-size="9" fill="#7b8794">biggest</text>'
+     + '<text x="' + (W / 2) + '" y="' + (H - 1) + '" font-size="9" fill="#8a3115" '
+     + 'text-anchor="middle">cumulative</text>'
+     + '<text x="' + W + '" y="' + (H - 1) + '" font-size="9" fill="#7b8794" text-anchor="end">smallest'
+     + (pooled ? ' (bars pooled)' : '') + '</text>';
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img">' + g + '</svg>';
+}
+
 function mcHints(){
   const a = paretoShares(Number(el('mc-sku').value) || 1, Number(el('mc-askew').value));
   const b = paretoShares(Number(el('mc-store').value) || 1, Number(el('mc-bskew').value));
+  el('mc-askew-s').innerHTML = shapeSVG(a);
+  el('mc-bskew-s').innerHTML = shapeSVG(b);
   el('mc-askew-h').textContent = 'the top fifth of the collection carries '
     + (topShare(a, 0.2) * 100).toFixed(0) + '% of the forecast';
   el('mc-bskew-h').textContent = 'the top fifth of the network carries '

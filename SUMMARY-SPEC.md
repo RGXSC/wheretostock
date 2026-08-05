@@ -253,8 +253,11 @@ It is computed from `state.log` — the very table the export is built from —
 so what a team reads in the game and what the facilitator reads in the
 debrief cannot disagree. A cross-check asserts exactly that.
 
-**The game says Margin, never Profit**, including the summary export column.
-The debrief reads either, so summaries taken before the rename still import.
+**The game says Margin, never Profit**, including the summary export column,
+and the two shops are **Paris** and **Tokyo** — in the game, in the export and
+in the debrief. Every row is normalised to a slot on the way in, and a
+Location the tool does not recognise is called out as an issue rather than
+read as a shop that sold nothing.
 
 ## 5. Housekeeping
 

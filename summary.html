@@ -424,9 +424,6 @@ function parseBlob(text, sourceName){
     return { games:[], error:'not an export from the game — no Team/Game columns' };
 
   const isDetail  = at['Week'] !== undefined && at['Location'] !== undefined;
-  /* the game used to call this column Profit and now calls it Margin; both
-     are read, so summaries taken before the rename still import */
-  if(at['Margin'] === undefined && at['Profit'] !== undefined) at['Margin'] = at['Profit'];
   const isSummary = at['Margin'] !== undefined;
   if(!isDetail && !isSummary)
     return { games:[], error:'unrecognised export layout' };
@@ -451,13 +448,12 @@ function parseBlob(text, sourceName){
   return { games:games, error:null };
 }
 
-/* The two shops now carry city names. Old exports say "Store A" / "Store B",
-   new ones say "Paris" / "Tokyo", and both must load — so every row is
-   normalised to a slot on the way in and nothing downstream reads the label.
-   A location the tool has never heard of is kept as itself rather than
-   silently folded into a shop. */
+/* Every row is normalised to a slot on the way in, so nothing downstream
+   reads the label. A location the tool has never heard of is kept as itself
+   rather than silently folded into a shop — the row-count check then badges
+   the file instead of quietly mis-reading it. */
 const SHOPS = { A:'Paris', B:'Tokyo' };
-const SLOTS = { 'Store A':'A', 'Paris':'A', 'Store B':'B', 'Tokyo':'B', 'Warehouse':'W' };
+const SLOTS = { 'Paris':'A', 'Tokyo':'B', 'Warehouse':'W' };
 function slotOf(loc){ return SLOTS[loc] || loc; }
 function shopName(slot){ return SHOPS[slot] || slot; }
 
@@ -491,9 +487,6 @@ function buildDetail(key, rows, at, sourceName){
     maxWeek = Math.max(maxWeek, r.week);
     bags.add(r.bag); locs.add(r.slot);
     if(r.slot !== 'W'){
-      /* keyed on the slot, not the label: the game used to export "Store A"
-         and now exports "Paris", and two rooms that played the same demand
-         table must not be flagged as different versions over a rename */
       demandKeys.push(r.week + '|' + r.bag + '|' + r.slot + '|' + r.demand);
       if(r.opening + r.received - r.sold !== r.closing) broken++;
       if(r.sold + r.missed !== r.demand) broken++;
@@ -503,6 +496,14 @@ function buildDetail(key, rows, at, sourceName){
   g.turnover = turnover; g.sold = sold; g.missed = missed;
   g.weeks = maxWeek; g.bagCount = bags.size; g.locCount = locs.size;
   g.rowCount = rows.length;
+  /* A Location the tool does not know reads as an empty shop everywhere
+     downstream, so it is called out here rather than left to look like a
+     team that sold nothing. */
+  const strange = Array.prototype.filter.call(Array.from(locs), function(x){
+    return x !== 'A' && x !== 'B' && x !== 'W'; });
+  if(strange.length)
+    g.issues.push('unrecognised location: ' + strange.join(', ')
+      + ' — this file was not written by the current game');
   g.demandHash = fnv(demandKeys.sort().join(';'));
   g.contentHash = fnv(rows.map(function(c){ return c.join(''); }).join('\n'));
   if(broken) g.issues.push(broken + ' row(s) do not add up — the file may have been edited');

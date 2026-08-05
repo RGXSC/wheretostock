@@ -37,6 +37,10 @@ Forecast **650** = 2 per city per bag per week × 13 × 5 × 5. Split across the
 collection 37.5 / 30 / 15 / 12.5 / 5 % (the shape of the reference file the
 brief was based on) and across the network 30 / 25 / 20 / 15 / 10 %.
 
+The launch-push axis runs **30% to 100%** in steps of ten. It does not start
+at zero: no boutique opens a launch with an empty window, and the same floor
+is used in the game.
+
 Real demand is hard-coded and also totals **650**. That is the point of the
 whole page: **the volume call was right**, and every error is in the spread —
 per bag −23% to +12%, per city-bag −50% to +50%.
@@ -62,7 +66,11 @@ is more useful than a rigged optimum:
 
 Any board up to **500 bags × 500 boutiques**. Forecast shares are a power law
 on each axis with a steepness slider, read back as *"the top fifth carries
-X% of the forecast"*.
+X% of the forecast"* and drawn live: one bar per bag or boutique, biggest
+first, with the cumulative share over the top. The bars alone say little once
+the curve is steep — one item towers and the rest is a flat line — so it is
+how fast the cumulative curve reaches the ceiling that shows the
+concentration. Above sixty items the bars are pooled and the caption says so.
 
 **The error.** One flat draw per bag and one per city, multiplied. The typed
 range cannot be honoured exactly *and* leave the season total on the forecast
@@ -79,12 +87,12 @@ network. Measured, 20-second budget:
 
 | board | seasons | combinations |
 |---|---|---|
-| 500 × 500 | 31 000 | 929 000 |
-| 200 × 200 | 75 000 | 2 240 000 |
-| 40 × 40 | 469 000 | 14 070 000 |
-| 5 × 5 | 4 640 000 | 139 300 000 |
+| 500 × 500 | 31 000 | 1 240 000 |
+| 200 × 200 | 75 000 | 3 000 000 |
+| 40 × 40 | 469 000 | 18 760 000 |
+| 5 × 5 | 4 640 000 | 185 700 000 |
 
-A test checks the fast path against a plain bag-by-city loop over 360 random
+A test checks the fast path against a plain bag-by-city loop over 480 random
 cases; worst relative gap 2 × 10⁻¹⁵.
 
 Quantities are continuous in this mode rather than whole bags — over 250 000
