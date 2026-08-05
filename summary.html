@@ -833,8 +833,12 @@ function renderMatrix(){
 
   let html = '<h2 style="font-size:21px;" id="map-title">Turnover on the map</h2>'
     + '<p class="muted small" style="margin:4px 0 16px;" id="map-sub"></p>'
-    + '<div class="mwrap"><table class="matrix"><thead><tr><th></th>'
-    + '<th colspan="' + targets.length + '">Target sell-through</th></tr><tr><th></th>'
+    /* Two leading cells in every header row, not one: the body rows carry the
+       rotated axis label AND the row label before the first square, so a
+       single spacer slid every column heading one square to the left. */
+    + '<div class="mwrap"><table class="matrix"><thead><tr><th></th><th></th>'
+    + '<th colspan="' + targets.length + '">Target sell-through</th></tr>'
+    + '<tr><th></th><th></th>'
     + targets.map(function(t){ return '<th>' + t + '%</th>'; }).join('') + '</tr></thead><tbody>';
 
   splits.forEach(function(sp, i){
