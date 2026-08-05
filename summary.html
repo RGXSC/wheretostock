@@ -182,10 +182,33 @@
   .legend i{ display:inline-block; width:14px; height:14px; border-radius:3px;
              margin-right:6px; vertical-align:-2px; }
   .charts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:16px; }
-  .chartbox{ border:2px solid var(--line-soft); border-radius:var(--radius); padding:10px 12px; }
-  .chartbox h3{ font-size:16px; margin-bottom:2px; }
+  .chartbox{ border:2px solid var(--line-soft); border-radius:var(--radius); padding:10px 12px;
+             cursor:zoom-in; background:none; transition:border-color 120ms, box-shadow 120ms; }
+  .chartbox:hover, .chartbox:focus-visible{ border-color:var(--accent);
+             box-shadow:0 2px 10px rgba(18,85,127,.14); outline:none; }
+  .chartbox h3{ font-size:16px; margin-bottom:2px; display:flex; justify-content:space-between; }
+  .chartbox .zoomhint{ color:var(--ink-soft); font-size:15px; opacity:.5; }
+  .chartbox:hover .zoomhint{ opacity:1; color:var(--accent); }
   .chartbox .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:6px; }
   .chartbox svg{ width:100%; height:auto; display:block; }
+
+  /* --------------------------------------------------------------- zoom */
+  .zoomback{ position:fixed; inset:0; z-index:70; background:rgba(12,16,22,.62);
+             overflow:auto; padding:22px; display:flex; justify-content:center;
+             align-items:flex-start; }
+  .zoombox{ background:#fff; border-radius:var(--radius); padding:22px 24px 26px;
+            width:100%; max-width:1060px; }
+  .zoomhead{ display:flex; justify-content:space-between; align-items:flex-start;
+             gap:16px; flex-wrap:wrap; }
+  .zoomnav{ display:flex; align-items:center; gap:10px; }
+  .zoomnav button{ min-height:42px; }
+  .zoomnav #z-prev, .zoomnav #z-next{ font-size:22px; line-height:1; padding:6px 16px; }
+  .zh3{ font-size:15px; font-weight:800; color:var(--ink-soft); margin:16px 0 4px; }
+  .zoombox > svg{ width:100%; height:auto; display:block; }
+  .zoomstores{ display:grid; grid-template-columns:repeat(auto-fit,minmax(380px,1fr)); gap:18px; }
+  .zoomstore h4{ font-size:16px; }
+  .zoomstore .sub{ font-size:13px; color:var(--ink-soft); margin-bottom:4px; }
+  .zoomstore svg{ width:100%; height:auto; display:block; }
 </style>
 
 <!-- ======================================================= SCREEN: IMPORT -->
@@ -821,8 +844,12 @@ function renderMatrix(){
     targets.forEach(function(t){
       const here = all.filter(function(g){ return g.target === t && g.storePct === sp; });
       html += '<td>' + here.map(function(g){
+        /* A part game has no comparable result, so it must not claim a
+           length on the ranked scale: it gets a short hatched stub with its
+           name alongside, which can never be misread as a middling score. */
         if(!isComplete(g))
-          return '<div class="mrow"><div class="mtrack"><div class="mbar part" style="width:70%"></div>'
+          return '<div class="mrow short" style="--w:14%"><div class="mtrack">'
+               + '<div class="mbar part" style="width:14%"></div>'
                + '<span class="mlab">' + esc(g.team) + '</span></div>'
                + '<span class="mval">part</span></div>';
         return '<div class="mrow" data-id="' + esc(g.id) + '">'
@@ -847,10 +874,9 @@ function setMatrixMetric(metric){
   const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
   
   el('map-title').textContent = metric === 'turnover' ? 'Turnover on the map' : 'Margin on the map';
-  el('map-sub').textContent = (metric === 'turnover'
-    ? 'Each team sits in the square it chose. Bars show turnover. '
-    : 'The same squares, now showing margin. Watch which bars shrink. ')
-    + 'Bars compare the teams — the lowest is half the length of the highest, not zero.';
+  el('map-sub').textContent = metric === 'turnover'
+    ? 'Each team sits in the square it chose. Bars show turnover.'
+    : 'The same squares, now showing margin. Watch which bars shrink.';
 
   ranked.forEach(function(g){
     const row = el('matrix-wrap').querySelector('[data-id="' + cssEsc(g.id) + '"]');
@@ -886,12 +912,18 @@ function uniqueSorted(values, fallback){
   return Object.keys(set).map(Number).sort(function(a, b){ return a - b; });
 }
 
-/* red at the worst result on screen, green at the best */
+/* Red at the worst result on screen, green at the best. Five stops rather
+   than three: with a three-stop ramp the middle of the field all came out
+   the same muddy olive, so teams a long way apart looked alike. Running the
+   ramp through orange and amber gives every position on the field a colour
+   of its own. The stops stay dark enough for the white bar label to read. */
+const RAMP = [[150,32,14],[192,84,22],[201,146,26],[104,148,52],[15,107,69]];
+
 function scale(v, lo, hi){
   const t = hi === lo ? 1 : (v - lo) / (hi - lo);
-  const c = [[138,49,21],[176,110,40],[15,107,69]];
-  const i = t < 0.5 ? 0 : 1, f = t < 0.5 ? t * 2 : (t - 0.5) * 2;
-  const a = c[i], b = c[i + 1];
+  const seg = Math.min(RAMP.length - 2, Math.floor(t * (RAMP.length - 1)));
+  const f = t * (RAMP.length - 1) - seg;
+  const a = RAMP[seg], b = RAMP[seg + 1];
   return 'rgb(' + a.map(function(x, k){ return Math.round(x + (b[k] - x) * f); }).join(',') + ')';
 }
 
@@ -903,6 +935,7 @@ function scale(v, lo, hi){
    axis. The stacked bars are stock; the strip underneath is demand, split
    into what was served and what was lost. Nothing implies one scale. */
 let detailTeam = null;
+let detailSeries = [];            /* one entry per bag, for the cards and the zoom */
 
 const CLR = { W:'#9aa7b3', A:'#12557f', B:'#6ba3cd', sold:'#4d5560', missed:'#8a3115' };
 
@@ -941,31 +974,53 @@ function renderDetail(){
     by[r.bag][r.week][r.loc] = r;
   });
 
-  bags.forEach(function(bag){
+  /* Built once and kept: the zoom reads the same series, so the big view can
+     never drift from the small one. */
+  detailSeries = bags.map(function(bag){
     const weeks = Object.keys(by[bag]).map(Number).sort(function(a, b){ return a - b; });
     const series = weeks.map(function(w){
       const c = by[bag][w];
       const W = c['Warehouse'] || {}, A = c['Store A'] || {}, B = c['Store B'] || {};
       return { w:w,
                wh:W.closing || 0, a:A.closing || 0, b:B.closing || 0,
+               aSold:A.sold || 0, aMissed:A.missed || 0,
+               bSold:B.sold || 0, bMissed:B.missed || 0,
                sold:(A.sold || 0) + (B.sold || 0),
                missed:(A.missed || 0) + (B.missed || 0) };
     });
-    const totMissed = series.reduce(function(a, x){ return a + x.missed; }, 0);
-    const totSold   = series.reduce(function(a, x){ return a + x.sold; }, 0);
+    return { bag:bag, series:series,
+             sold:  series.reduce(function(a, x){ return a + x.sold; }, 0),
+             missed:series.reduce(function(a, x){ return a + x.missed; }, 0),
+             team:  g.team + ' · ' + g.game };
+  });
 
+  detailSeries.forEach(function(d, i){
     const box = document.createElement('div');
     box.className = 'chartbox';
-    box.innerHTML = '<h3>' + esc(bag) + '</h3><div class="sub">sold ' + totSold
-      + (totMissed ? ' · <b style="color:' + CLR.missed + '">' + totMissed + ' missed</b>' : ' · nothing missed')
-      + '</div>' + stockChart(series);
+    box.tabIndex = 0;
+    box.setAttribute('role', 'button');
+    box.title = 'Open ' + d.bag + ' in detail';
+    box.innerHTML = '<h3>' + esc(d.bag) + '<span class="zoomhint">⤢</span></h3>'
+      + '<div class="sub">sold ' + d.sold
+      + (d.missed ? ' · <b style="color:' + CLR.missed + '">' + d.missed + ' missed</b>' : ' · nothing missed')
+      + '</div>' + stockChart(d.series);
+    box.addEventListener('click', function(){ openZoom(i); });
+    box.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); e.stopPropagation(); openZoom(i); }
+    });
     charts.appendChild(box);
   });
 }
 
-function stockChart(series){
-  const W = 340, H = 168, L = 26, R = 6, T = 8;
-  const stockH = 96, gap = 10, stripH = 26;
+/* One drawing routine for the card and for the zoom; only the geometry
+   changes. The demand strip is deliberately generous — at 26px against a
+   96px stock block it was too small to read a missed sale from a metre. */
+function stockChart(series, opt){
+  opt = opt || {};
+  const W = opt.W || 340, L = 28, R = 8, T = 10;
+  const stockH = opt.stockH || 116, gap = 14, stripH = opt.stripH || 54;
+  const H = T + stockH + gap + stripH + 16;
+  const fs = opt.fs || 10;
   const innerW = W - L - R;
   const n = series.length;
   const bw = Math.max(4, innerW / n * 0.68);
@@ -1009,16 +1064,158 @@ function stockChart(series){
              + '" stroke="#c6ced7"/>'
     + '<line x1="' + L + '" y1="' + (sTop + stripH) + '" x2="' + (W - R) + '" y2="' + (sTop + stripH)
     + '" stroke="#c6ced7"/>'
-    + '<text x="' + (L - 4) + '" y="' + (T + 8) + '" font-size="9" fill="#7b8794" text-anchor="end">'
+    + '<text x="' + (L - 4) + '" y="' + (T + fs) + '" font-size="' + fs + '" fill="#7b8794" text-anchor="end">'
     + maxStock + '</text>'
-    + '<text x="' + (L - 4) + '" y="' + (sTop + 8) + '" font-size="9" fill="#7b8794" text-anchor="end">'
+    + '<text x="' + (L - 4) + '" y="' + (sTop + fs) + '" font-size="' + fs + '" fill="#7b8794" text-anchor="end">'
     + maxDem + '</text>'
-    + '<text x="' + L + '" y="' + (H - 3) + '" font-size="9" fill="#7b8794">w1</text>'
-    + '<text x="' + (W - R) + '" y="' + (H - 3) + '" font-size="9" fill="#7b8794" text-anchor="end">w'
+    + '<text x="' + L + '" y="' + (H - 4) + '" font-size="' + fs + '" fill="#7b8794">w1</text>'
+    + '<text x="' + (W - R) + '" y="' + (H - 4) + '" font-size="' + fs + '" fill="#7b8794" text-anchor="end">w'
     + n + '</text>'
-    + '<text x="' + (W - R) + '" y="' + (sTop - 2) + '" font-size="9" fill="#7b8794" text-anchor="end">demand</text>';
+    + '<text x="' + (W - R) + '" y="' + (sTop - 3) + '" font-size="' + fs
+    + '" fill="#7b8794" text-anchor="end">demand</text>';
 
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img">' + axis + g + '</svg>';
+}
+
+/* =========================================================================
+   6c. THE ZOOM — one bag, big, and split by shop
+   =========================================================================
+   The card answers "where did the stock sit"; the zoom answers "and which
+   shop was it wrong in". Layout: the whole-bag stack across the top, then
+   Store A and Store B side by side underneath, drawn on ONE shared pair of
+   scales — a store selling half as much must look half as tall, which is
+   the entire point of the 2:1 skew in the demand table. */
+let zoomIdx = -1;
+let zoomKeys = null;
+
+function openZoom(i){
+  zoomIdx = i;
+  drawZoom();
+  if(!zoomKeys){
+    zoomKeys = function(e){
+      if(e.key === 'Escape'){ e.preventDefault(); closeZoom(); }
+      else if(e.key === 'ArrowRight'){ e.preventDefault(); stepZoom(1); }
+      else if(e.key === 'ArrowLeft'){ e.preventDefault(); stepZoom(-1); }
+    };
+    document.addEventListener('keydown', zoomKeys, true);
+  }
+}
+
+function stepZoom(d){
+  zoomIdx = (zoomIdx + d + detailSeries.length) % detailSeries.length;
+  drawZoom();
+}
+
+function closeZoom(){
+  el('modal-root').textContent = '';
+  if(zoomKeys){ document.removeEventListener('keydown', zoomKeys, true); zoomKeys = null; }
+  zoomIdx = -1;
+}
+
+function drawZoom(){
+  const d = detailSeries[zoomIdx];
+  if(!d) return;
+  const s = d.series;
+
+  /* shared scales across the two shops */
+  const maxStock = Math.max(1, Math.max.apply(null, s.map(function(x){ return Math.max(x.a, x.b); })));
+  const maxDem = Math.max(1, Math.max.apply(null,
+    s.map(function(x){ return Math.max(x.aSold + x.aMissed, x.bSold + x.bMissed); })));
+  const tot = function(k){ return s.reduce(function(a, x){ return a + x[k]; }, 0); };
+
+  el('modal-root').textContent = '';
+  const back = document.createElement('div');
+  back.className = 'zoomback';
+  back.addEventListener('click', function(e){ if(e.target === back) closeZoom(); });
+
+  const box = document.createElement('div');
+  box.className = 'zoombox';
+  box.innerHTML =
+      '<div class="zoomhead">'
+    +   '<div><h2 style="font-size:24px;">' + esc(d.bag) + '</h2>'
+    +     '<div class="muted small">' + esc(d.team) + ' · sold ' + d.sold
+    +     (d.missed ? ' · <b style="color:' + CLR.missed + '">' + d.missed + ' missed</b>' : ' · nothing missed')
+    +     '</div></div>'
+    +   '<div class="zoomnav">'
+    +     '<button type="button" class="btn-ghost" id="z-prev">‹</button>'
+    +     '<span class="muted small">' + (zoomIdx + 1) + ' / ' + detailSeries.length + '</span>'
+    +     '<button type="button" class="btn-ghost" id="z-next">›</button>'
+    +     '<button type="button" class="btn-ghost" id="z-close">Close <span class="kbd">Esc</span></button>'
+    +   '</div>'
+    + '</div>'
+    + '<div class="legend" style="margin:12px 0 6px;">'
+    +   '<span><i style="background:' + CLR.W + '"></i>Warehouse</span>'
+    +   '<span><i style="background:' + CLR.A + '"></i>Store A</span>'
+    +   '<span><i style="background:' + CLR.B + '"></i>Store B</span>'
+    +   '<span><i style="background:' + CLR.sold + '"></i>Sold</span>'
+    +   '<span><i style="background:' + CLR.missed + '"></i>Missed</span>'
+    + '</div>'
+    + '<h3 class="zh3">The whole bag — stock at the end of each week, and the demand it met</h3>'
+    + stockChart(s, { W:960, stockH:180, stripH:86, fs:12 })
+    + '<h3 class="zh3">Shop by shop — same scale on both, so the difference is the point</h3>'
+    + '<div class="zoomstores">'
+    +   storePanel('Store A', s, 'a', CLR.A, maxStock, maxDem, tot('aSold'), tot('aMissed'))
+    +   storePanel('Store B', s, 'b', CLR.B, maxStock, maxDem, tot('bSold'), tot('bMissed'))
+    + '</div>';
+
+  back.appendChild(box);
+  el('modal-root').appendChild(back);
+  box.querySelector('#z-prev').addEventListener('click', function(){ stepZoom(-1); });
+  box.querySelector('#z-next').addEventListener('click', function(){ stepZoom(1); });
+  box.querySelector('#z-close').addEventListener('click', closeZoom);
+  box.querySelector('#z-close').focus();
+}
+
+/* One shop: its own stock on top, its own demand underneath. Both maxima are
+   passed in, never computed here, so A and B can be compared by eye. */
+function storePanel(name, series, key, colour, maxStock, maxDem, sold, missed){
+  const W = 470, L = 30, R = 8, T = 10;
+  const stockH = 132, gap = 14, stripH = 70, fs = 11;
+  const H = T + stockH + gap + stripH + 16;
+  const innerW = W - L - R, n = series.length;
+  const bw = Math.max(4, innerW / n * 0.68);
+  const x = function(i){ return L + innerW * (i + 0.5) / n; };
+
+  let g = '';
+  series.forEach(function(s, i){
+    const v = s[key];
+    const bx = (x(i) - bw / 2).toFixed(1);
+    if(v > 0){
+      const h = (v / maxStock) * stockH;
+      g += '<rect x="' + bx + '" y="' + (T + stockH - h).toFixed(1) + '" width="' + bw.toFixed(1)
+         + '" height="' + Math.max(0.8, h).toFixed(1) + '" fill="' + colour + '"/>';
+    }
+    const sd = s[key + 'Sold'], ms = s[key + 'Missed'];
+    if(sd + ms > 0){
+      const sTop = T + stockH + gap;
+      const h = ((sd + ms) / maxDem) * stripH, hm = (ms / maxDem) * stripH;
+      g += '<rect x="' + bx + '" y="' + (sTop + stripH - h).toFixed(1) + '" width="' + bw.toFixed(1)
+         + '" height="' + Math.max(0.8, h - hm).toFixed(1) + '" fill="' + CLR.sold + '"/>';
+      if(ms > 0)
+        g += '<rect x="' + bx + '" y="' + (sTop + stripH - hm).toFixed(1) + '" width="' + bw.toFixed(1)
+           + '" height="' + Math.max(0.8, hm).toFixed(1) + '" fill="' + CLR.missed + '"/>';
+    }
+  });
+
+  const sTop = T + stockH + gap;
+  const axis = '<line x1="' + L + '" y1="' + (T + stockH) + '" x2="' + (W - R) + '" y2="' + (T + stockH)
+             + '" stroke="#c6ced7"/>'
+    + '<line x1="' + L + '" y1="' + (sTop + stripH) + '" x2="' + (W - R) + '" y2="' + (sTop + stripH)
+    + '" stroke="#c6ced7"/>'
+    + '<text x="' + (L - 4) + '" y="' + (T + fs) + '" font-size="' + fs
+    + '" fill="#7b8794" text-anchor="end">' + maxStock + '</text>'
+    + '<text x="' + (L - 4) + '" y="' + (sTop + fs) + '" font-size="' + fs
+    + '" fill="#7b8794" text-anchor="end">' + maxDem + '</text>'
+    + '<text x="' + L + '" y="' + (H - 4) + '" font-size="' + fs + '" fill="#7b8794">w1</text>'
+    + '<text x="' + (W - R) + '" y="' + (H - 4) + '" font-size="' + fs
+    + '" fill="#7b8794" text-anchor="end">w' + n + '</text>'
+    + '<text x="' + (W - R) + '" y="' + (sTop - 3) + '" font-size="' + fs
+    + '" fill="#7b8794" text-anchor="end">demand</text>';
+
+  return '<div class="zoomstore"><h4>' + esc(name) + '</h4>'
+       + '<div class="sub">sold ' + sold
+       + (missed ? ' · <b style="color:' + CLR.missed + '">' + missed + ' missed</b>' : ' · nothing missed')
+       + '</div><svg viewBox="0 0 ' + W + ' ' + H + '" role="img">' + axis + g + '</svg></div>';
 }
 
 /* =========================================================================

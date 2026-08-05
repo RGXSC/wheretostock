@@ -114,8 +114,17 @@ when turnover becomes margin.
 - **Bar length runs 50%→100% across the range on screen** — the weakest team
   gets half the width, the strongest the full width. Zero-based bars made a
   12% spread in turnover invisible; a purely range-based bar would have left
-  the weakest team a stub. The caption states the scale outright, because a
-  bar that does not start at zero must say so.
+  the weakest team a stub.
+- **Part games get a short hatched stub, never a length.** They are excluded
+  from the ranking, so a bar sized like a real one — the first version gave
+  them a flat 70% — reads as a middling score against teams that actually
+  finished. The stub is shorter than every ranked bar and carries the word
+  *part* instead of a number.
+- **Colour is recomputed for whatever metric is on screen**, over that
+  metric's own range: a team can be green on turnover and deep red on margin,
+  which is the lesson. The ramp runs through five stops — red, orange, amber,
+  light green, green — because a three-stop ramp turned the whole middle of
+  the field into one muddy olive.
 - The value sits in its own gutter that the bar cannot enter, and a bar too
   short to hold its team name puts the name alongside in dark ink — decided
   by measuring the rendered label, not by guessing a threshold, so a long
@@ -153,6 +162,24 @@ This reads straight to the diagnosis: a room whose bars are almost entirely
 warehouse-grey while the red strip grows was sitting on stock it never
 shipped; a room with no grey at all committed everything at launch and had
 nothing left to move.
+
+### Zoom — one bag, big, split by shop
+
+Any card opens on click (or Enter when focused) into a full-width panel:
+
+- the whole-bag stack across the top, at roughly three times the card size;
+- **Store A and Store B side by side underneath, on one shared pair of
+  scales** — a shop selling half as much must *look* half as tall, which is
+  the whole point of the 2:1 skew in the demand table. Each shop shows its
+  own stock and its own demand strip, so "we shipped to the wrong shop" is
+  visible rather than inferred.
+- ‹ › step through the five bags without closing; Esc or a click outside
+  closes. The zoom's keys are captured, so stepping between bags never
+  advances the reveal underneath.
+
+The card grid itself was redrawn taller: the demand strip was 26px against a
+96px stock block and a single missed sale was invisible on it. It is now 54px
+against 116px.
 
 ## 5. Housekeeping
 
