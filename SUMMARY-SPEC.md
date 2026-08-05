@@ -199,7 +199,9 @@ Opened from the **Zoom on margin** button beside the team chips, under
    (kept central, released), grey gone by week 4 with red piling up after
    (committed early, then stranded), or no grey at all and a stack that never
    melts (over-produced and over-committed).
-4. **Why those sales were lost.**
+4. **Why those sales were lost** — the bar and its key, no caption. In the
+   debrief the bar's full width is the worst team in the session, so stepping
+   between teams compares counts and not only proportions.
 
 ### The three causes, and why they are bounded
 

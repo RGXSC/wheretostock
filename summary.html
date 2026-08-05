@@ -1600,9 +1600,7 @@ function causesPanel(st, missed, sc){
   html += '</div><div class="clabs">'
     + parts.filter(function(p){ return p.v > 0; })
            .map(function(p){ return '<span><i style="background:' + p.c + '"></i>' + p.lab + '</span>'; })
-           .join('') + '</div>'
-    + '<p class="muted small">All ' + missed + ' lost sales, by what the export shows was in the '
-    + 'system that week. Bar width compares teams: the widest is the team that lost the most.</p>';
+           .join('') + '</div>';
   return html;
 }
 

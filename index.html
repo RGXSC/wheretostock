@@ -2229,9 +2229,7 @@ function panelCauses(d, missed){
   return html + '</div><div class="clabs">'
     + parts.filter(function(p){ return p.v > 0; })
            .map(function(p){ return '<span><i style="background:' + p.c + '"></i>' + p.lab + '</span>'; })
-           .join('') + '</div>'
-    + '<p class="muted" style="font-size:13px;">All ' + missed + ' lost sales, by what was in the '
-    + 'system at the time.</p>';
+           .join('') + '</div>';
 }
 
 /* =========================================================================
