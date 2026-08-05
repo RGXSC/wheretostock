@@ -144,16 +144,31 @@
   table.matrix{ border-collapse:separate; border-spacing:6px; margin:0 auto; }
   table.matrix th{ font-size:13px; font-weight:800; color:var(--ink-soft);
                    text-transform:uppercase; letter-spacing:.04em; padding:4px 8px; }
-  table.matrix td{ min-width:120px; height:86px; vertical-align:top;
+  table.matrix th.rowlab{ font-size:14px; white-space:nowrap; }
+  table.matrix td{ min-width:190px; height:74px; vertical-align:top;
                    background:var(--surface); border:2px solid var(--line-soft);
                    border-radius:8px; padding:6px; }
-  .chip{ display:block; font-size:14px; font-weight:800; border-radius:6px;
-         padding:4px 8px; margin-bottom:4px; color:#fff; white-space:nowrap;
-         overflow:hidden; text-overflow:ellipsis; }
-  .chip .m{ font-weight:600; opacity:.9; }
-  .chip.part{ background:repeating-linear-gradient(45deg,#8d99a6,#8d99a6 6px,#7b8794 6px,#7b8794 12px); }
+
+  /* one bar per team: length is the result, so the spread reads at a glance
+     and not only through colour */
+  .mrow{ position:relative; height:26px; margin-bottom:4px; }
+  .mrow:last-child{ margin-bottom:0; }
+  /* the value lives in its own gutter, so it can never end up sitting on a bar */
+  .mtrack{ position:absolute; inset:0 50px 0 0; }
+  .mbar{ position:absolute; inset:0 auto 0 0; width:12%; border-radius:5px;
+         background:#8d99a6;
+         transition:width 900ms cubic-bezier(.2,.8,.2,1), background-color 900ms ease; }
+  .mbar.part{ background:repeating-linear-gradient(45deg,#8d99a6,#8d99a6 6px,#7b8794 6px,#7b8794 12px); }
+  .mlab{ position:absolute; left:8px; top:0; line-height:26px; font-size:14px;
+         font-weight:800; color:#fff; white-space:nowrap; text-shadow:0 1px 2px rgba(0,0,0,.35);
+         transition:left 900ms cubic-bezier(.2,.8,.2,1); }
+  /* a bar too short to hold its name puts the name after it, in dark ink */
+  .mrow.short .mlab{ left:calc(var(--w) + 7px); color:var(--ink); text-shadow:none; }
+  .mval{ position:absolute; right:4px; top:0; width:46px; text-align:right; line-height:26px;
+         font-size:13px; font-weight:800; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
   .axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-size:13px;
-           font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; }
+           font-weight:800; color:var(--ink-soft); text-transform:uppercase;
+           letter-spacing:.06em; padding:0 2px; }
 
   /* ------------------------------------------------------------- detail */
   .chips{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
@@ -176,7 +191,7 @@
 <!-- ======================================================= SCREEN: IMPORT -->
 <section id="screen-import" class="wrap" style="padding:30px 0 70px;">
   <h1 style="font-size:29px;">Product launch — debrief</h1>
-  <p class="muted" style="margin-top:6px;">Load the exports from each room, then reveal the results together.</p>
+  <p class="muted" style="margin-top:6px;">Load the exports from each team, then reveal the results together.</p>
 
   <div id="drop">
     <h2>Drop the exported files here</h2>
@@ -189,8 +204,8 @@
   </div>
 
   <div id="paste-card" class="card hidden" style="margin-top:18px;">
-    <h2>Paste a room's results</h2>
-    <p class="muted small" style="margin-top:0;">Whatever the room's <b>Copy all data</b> button put on the clipboard.</p>
+    <h2>Paste a team's results</h2>
+    <p class="muted small" style="margin-top:0;">Whatever the team's <b>Copy all data</b> button put on the clipboard.</p>
     <textarea id="paste" placeholder="Paste here…"></textarea>
     <div class="row-buttons" style="margin-top:12px;">
       <button id="btn-paste-add" class="btn-primary">Add</button>
@@ -251,7 +266,7 @@
       </div>
       <div id="detail-body" class="hidden">
         <p class="muted small" style="margin:2px 0 14px;">
-          Pick a room. Bars are the stock left at the end of each week, split by where it was.
+          Pick a team. Bars are the stock left at the end of each week, split by where it was.
           The strip underneath is that week's demand — dark for what was served, red for what walked out.
         </p>
         <div id="team-chips" class="chips"></div>
@@ -649,13 +664,14 @@ function mkBtn(label, fn){ const b = document.createElement('button'); b.textCon
    5. THE REVEAL
    ========================================================================= */
 const STAGES = [
-  { key:'names',    title:'The rooms' },
-  { key:'setup',    title:'What each room decided' },
+  { key:'names',    title:'The teams' },
+  { key:'setup',    title:'What each team decided' },
   { key:'turnover', title:'Turnover — still in alphabetical order' },
   { key:'sortT',    title:'Ranked by turnover' },
   { key:'margin',   title:'…and here is the margin' },
   { key:'sortM',    title:'Ranked by margin' },
-  { key:'matrix',   title:'Where everyone stood' }
+  { key:'mapT',     title:'Turnover on the map' },
+  { key:'mapM',     title:'…and the same map by margin' }
 ];
 let stage = 0;
 let ranked = [];                  /* the games being revealed, in display order */
@@ -729,7 +745,7 @@ function reorder(order){
     k.style.transition = 'none';
     k.style.transform = 'translateY(' + dy + 'px)';
     requestAnimationFrame(function(){
-      k.style.transition = 'transform 700ms cubic-bezier(.2,.8,.2,1) ' + (i * 25) + 'ms';
+      k.style.transition = 'transform 1400ms cubic-bezier(.2,.8,.2,1) ' + (i * 50) + 'ms';
       k.style.transform = '';
     });
   });
@@ -751,9 +767,10 @@ function renderStage(){
   board.classList.toggle('show-rank',     stage >= 3);
   board.classList.toggle('show-margin',   stage >= 4);
 
-  el('matrix-wrap').classList.toggle('hidden', s.key !== 'matrix');
-  board.classList.toggle('hidden', s.key === 'matrix');
-  el('excluded').classList.toggle('hidden', s.key === 'matrix' || !games.some(function(g){ return !isComplete(g); }));
+  const onMap = (s.key === 'mapT' || s.key === 'mapM');
+  el('matrix-wrap').classList.toggle('hidden', !onMap);
+  board.classList.toggle('hidden', onMap);
+  el('excluded').classList.toggle('hidden', onMap || !games.some(function(g){ return !isComplete(g); }));
 
   if(s.key === 'sortT'){
     reorder(ranked.slice().sort(function(a, b){ return b.turnover - a.turnover; }));
@@ -763,7 +780,12 @@ function renderStage(){
     reorder(ranked.slice().sort(function(a, b){ return margin(b) - margin(a); }));
     setTimeout(setRanks, 40);
   }
-  if(s.key === 'matrix') renderMatrix();
+  if(onMap){
+    if(!el('matrix-wrap').dataset.built) renderMatrix();
+    /* the bars are already on screen from the turnover stage, so switching
+       metric animates their length and colour rather than redrawing */
+    setMatrixMetric(s.key === 'mapT' ? 'turnover' : 'margin');
+  }
 
   el('btn-prev').disabled = stage === 0;
   el('btn-next').disabled = stage === STAGES.length - 1;
@@ -772,39 +794,83 @@ function renderStage(){
 }
 
 /* =========================================================================
-   6. THE MATRIX — where each room stood. Teams only, nothing counterfactual.
-   ========================================================================= */
+   6. THE MAP — where each team stood
+   =========================================================================
+   Axes deliberately: % in store DOWN the side, low at the top, so reading
+   downwards is "committing more and more to the shops"; sell-through target
+   ACROSS, low to high. Each team is a bar whose length is its result, so the
+   spread is legible at a glance and not only through colour. Built once,
+   then the metric is swapped and the bars animate. */
+let matrixMetric = 'turnover';
+
 function renderMatrix(){
   const all = games.slice();
   const targets = uniqueSorted(all.map(function(g){ return g.target; }), [60,70,80,90,100]);
   const splits  = uniqueSorted(all.map(function(g){ return g.storePct; }), [30,40,50,60,70,80,90]);
 
-  const ms = ranked.map(margin);
-  const lo = Math.min.apply(null, ms), hi = Math.max.apply(null, ms);
-
-  let html = '<h2 style="font-size:21px;">Where everyone stood</h2>'
-    + '<p class="muted small" style="margin:4px 0 16px;">Each room sits in the square it chose. '
-    + 'Colour is that room\'s own margin, from the best in the room to the worst.</p>'
+  let html = '<h2 style="font-size:21px;" id="map-title">Turnover on the map</h2>'
+    + '<p class="muted small" style="margin:4px 0 16px;" id="map-sub"></p>'
     + '<div class="mwrap"><table class="matrix"><thead><tr><th></th>'
-    + '<th colspan="' + splits.length + '">% in store at launch</th></tr><tr><th></th>'
-    + splits.map(function(s){ return '<th>' + s + '%</th>'; }).join('') + '</tr></thead><tbody>';
+    + '<th colspan="' + targets.length + '">Target sell-through</th></tr><tr><th></th>'
+    + targets.map(function(t){ return '<th>' + t + '%</th>'; }).join('') + '</tr></thead><tbody>';
 
-  targets.forEach(function(t){
-    html += '<tr><th style="white-space:nowrap">S/T ' + t + '%</th>';
-    splits.forEach(function(sp){
+  splits.forEach(function(sp, i){
+    html += '<tr>' + (i === 0
+      ? '<th class="axis-y" rowspan="' + splits.length + '">% in store at launch</th>' : '');
+    html += '<th class="rowlab">' + sp + '%</th>';
+    targets.forEach(function(t){
       const here = all.filter(function(g){ return g.target === t && g.storePct === sp; });
       html += '<td>' + here.map(function(g){
         if(!isComplete(g))
-          return '<span class="chip part" title="part game">' + esc(g.team) + '</span>';
-        return '<span class="chip" style="background:' + scale(margin(g), lo, hi) + '">'
-             + esc(g.team) + ' <span class="m">' + fmt(margin(g) / 1000) + 'k</span></span>';
+          return '<div class="mrow"><div class="mtrack"><div class="mbar part" style="width:70%"></div>'
+               + '<span class="mlab">' + esc(g.team) + '</span></div>'
+               + '<span class="mval">part</span></div>';
+        return '<div class="mrow" data-id="' + esc(g.id) + '">'
+             + '<div class="mtrack"><div class="mbar"></div>'
+             + '<span class="mlab">' + esc(g.team) + '</span></div>'
+             + '<span class="mval"></span></div>';
       }).join('') + '</td>';
     });
     html += '</tr>';
   });
   html += '</tbody></table></div>';
   el('matrix-wrap').innerHTML = html;
+  el('matrix-wrap').dataset.built = '1';
 }
+
+/* Swap what the bars mean. Lengths and colours transition, so the eye can
+   follow one team growing or collapsing as turnover becomes margin. */
+function setMatrixMetric(metric){
+  matrixMetric = metric;
+  const vals = ranked.map(function(g){ return metric === 'turnover' ? g.turnover : margin(g); });
+  if(!vals.length) return;
+  const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+  const maxAbs = Math.max(Math.abs(lo), Math.abs(hi)) || 1;
+
+  el('map-title').textContent = metric === 'turnover' ? 'Turnover on the map' : 'Margin on the map';
+  el('map-sub').textContent = metric === 'turnover'
+    ? 'Each team sits in the square it chose. Bar length and colour are its turnover.'
+    : 'The same squares, now showing margin. Watch which bars shrink.';
+
+  ranked.forEach(function(g){
+    const row = el('matrix-wrap').querySelector('[data-id="' + cssEsc(g.id) + '"]');
+    if(!row) return;
+    const v = metric === 'turnover' ? g.turnover : margin(g);
+    const bar = row.querySelector('.mbar');
+    /* length on |value| against the biggest absolute value, with a floor so
+       the smallest bar is still a bar; a loss is as long as a gain the same
+       size, and red rather than pointing the other way */
+    const pct = 12 + Math.abs(v) / maxAbs * 88;
+    bar.style.width = pct.toFixed(1) + '%';
+    bar.style.background = scale(v, lo, hi);
+    row.style.setProperty('--w', pct.toFixed(1) + '%');
+    row.classList.toggle('short', pct < 46);
+    row.querySelector('.mval').textContent = fmt(v / 1000) + 'k';
+    row.classList.toggle('negative', v < 0);
+  });
+}
+
+function cssEsc(s){ return String(s).replace(/["\\]/g, '\\$&'); }
 
 function uniqueSorted(values, fallback){
   const set = {};
@@ -813,7 +879,7 @@ function uniqueSorted(values, fallback){
   return Object.keys(set).map(Number).sort(function(a, b){ return a - b; });
 }
 
-/* red at the worst margin in the room, green at the best */
+/* red at the worst result on screen, green at the best */
 function scale(v, lo, hi){
   const t = hi === lo ? 1 : (v - lo) / (hi - lo);
   const c = [[138,49,21],[176,110,40],[15,107,69]];
