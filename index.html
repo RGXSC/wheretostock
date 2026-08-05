@@ -289,6 +289,9 @@
   table.h tr.sku td:first-child svg{ vertical-align:-2px; margin-right:5px; }
   table.h td.bad{ color:var(--warn); font-weight:800; }
   .histwrap{ max-height:60vh; overflow:auto; }
+  .histfilter{ display:flex; gap:8px; flex-wrap:wrap; margin:2px 0 12px; }
+  .histfilter button[aria-pressed="true"]{ background:var(--accent); color:#fff;
+                                           border-color:var(--accent); }
 
   /* ------------------------------------------------- decisions reminder */
   .decisions{ display:flex; gap:8px; flex-wrap:wrap; padding:0 18px 10px;
@@ -529,6 +532,7 @@
 
     <details class="hist" id="hist">
       <summary>Week-by-week history</summary>
+      <div class="histfilter" id="hist-filter"></div>
       <div class="histwrap"><table class="h" id="hist-table"></table></div>
     </details>
   </main>
@@ -1215,57 +1219,82 @@ function refreshAlloc(){
 function allocValid(){ return refreshAlloc(); }
 
 /* ------------------------------------------------------------- history */
-/* One block per closed week, newest first: the week's totals, then the state
-   of every bag in all three places. This is the debrief material. */
+/* One block per closed week, newest first: the week's totals, then every bag
+   in all three places. Sales and missed sales are split by shop, because
+   "we lost 6" is a different conversation from "we lost 6 in Store A while
+   Store B sat on stock". The filter narrows to one shop when the full width
+   is more than the room can read. */
+let histFilter = 'both';                       /* 'both' | 'A' | 'B' */
+
 function renderHistory(){
   const t = el('hist-table');
   t.textContent = '';
+  renderHistFilter();
   if(!state.log.length){
     t.innerHTML = '<tbody><tr><td class="muted">Nothing yet — the first week appears '
                 + 'here once it is closed.</td></tr></tbody>';
     return;
   }
 
-  /* index the flat log by week -> bag -> location */
   const byWeek = {};
   state.log.forEach(function(r){
-    const w = byWeek[r.week] || (byWeek[r.week] = { week:r.week, bags:{},
-                                 sold:0, missed:0, shipped:0, wh:0, sa:0, sb:0 });
+    const w = byWeek[r.week] || (byWeek[r.week] = { week:r.week, bags:{} });
     const b = w.bags[r.bag] || (w.bags[r.bag] = {});
     b[r.loc] = r;
-    w.sold += r.sold; w.missed += r.missed; w.shipped += r.shipped;
-    if(r.loc === 'Warehouse') w.wh += r.closing;
-    if(r.loc === 'Store A')   w.sa += r.closing;
-    if(r.loc === 'Store B')   w.sb += r.closing;
   });
 
-  let html = '<thead><tr><th>Week / bag</th><th>Whse</th><th>Store A</th><th>Store B</th>'
-           + '<th>Demand</th><th>Sold</th><th>Missed</th><th>Shipped</th><th>Revenue</th>'
-           + '</tr></thead><tbody>';
+  const showA = histFilter !== 'B', showB = histFilter !== 'A';
+  let head = '<thead><tr><th>Week / bag</th><th>Whse</th>';
+  if(showA) head += '<th>A stock</th><th>A sold</th><th>A missed</th>';
+  if(showB) head += '<th>B stock</th><th>B sold</th><th>B missed</th>';
+  head += '<th>Shipped</th></tr></thead><tbody>';
+  let html = head;
 
   Object.keys(byWeek).sort(function(a, b){ return b - a; }).forEach(function(k){
     const w = byWeek[k];
-    html += '<tr class="wk"><td><b>Week ' + w.week + '</b></td>'
-          + '<td>' + w.wh + '</td><td>' + w.sa + '</td><td>' + w.sb + '</td>'
-          + '<td>' + (w.sold + w.missed) + '</td><td>' + w.sold + '</td>'
-          + '<td' + (w.missed ? ' class="bad"' : '') + '>' + (w.missed || '') + '</td>'
-          + '<td>' + (w.shipped || '') + '</td><td>' + fmtE(w.sold * ECON.price) + '</td></tr>';
+    const tot = { wh:0, as:0, aso:0, am:0, bs:0, bso:0, bm:0, sh:0 };
+    BAGS.forEach(function(b){
+      const g = w.bags[b.name]; if(!g) return;
+      const W = g['Warehouse'] || {}, A = g['Store A'] || {}, B = g['Store B'] || {};
+      tot.wh += W.closing || 0; tot.sh += W.shipped || 0;
+      tot.as += A.closing || 0; tot.aso += A.sold || 0; tot.am += A.missed || 0;
+      tot.bs += B.closing || 0; tot.bso += B.sold || 0; tot.bm += B.missed || 0;
+    });
+    html += '<tr class="wk"><td><b>Week ' + w.week + '</b></td><td>' + tot.wh + '</td>'
+          + (showA ? '<td>' + tot.as + '</td><td>' + tot.aso + '</td>'
+                   + '<td' + (tot.am ? ' class="bad"' : '') + '>' + (tot.am || '') + '</td>' : '')
+          + (showB ? '<td>' + tot.bs + '</td><td>' + tot.bso + '</td>'
+                   + '<td' + (tot.bm ? ' class="bad"' : '') + '>' + (tot.bm || '') + '</td>' : '')
+          + '<td>' + (tot.sh || '') + '</td></tr>';
 
     BAGS.forEach(function(b, i){
-      const g = w.bags[b.name];
-      if(!g) return;
+      const g = w.bags[b.name]; if(!g) return;
       const W = g['Warehouse'] || {}, A = g['Store A'] || {}, B = g['Store B'] || {};
-      const dem  = (A.demand || 0) + (B.demand || 0);
-      const sold = (A.sold || 0) + (B.sold || 0);
-      const miss = (A.missed || 0) + (B.missed || 0);
       html += '<tr class="sku"><td>' + bagIcon(i, 15) + ' ' + b.name + '</td>'
-            + '<td>' + (W.closing || 0) + '</td><td>' + (A.closing || 0) + '</td>'
-            + '<td>' + (B.closing || 0) + '</td><td>' + dem + '</td><td>' + sold + '</td>'
-            + '<td' + (miss ? ' class="bad"' : '') + '>' + (miss || '') + '</td>'
-            + '<td>' + ((W.shipped || 0) || '') + '</td><td></td></tr>';
+            + '<td>' + (W.closing || 0) + '</td>'
+            + (showA ? '<td>' + (A.closing || 0) + '</td><td>' + (A.sold || 0) + '</td>'
+                     + '<td' + (A.missed ? ' class="bad"' : '') + '>' + (A.missed || '') + '</td>' : '')
+            + (showB ? '<td>' + (B.closing || 0) + '</td><td>' + (B.sold || 0) + '</td>'
+                     + '<td' + (B.missed ? ' class="bad"' : '') + '>' + (B.missed || '') + '</td>' : '')
+            + '<td>' + ((W.shipped || 0) || '') + '</td></tr>';
     });
   });
   t.innerHTML = html + '</tbody>';
+}
+
+function renderHistFilter(){
+  const host = el('hist-filter');
+  if(!host) return;
+  host.textContent = '';
+  [['both','Both shops'], ['A','Store A only'], ['B','Store B only']].forEach(function(o){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn-ghost';
+    b.textContent = o[1];
+    b.setAttribute('aria-pressed', String(histFilter === o[0]));
+    b.addEventListener('click', function(){ histFilter = o[0]; renderHistory(); });
+    host.appendChild(b);
+  });
 }
 
 /* Full arrows from the warehouse into each shop, drawn across the gutter and
