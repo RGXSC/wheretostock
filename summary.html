@@ -845,26 +845,33 @@ function setMatrixMetric(metric){
   const vals = ranked.map(function(g){ return metric === 'turnover' ? g.turnover : margin(g); });
   if(!vals.length) return;
   const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-  const maxAbs = Math.max(Math.abs(lo), Math.abs(hi)) || 1;
-
+  
   el('map-title').textContent = metric === 'turnover' ? 'Turnover on the map' : 'Margin on the map';
-  el('map-sub').textContent = metric === 'turnover'
-    ? 'Each team sits in the square it chose. Bar length and colour are its turnover.'
-    : 'The same squares, now showing margin. Watch which bars shrink.';
+  el('map-sub').textContent = (metric === 'turnover'
+    ? 'Each team sits in the square it chose. Bars show turnover. '
+    : 'The same squares, now showing margin. Watch which bars shrink. ')
+    + 'Bars compare the teams — the lowest is half the length of the highest, not zero.';
 
   ranked.forEach(function(g){
     const row = el('matrix-wrap').querySelector('[data-id="' + cssEsc(g.id) + '"]');
     if(!row) return;
     const v = metric === 'turnover' ? g.turnover : margin(g);
     const bar = row.querySelector('.mbar');
-    /* length on |value| against the biggest absolute value, with a floor so
-       the smallest bar is still a bar; a loss is as long as a gain the same
-       size, and red rather than pointing the other way */
-    const pct = 12 + Math.abs(v) / maxAbs * 88;
+    /* Halfway between honest and legible: the weakest team on screen gets
+       half the width, the strongest the full width. Zero-based bars made a
+       12% spread in turnover invisible; a range-based bar would make the
+       weakest a stub. Length therefore compares teams, it is not "how much"
+       — which is why the caption says so. */
+    const span = hi - lo;
+    const pct = 50 + (span === 0 ? 50 : (v - lo) / span * 50);
     bar.style.width = pct.toFixed(1) + '%';
     bar.style.background = scale(v, lo, hi);
     row.style.setProperty('--w', pct.toFixed(1) + '%');
-    row.classList.toggle('short', pct < 46);
+    /* measure rather than guess: a long team name may not fit even a long
+       bar, and white-on-white would be unreadable */
+    const track = row.querySelector('.mtrack'), lab = row.querySelector('.mlab');
+    const targetPx = track.getBoundingClientRect().width * pct / 100;
+    row.classList.toggle('short', lab.scrollWidth + 16 > targetPx);
     row.querySelector('.mval').textContent = fmt(v / 1000) + 'k';
     row.classList.toggle('negative', v < 0);
   });

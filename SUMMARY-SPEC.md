@@ -78,44 +78,52 @@ sorts are the drama, because rows visibly overtake one another.
 
 | Stage | What appears |
 |---|---|
-| **0 — Room** | One row per team-game, alphabetical. Names only. Nothing else. |
-| **1 — Setup** | Two columns fill in: target sell-through, % in store. *"Here is what each room committed to."* |
+| **0 — Teams** | One row per team-game, alphabetical. Names only. Nothing else. |
+| **1 — Setup** | Two columns fill in: target sell-through, % in store. *"Here is what each team committed to."* |
 | **2 — Turnover** | Turnover column fills in. **Still alphabetical** — deliberately, so nobody can read the ranking yet. |
 | **3 — Sort by turnover** | Rows animate into turnover order. Rank badges appear. |
 | **4 — Margin** | Margin and margin % fill in, **order unchanged**. This is the moment the contradiction lands: the top row on turnover is often not the top row on margin. |
 | **5 — Sort by margin** | Rows animate into margin order. The overtaking is the whole point of the exercise. |
-| **6 — Matrix** | §3. |
+| **6 — Map, turnover** | §3. |
+| **7 — Map, margin** | The same squares; bars animate from turnover to margin. |
 
 **Animation:** FLIP — measure each row's position before and after the sort,
-apply the inverse transform, then transition it to zero. 600–800 ms with a
-slight stagger, so the eye can follow a specific room moving. Skippable by
-clicking again. No library.
+apply the inverse transform, then transition it to zero. 1400 ms with a 50 ms
+stagger, slow enough to follow one team overtaking another from across a
+room. No library.
 
 **Presentation details:** large type, high contrast, readable from a metre —
-same discipline as the game. A room's row keeps a stable colour across all
+same discipline as the game. A team's row keeps a stable colour across all
 stages so it can be tracked through both sorts.
 
 ---
 
-## 3. The matrix
+## 3. The map — two stages
 
-Sell-through target (60→100%, 5 rows) × % in store (30→90%, 7 columns) = 35
-cells.
+Target sell-through **across** (60→100%), % in store **down the side**
+(30% at the top → 90% at the bottom), so reading downwards is "committing
+more and more to the shops".
 
-- Teams sit in their cell as **chips**. Multiple teams in one cell stack
-  vertically; the cell grows. Empty cells stay visible so the shape of the
-  grid reads.
-- Chips carry the team name and margin, coloured on a diverging scale from
-  the best to the worst margin in the room.
-- **No background shading.** Cells stay plain. The tool could compute what
-  margin was reachable in each cell by replaying the demand, but that asserts
-  what a room "could have" made in a square it never chose, on an assumed
-  replenishment policy. Decided against: the matrix shows where teams landed
-  and how they did, nothing counterfactual.
-- What the matrix is for is the *clustering* — whether the rooms all crowded
-  into one corner, and whether the ones that did well share a square.
+Shown twice: **turnover first, then the same squares switched to margin.**
+Teams keep their square between the two, so nothing moves — the bars animate
+their length and colour in place, and the eye can see which team collapses
+when turnover becomes margin.
 
----
+- Each team is a **bar**, not a chip: length carries the result so magnitude
+  is visible without decoding colour. Several teams in one square stack.
+- **Bar length runs 50%→100% across the range on screen** — the weakest team
+  gets half the width, the strongest the full width. Zero-based bars made a
+  12% spread in turnover invisible; a purely range-based bar would have left
+  the weakest team a stub. The caption states the scale outright, because a
+  bar that does not start at zero must say so.
+- The value sits in its own gutter that the bar cannot enter, and a bar too
+  short to hold its team name puts the name alongside in dark ink — decided
+  by measuring the rendered label, not by guessing a threshold, so a long
+  team name cannot end up as white text on white.
+- **No background shading.** The tool could compute what margin was reachable
+  in each square by replaying the demand, but that asserts what a team "could
+  have" made in a square it never chose. The map shows where teams landed and
+  how they did, nothing counterfactual.
 
 ## 4. The detail — under the fold, opt-in
 
