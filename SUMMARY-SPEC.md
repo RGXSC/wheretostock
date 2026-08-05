@@ -181,6 +181,78 @@ The card grid itself was redrawn taller: the demand strip was 26px against a
 96px stock block and a single missed sale was invisible on it. It is now 54px
 against 116px.
 
+## 4b. The team panel — where one team made its margin, and where it lost it
+
+Opened from a button beside the team chips. Four beats, in order:
+
+1. **Where the money went.** Turnover, production, fixed cost, margin — then
+   two leaks stated as facts: *sales it could not serve* and *bags nobody
+   bought*. This is what separates two teams on the same margin: one lost
+   sales, the other drowned in stock.
+2. **Which bag, which shop.** The game board as a grid — five bags by Store A
+   / Store B / warehouse, one unit scale shared across every team loaded, so
+   stepping ‹ › between teams compares like with like.
+3. **All five bags, week by week**, with the week the warehouse ran out
+   marked. From that point nothing could be redirected, and the three
+   silhouettes are the whole lesson: a wall of grey that drains steadily
+   (kept central, released), grey gone by week 4 with red piling up after
+   (committed early, then stranded), or no grey at all and a stack that never
+   melts (over-produced and over-committed).
+4. **Why those sales were lost.**
+
+### The three causes, and why they are bounded
+
+Every lost sale is charged to exactly one cause, over the **season**, with
+each bucket bounded by bags that really existed. Per bag, with
+`left = made − sold`:
+
+| Cause | Count |
+|---|---|
+| never made — the bag sold out everywhere | `max(0, missed − left)` |
+| still central, not in the shop yet | of the rest, as many as ended in the warehouse or in transit |
+| stranded in the other shop | the remainder, capped by what the **other** shop finished with unsold |
+
+Two things this fixes. A week-by-week version charged a miss to "the other
+shop" whenever that shop happened to hold stock that week, which counted the
+same seven physical bags seventeen times — the headline was 43% too high.
+And `left` is `made − sold`, **not** the sum of the closing columns: a
+shipment sent in the last week leaves the warehouse and never arrives, so the
+closings lose it (11 bags for one team in the test corpus).
+
+Central is charged before stranded on purpose: where both could explain a
+lost sale, the reading that does *not* blame placement is the conservative
+one.
+
+### What keeps it honest
+
+- **Nothing counterfactual.** No "you would have made X with a different
+  split" — that needs the demand replayed under an assumed shipping policy,
+  and inventing one is not the tool's place. The screen says where the stock
+  was and where the customers were; the facilitator draws the conclusion.
+- **It cannot teach "hoard everything".** *Still central, not in the shop
+  yet* is one of the three causes, so a team that sat on stock sees its own
+  error named. Under-production is named separately too, so a team that was
+  simply short is not told it was a placement problem.
+- Per-bag margin excludes the fixed cost, and the column header says so —
+  the five figures must not look as though they should add up to the margin.
+
+Teams imported as a one-line summary get beat 1 and an explanation of why the
+rest is missing.
+
+## 4c. The same panel inside the game
+
+`index.html` carries the same four beats behind a nearly transparent **i** in
+the bottom-right corner of the P&L page, and nowhere else. The order it
+supports: the room is walked through everyone's results first, then each team
+opens its own detail.
+
+It is computed from `state.log` — the very table the export is built from —
+so what a team reads in the game and what the facilitator reads in the
+debrief cannot disagree. A cross-check asserts exactly that.
+
+**The game says Margin, never Profit**, including the summary export column.
+The debrief reads either, so summaries taken before the rename still import.
+
 ## 5. Housekeeping
 
 - Everything persists to `localStorage`, so a reload mid-debrief loses

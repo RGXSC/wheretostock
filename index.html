@@ -360,6 +360,70 @@
   .modal{ background:var(--surface); border-radius:var(--radius); max-width:660px;
           width:100%; padding:26px; max-height:92vh; overflow:auto; }
   .modal h2{ font-size:25px; margin-bottom:10px; }
+
+  /* ---------------------------------------------------- the detail panel */
+  /* Deliberately quiet: on the P&L page it should be findable by whoever is
+     looking for it and invisible to a room being walked through the results. */
+  #info-dot{ position:fixed; right:20px; bottom:20px; z-index:50;
+             width:44px; height:44px; border-radius:50%; padding:0;
+             border:1px solid var(--line); background:var(--surface);
+             color:var(--ink-soft); font-size:20px; font-weight:800;
+             font-style:italic; font-family:Georgia,'Times New Roman',serif;
+             opacity:.22; cursor:pointer; transition:opacity .18s ease; }
+  #info-dot:hover, #info-dot:focus-visible{ opacity:1; border-color:var(--accent);
+             color:var(--accent); outline:none; }
+  .modal.wide{ max-width:1020px; }
+  .panelhead{ display:flex; justify-content:space-between; align-items:flex-start;
+              gap:16px; flex-wrap:wrap; border-bottom:2px solid var(--line-soft);
+              padding-bottom:12px; }
+  .panelbig{ font-size:31px; font-weight:800; line-height:1; text-align:right; }
+  .panelbig.g, .bmargin.g{ color:var(--live); }
+  .panelbig.r, .bmargin.r{ color:var(--warn); }
+  .ph3{ font-size:14px; font-weight:800; color:var(--ink-soft);
+        text-transform:uppercase; letter-spacing:.05em; margin:20px 0 6px; }
+
+  /* pbrow, not brow: .brow is already the game board's stock row */
+  .bridge .pbrow{ display:grid; grid-template-columns:212px 1fr auto; gap:12px;
+                  align-items:center; min-height:30px; }
+  .pbrow.ruled{ border-top:2px solid var(--line-soft); margin-top:6px; padding-top:8px; }
+  .pbrow.leak{ margin-top:6px; }
+  .blab{ font-size:14px; font-weight:800; text-align:right; }
+  .pbrow.leak .blab{ color:var(--ink-soft); font-weight:700; }
+  .btrack{ position:relative; height:18px; }
+  .btrack i{ position:absolute; left:0; top:0; bottom:0; border-radius:3px; display:block; }
+  .btrack i.pos{ background:var(--live); }
+  .btrack i.neg{ background:#8b96a1; }
+  .btrack i.ghost{ background:none; border:2px dashed #8b96a1; }
+  .btrack i.ghost.bad{ border-color:var(--warn); }
+  .bval{ font-size:13px; font-weight:800; color:var(--ink-soft); white-space:nowrap;
+         font-variant-numeric:tabular-nums; }
+
+  .bagboard{ display:grid; grid-template-columns:104px 1fr 1fr 1fr 118px;
+             gap:6px 12px; align-items:center; }
+  .bhead{ font-size:11.5px; font-weight:800; color:var(--ink-soft);
+          text-transform:uppercase; letter-spacing:.05em; }
+  .bhead.right{ text-align:right; }
+  .bname{ font-size:15px; font-weight:800; }
+  .cbar{ display:flex; height:16px; border-radius:3px; overflow:hidden; background:var(--bg); }
+  .cbar i{ display:block; height:100%; }
+  .csub{ display:block; font-size:11.5px; font-weight:700; color:var(--ink-soft);
+         margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .bmargin{ font-size:14px; font-weight:800; text-align:right;
+            font-variant-numeric:tabular-nums; }
+  .plegend{ display:flex; gap:16px; flex-wrap:wrap; font-size:13px; font-weight:700;
+            color:var(--ink-soft); margin-bottom:8px; }
+  .plegend i{ display:inline-block; width:13px; height:13px; border-radius:3px;
+              margin-right:6px; vertical-align:-2px; }
+  .punch{ margin-top:10px; font-size:16px; font-weight:800; color:var(--warn);
+          border-left:4px solid var(--warn); padding-left:12px; }
+  .causes{ display:flex; height:34px; border-radius:4px; overflow:hidden; }
+  .cseg{ display:flex; align-items:center; padding-left:8px; min-width:0; }
+  .cseg b{ color:#fff; font-size:15px; }
+  .clabs{ display:flex; gap:16px; flex-wrap:wrap; margin:6px 0 4px;
+          font-size:12.5px; font-weight:700; color:var(--ink-soft); }
+  .clabs i{ display:inline-block; width:12px; height:12px; border-radius:3px;
+            margin-right:6px; vertical-align:-2px; }
+  .panelsvg{ width:100%; height:auto; display:block; }
   .modal p{ margin:0 0 18px; }
   .modal textarea{ width:100%; min-height:200px; font-family:ui-monospace,Consolas,monospace;
                    font-size:13px; border:2px solid var(--line); border-radius:var(--radius); padding:10px; }
@@ -545,6 +609,8 @@
   <div id="end-body"></div>
 </section>
 
+<button id="info-dot" class="hidden" type="button"
+        title="Where this team's margin came from, and where it went">i</button>
 <div id="fly-layer"></div>
 <div id="modal-root"></div>
 <div id="hint-root"></div>
@@ -849,6 +915,9 @@ function showScreen(which){
   ['start','setup','game','end'].forEach(function(s){
     el('screen-' + s).classList.toggle('hidden', s !== which);
   });
+  /* the detail dot belongs to the P&L page only: during the debrief the room
+     looks at everyone's results first, and a team opens its own afterwards */
+  el('info-dot').classList.toggle('hidden', which !== 'end');
 }
 
 function bagIcon(i, size){
@@ -1873,6 +1942,7 @@ function renderEnd(){
         + '<button class="btn-ghost" id="end-new" style="margin-top:12px;">Start another game…</button>';
 
   el('end-body').innerHTML = html;
+  el('info-dot').addEventListener('click', openTeamDetail);
   el('end-dl').addEventListener('click', downloadCSV);
   el('end-copy').addEventListener('click', function(){ copyText(toTSV(buildTable()), 'All data copied'); });
   el('end-new').addEventListener('click', function(){
@@ -1883,6 +1953,285 @@ function renderEnd(){
       onConfirm:function(){ clearSaved(); state = null; resetToStart(); }
     });
   });
+}
+
+/* =========================================================================
+   9b. THE DETAIL PANEL — behind the quiet "i" on the P&L page
+   =========================================================================
+   Same four beats as the debrief file, computed from state.log, which is the
+   very table the export is built from — so what a team reads here and what
+   the facilitator reads in the debrief cannot disagree.
+
+   The lesson it is built to carry: under variability it pays to hold stock
+   centrally, because a bag in the warehouse can still be sent wherever the
+   demand turns out to be, while a bag pushed into a shop at launch is
+   committed there — this game has no shop-to-shop transfer. Nothing here is
+   counterfactual: it says where the stock was and where the customers were.
+   It must also not teach "hoard everything", which is why "still central,
+   not in the shop yet" is one of the three causes of a lost sale. */
+const PCLR = { W:'#9aa7b3', A:'#12557f', B:'#6ba3cd', sold:'#4d5560', missed:'#8a3115' };
+
+/* the team and game names are typed by the players, so they are escaped
+   before going anywhere near innerHTML */
+function esc(s){
+  return String(s).replace(/[&<>"]/g, function(c){
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c];
+  });
+}
+
+/* Every lost sale gets exactly one cause, and every bucket is bounded by
+   bags that really existed. Per bag, with left = made − sold (which counts
+   anything still on a truck when the season closed):
+     short   - the bag was oversold: max(0, missed − left)
+     central - of the rest, as many as were still central or in transit
+     wrong   - the remainder, capped by what the OTHER shop finished unsold
+   Central is charged first: where both could explain a lost sale, the
+   reading that does not blame placement is the conservative one. */
+function teamDetail(){
+  const s = state.setup, maxW = WEEKS;
+  const per = {}, weekly = [];
+  for(let w = 1; w <= maxW; w++) weekly.push({ w:w, wh:0, a:0, b:0, sold:0, missed:0 });
+  BAGS.forEach(function(b){
+    per[b.name] = { soldA:0, soldB:0, missA:0, missB:0, endA:0, endB:0, endW:0,
+                    late:0, wrong:0, short:0, left:0, transit:0 };
+  });
+
+  state.log.forEach(function(r){
+    const p = per[r.bag], y = weekly[r.week - 1];
+    if(!p || !y) return;
+    if(r.loc === 'Store A'){ p.soldA += r.sold; p.missA += r.missed; y.a += r.closing; }
+    else if(r.loc === 'Store B'){ p.soldB += r.sold; p.missB += r.missed; y.b += r.closing; }
+    else y.wh += r.closing;
+    y.sold += r.sold; y.missed += r.missed;
+    if(r.week === maxW){
+      if(r.loc === 'Store A') p.endA = r.closing;
+      else if(r.loc === 'Store B') p.endB = r.closing;
+      else p.endW = r.closing;
+    }
+  });
+
+  BAGS.forEach(function(b){
+    const p = per[b.name];
+    p.left = s.perBag - p.soldA - p.soldB;
+    p.transit = Math.max(0, p.left - p.endA - p.endB - p.endW);
+    const missed = p.missA + p.missB;
+    p.short = Math.max(0, missed - Math.max(0, p.left));
+    let rest = missed - p.short;
+    p.late = Math.min(rest, p.endW + p.transit);
+    rest -= p.late;
+    p.wrong = Math.min(rest, Math.min(p.endB, p.missA) + Math.min(p.endA, p.missB));
+    p.short += rest - p.wrong;   /* whatever the three cannot explain stays here,
+                                    so the parts always add up on screen */
+  });
+
+  const names = BAGS.map(function(b){ return b.name; });
+  const sum = function(k){ return names.reduce(function(a, n){ return a + per[n][k]; }, 0); };
+  let emptyAt = 0;
+  for(let i = 0; i < weekly.length; i++){ if(weekly[i].wh === 0){ emptyAt = i + 1; break; } }
+
+  let worst = null;
+  names.forEach(function(n){
+    const p = per[n];
+    const c = Math.min(p.endB, p.missA) + Math.min(p.endA, p.missB);
+    if(c > 0 && (!worst || c > worst.n)) worst = { bag:n, n:c };
+  });
+
+  return { names:names, per:per, weekly:weekly, emptyAt:emptyAt, worst:worst,
+           late:sum('late'), wrong:sum('wrong'), short:sum('short') };
+}
+
+function openTeamDetail(){
+  const t = totals(), s = state.setup, d = teamDetail();
+  const unit = Math.max(1, Math.max.apply(null, d.names.map(function(n){
+    const p = d.per[n];
+    return Math.max(p.soldA + p.missA + p.endA, p.soldB + p.missB + p.endB, p.endW + p.transit);
+  })));
+  const euro = Math.max(t.revenue, t.cogs + t.fixed);
+
+  openModal(function(box){
+    box.className = 'modal wide';
+    box.innerHTML =
+        '<div class="panelhead">'
+      +   '<div><h2 style="margin:0;">Where your margin came from</h2>'
+      +     '<div class="muted" style="font-size:14px;margin-top:4px;">' + esc(state.team)
+      +     ' · ' + esc(state.game) + ' · ' + s.sellThrough + '% sell-through target · '
+      +     s.storePct + '% into the shops at launch · ' + fmt(t.produced) + ' bags made</div></div>'
+      +   '<div><div class="panelbig ' + (t.margin > 0 ? 'g' : 'r') + '">' + fmtE(t.margin) + '</div>'
+      +     '<div class="muted" style="font-size:12px;font-weight:800;text-align:right;'
+      +     'text-transform:uppercase;letter-spacing:.06em;">margin</div></div>'
+      + '</div>'
+      + '<h3 class="ph3">Where the money went</h3>'
+      + panelBridge(t, euro)
+      + '<h3 class="ph3">Which bag, which shop</h3>'
+      + '<div class="plegend">'
+      +   '<span><i style="background:' + PCLR.A + '"></i>sold in A</span>'
+      +   '<span><i style="background:' + PCLR.B + '"></i>sold in B</span>'
+      +   '<span><i style="background:' + PCLR.missed + '"></i>customers turned away</span>'
+      +   '<span><i style="background:' + PCLR.W + ';opacity:.5"></i>still unsold at the end</span>'
+      + '</div>'
+      + panelBoard(d, unit, s.perBag)
+      + '<h3 class="ph3">All five bags, week by week — and how much was still central</h3>'
+      + panelStock(d)
+      + (d.worst ? '<p class="punch">' + d.worst.n + ' ' + esc(d.worst.bag)
+          + ' finished the season unsold in one shop while the other shop was turning '
+          + 'customers away.</p>' : '')
+      + '<h3 class="ph3">Why those sales were lost</h3>'
+      + panelCauses(d, t.missed)
+      + '<div class="row-buttons" style="margin-top:22px;">'
+      +   '<button type="button" class="btn-primary btn-xl" id="pd-close">Close</button></div>';
+    box.querySelector('#pd-close').addEventListener('click', closeModal);
+    /* the panel is taller than the screen and scrolls inside itself: it must
+       start at the headline, not wherever the browser last left it */
+    box.scrollTop = 0;
+    requestAnimationFrame(function(){ box.scrollTop = 0; });
+  });
+}
+
+function panelBridge(t, euro){
+  const rows = [
+    { lab:'Sold ' + fmt(t.sold) + ' bags', v:t.revenue, cls:'pos', sign:'+' },
+    { lab:'Made ' + fmt(t.produced) + ' bags', v:-t.cogs, cls:'neg', sign:'−' },
+    { lab:'Fixed costs', v:-t.fixed, cls:'neg', sign:'−' },
+    { lab:'Margin', v:t.margin, cls:t.margin > 0 ? 'pos' : 'bad', sign:'=', rule:true }
+  ];
+  let html = '<div class="bridge">';
+  rows.forEach(function(r){
+    html += '<div class="pbrow' + (r.rule ? ' ruled' : '') + '">'
+      + '<span class="blab">' + r.lab + '</span>'
+      + '<span class="btrack"><i class="' + r.cls + '" style="width:'
+      + (Math.abs(r.v) / euro * 100).toFixed(1) + '%"></i></span>'
+      + '<span class="bval">' + r.sign + ' ' + fmtE(Math.abs(r.v)) + '</span></div>';
+  });
+  html += '<div class="pbrow leak"><span class="blab">Sales you could not serve</span>'
+    + '<span class="btrack"><i class="ghost bad" style="width:'
+    + (t.missed * ECON.price / euro * 100).toFixed(1) + '%"></i></span>'
+    + '<span class="bval">' + fmt(t.missed) + ' bags · ' + fmtE(t.missed * ECON.price)
+    + ' of margin not taken</span></div>';
+  html += '<div class="pbrow leak"><span class="blab">Bags nobody bought</span>'
+    + '<span class="btrack"><i class="ghost" style="width:'
+    + (t.leftover * ECON.cost / euro * 100).toFixed(1) + '%"></i></span>'
+    + '<span class="bval">' + fmt(t.leftover) + ' bags · ' + fmtE(t.leftover * ECON.cost)
+    + ' already spent</span></div>';
+  return html + '</div>';
+}
+
+function panelBoard(d, unit, perBag){
+  const cell = function(sold, miss, left, colour, transit){
+    const w = function(v){ return (v / unit * 100).toFixed(1) + '%'; };
+    let bar = '<span class="cbar">';
+    if(sold) bar += '<i style="width:' + w(sold) + ';background:' + colour + '"></i>';
+    if(miss) bar += '<i style="width:' + w(miss) + ';background:' + PCLR.missed + '"></i>';
+    if(left) bar += '<i style="width:' + w(left) + ';background:' + PCLR.W + ';opacity:.5"></i>';
+    bar += '</span>';
+    const bits = [];
+    if(sold) bits.push(sold + ' sold');
+    if(miss) bits.push('<b style="color:' + PCLR.missed + '">' + miss + ' turned away</b>');
+    if(left) bits.push(left + ' left' + (transit ? ' (' + transit + ' still in transit)' : ''));
+    return '<div><span class="cbar-wrap">' + bar + '</span><span class="csub">'
+         + (bits.length ? bits.join(' · ') : 'nothing') + '</span></div>';
+  };
+  let html = '<div class="bagboard"><div class="bhead"></div>'
+    + '<div class="bhead">Store A</div><div class="bhead">Store B</div>'
+    + '<div class="bhead">Warehouse</div>'
+    /* the fixed cost belongs to the season, not to any one bag, so the column
+       says so rather than letting the five figures look like they should add
+       up to the margin */
+    + '<div class="bhead right">This bag, before fixed costs</div>';
+  d.names.forEach(function(n){
+    const p = d.per[n];
+    const bm = (p.soldA + p.soldB) * ECON.price - perBag * ECON.cost;
+    html += '<div class="bname">' + esc(n) + '</div>'
+      + cell(p.soldA, p.missA, p.endA, PCLR.A)
+      + cell(p.soldB, p.missB, p.endB, PCLR.B)
+      + cell(0, 0, p.endW + p.transit, PCLR.W, p.transit)
+      + '<div class="bmargin ' + (bm > 0 ? 'g' : 'r') + '">' + fmtE(bm) + '</div>';
+  });
+  return html + '</div>';
+}
+
+/* Stock and demand differ by an order of magnitude, so they are NOT put on a
+   shared axis: the stack is stock, the strip underneath is that week's
+   demand split into what was served and what walked out. */
+function panelStock(d){
+  const W = 960, L = 30, R = 8, T = 10, stockH = 176, gap = 14, stripH = 74, fs = 12;
+  const H = T + stockH + gap + stripH + 18;
+  const innerW = W - L - R, n = d.weekly.length;
+  const bw = Math.max(4, innerW / n * 0.68);
+  const x = function(i){ return L + innerW * (i + 0.5) / n; };
+  const maxS = Math.max(1, Math.max.apply(null, d.weekly.map(function(s){ return s.wh + s.a + s.b; })));
+  const maxD = Math.max(1, Math.max.apply(null, d.weekly.map(function(s){ return s.sold + s.missed; })));
+  const yS = function(v){ return T + stockH - v / maxS * stockH; };
+  const sTop = T + stockH + gap;
+
+  let g = '';
+  d.weekly.forEach(function(s, i){
+    let acc = 0;
+    [['wh', PCLR.W], ['a', PCLR.A], ['b', PCLR.B]].forEach(function(pair){
+      const v = s[pair[0]];
+      if(v <= 0) return;
+      g += '<rect x="' + (x(i) - bw / 2).toFixed(1) + '" y="' + yS(acc + v).toFixed(1)
+         + '" width="' + bw.toFixed(1) + '" height="' + Math.max(0.8, yS(acc) - yS(acc + v)).toFixed(1)
+         + '" fill="' + pair[1] + '"/>';
+      acc += v;
+    });
+    const tot = s.sold + s.missed;
+    if(tot > 0){
+      const h = tot / maxD * stripH, hm = s.missed / maxD * stripH;
+      const bx = (x(i) - bw / 2).toFixed(1);
+      g += '<rect x="' + bx + '" y="' + (sTop + stripH - h).toFixed(1) + '" width="' + bw.toFixed(1)
+         + '" height="' + Math.max(0.8, h - hm).toFixed(1) + '" fill="' + PCLR.sold + '"/>';
+      if(hm > 0)
+        g += '<rect x="' + bx + '" y="' + (sTop + stripH - hm).toFixed(1) + '" width="' + bw.toFixed(1)
+           + '" height="' + hm.toFixed(1) + '" fill="' + PCLR.missed + '"/>';
+    }
+  });
+
+  let mark = '';
+  if(d.emptyAt){
+    const mx = x(d.emptyAt - 1) - bw / 2 - 3;
+    mark = '<line x1="' + mx.toFixed(1) + '" y1="' + T + '" x2="' + mx.toFixed(1) + '" y2="'
+      + (sTop + stripH) + '" stroke="' + PCLR.missed + '" stroke-width="2" stroke-dasharray="5 4"/>'
+      + '<text x="' + (mx + 6).toFixed(1) + '" y="' + (T + 13) + '" font-size="12" font-weight="800" fill="'
+      + PCLR.missed + '">warehouse empty from week ' + d.emptyAt + '</text>';
+  }
+  const axis = '<line x1="' + L + '" y1="' + (T + stockH) + '" x2="' + (W - R) + '" y2="' + (T + stockH)
+      + '" stroke="#c6ced7"/>'
+    + '<line x1="' + L + '" y1="' + (sTop + stripH) + '" x2="' + (W - R) + '" y2="' + (sTop + stripH)
+      + '" stroke="#c6ced7"/>'
+    + '<text x="' + (L - 4) + '" y="' + (T + fs) + '" font-size="' + fs
+      + '" fill="#7b8794" text-anchor="end">' + maxS + '</text>'
+    + '<text x="' + (L - 4) + '" y="' + (sTop + fs) + '" font-size="' + fs
+      + '" fill="#7b8794" text-anchor="end">' + maxD + '</text>'
+    + '<text x="' + L + '" y="' + (H - 4) + '" font-size="' + fs + '" fill="#7b8794">w1</text>'
+    + '<text x="' + (W - R) + '" y="' + (H - 4) + '" font-size="' + fs
+      + '" fill="#7b8794" text-anchor="end">w' + n + '</text>'
+    + '<text x="' + (W - R) + '" y="' + (sTop - 3) + '" font-size="' + fs
+      + '" fill="#7b8794" text-anchor="end">demand</text>';
+  return '<svg class="panelsvg" viewBox="0 0 ' + W + ' ' + H + '" role="img">'
+       + axis + g + mark + '</svg>';
+}
+
+function panelCauses(d, missed){
+  if(!missed)
+    return '<p class="punch" style="color:var(--live);border-color:var(--live);">'
+         + 'Every customer who asked for a bag got one.</p>';
+  const parts = [
+    { v:d.late,  c:'#b06e28', lab:'still central — not in the shop yet' },
+    { v:d.wrong, c:PCLR.missed, lab:'stranded in the other shop' },
+    { v:d.short, c:'#6b7580', lab:'never made — the bag sold out everywhere' }
+  ];
+  let html = '<div class="causes">';
+  parts.forEach(function(p){
+    if(p.v <= 0) return;
+    html += '<div class="cseg" style="width:' + (p.v / missed * 100).toFixed(1) + '%;background:'
+      + p.c + '"><b>' + p.v + '</b></div>';
+  });
+  return html + '</div><div class="clabs">'
+    + parts.filter(function(p){ return p.v > 0; })
+           .map(function(p){ return '<span><i style="background:' + p.c + '"></i>' + p.lab + '</span>'; })
+           .join('') + '</div>'
+    + '<p class="muted" style="font-size:13px;">All ' + missed + ' lost sales, by what was in the '
+    + 'system at the time.</p>';
 }
 
 /* =========================================================================
