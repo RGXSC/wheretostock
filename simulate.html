@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fast forward — five cities</title>
+<style>
+/* =========================================================================
+   Same discipline as the game and the debrief: one file, no network, system
+   fonts, readable from a metre. Greyscale and blue, one red for what was
+   lost, one green for what was earned.
+   ========================================================================= */
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  :root{
+    --bg:#eef1f4; --surface:#ffffff; --ink:#12161b; --ink-soft:#525c68;
+    --line:#c6ced7; --line-soft:#e2e7ec; --accent:#12557f; --accent-soft:#e7f0f7;
+    --good:#0f6b45; --bad:#8a3115; --radius:10px;
+  }
+  body{ font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background:var(--bg); color:var(--ink); font-size:17px; line-height:1.5;
+        -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:1240px; margin:0 auto; padding:0 20px; }
+  h1{ font-size:29px; } h2{ font-size:22px; } h3{ font-size:17px; }
+  p{ max-width:74ch; }
+  .muted{ color:var(--ink-soft); }
+  .small{ font-size:14px; }
+  b.num{ font-variant-numeric:tabular-nums; }
+
+  /* ------------------------------------------------------------- chrome */
+  .topbar{ position:sticky; top:0; z-index:40; background:var(--surface);
+           border-bottom:2px solid var(--line-soft); }
+  .topbar-inner{ max-width:1240px; margin:0 auto; padding:12px 20px;
+                 display:flex; align-items:center; gap:14px; }
+  .pill{ background:var(--accent); color:#fff; font-weight:800; font-size:15px;
+         padding:5px 12px; border-radius:999px; white-space:nowrap; }
+  .stagetitle{ font-weight:800; font-size:19px; }
+  .footbar{ position:fixed; left:0; right:0; bottom:0; z-index:40;
+            background:var(--surface); border-top:2px solid var(--line-soft); }
+  .footbar-inner{ max-width:1240px; margin:0 auto; padding:12px 20px;
+                  display:flex; gap:12px; align-items:center; }
+  main{ padding:26px 0 110px; }
+
+  button{ font:inherit; cursor:pointer; border-radius:8px; border:2px solid var(--line);
+          background:var(--surface); color:var(--ink); font-weight:700;
+          min-height:46px; padding:8px 18px; }
+  button:disabled{ opacity:.45; cursor:default; }
+  .btn-primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn-xl{ min-height:58px; font-size:19px; flex:1; }
+  .btn-ghost{ background:none; }
+  .kbd{ font-size:12px; font-weight:800; opacity:.8; border:1px solid currentColor;
+        border-radius:5px; padding:1px 6px; margin-left:9px; }
+
+  .card{ background:var(--surface); border-radius:var(--radius); padding:22px 24px;
+         margin-bottom:18px; }
+  .note{ background:var(--accent-soft); border-left:4px solid var(--accent);
+         padding:12px 16px; border-radius:6px; margin:14px 0; }
+  .note.q{ background:#fdf6ec; border-left-color:#b06e28; }
+  .hidden{ display:none !important; }
+
+  /* --------------------------------------------------------- data table */
+  table.grid{ border-collapse:collapse; width:100%; }
+  table.grid th, table.grid td{ padding:6px 8px; text-align:right;
+        font-variant-numeric:tabular-nums; border-bottom:1px solid var(--line-soft); }
+  table.grid th{ font-size:12px; font-weight:800; color:var(--ink-soft);
+        text-transform:uppercase; letter-spacing:.04em; text-align:right;
+        border-bottom:2px solid var(--line); }
+  table.grid th:first-child, table.grid td:first-child{ text-align:left; }
+  table.grid tr.tot td{ font-weight:800; border-top:2px solid var(--line);
+        border-bottom:0; background:#f6f8fa; }
+  .cellbar{ display:block; height:5px; border-radius:3px; margin-top:3px;
+            background:var(--accent); opacity:.85; }
+  .cellbar.f{ background:#9aa7b3; }
+  .swatch{ display:inline-block; width:12px; height:12px; border-radius:3px;
+           margin-right:8px; vertical-align:-1px; }
+  .up{ color:var(--good); font-weight:800; } .down{ color:var(--bad); font-weight:800; }
+
+  /* -------------------------------------------------------------- picks */
+  .picks{ display:flex; gap:26px; flex-wrap:wrap; margin:6px 0 16px; }
+  .pick label{ display:block; font-size:12px; font-weight:800; color:var(--ink-soft);
+               text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+  .seg{ display:flex; gap:6px; flex-wrap:wrap; }
+  .seg button{ min-width:64px; min-height:48px; padding:8px 12px; font-size:16px; }
+  .seg button[aria-pressed="true"]{ background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  /* ------------------------------------------------------------- matrix */
+  .mwrap{ overflow-x:auto; }
+  table.matrix{ border-collapse:separate; border-spacing:5px; margin:0 auto; }
+  table.matrix th{ font-size:12px; font-weight:800; color:var(--ink-soft);
+                   text-transform:uppercase; letter-spacing:.04em; padding:3px 6px; }
+  table.matrix td{ min-width:88px; height:54px; padding:0; }
+  .mcell{ width:100%; height:100%; border-radius:7px; border:2px solid var(--line-soft);
+          background:var(--surface); display:flex; flex-direction:column;
+          justify-content:center; align-items:center; gap:3px; position:relative; }
+  .mcell .v{ font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .mcell .b{ width:76%; height:6px; border-radius:3px; background:var(--line-soft); overflow:hidden; }
+  .mcell .b i{ display:block; height:100%; }
+  .mcell.on{ color:#fff; border-color:transparent; }
+  .mcell.tested{ outline:3px solid var(--ink); outline-offset:1px; }
+  .mcell .star{ position:absolute; top:2px; right:5px; font-size:13px; }
+  .axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-size:12px;
+           font-weight:800; color:var(--ink-soft); text-transform:uppercase;
+           letter-spacing:.06em; }
+  .matrices{ display:grid; grid-template-columns:repeat(auto-fit,minmax(520px,1fr)); gap:20px; }
+
+  /* --------------------------------------------------------- monte carlo */
+  .mcform{ display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px 26px; }
+  .mcfield label{ display:block; font-size:12px; font-weight:800; color:var(--ink-soft);
+                  text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px; }
+  .mcfield input[type=number]{ font:inherit; font-weight:700; width:104px; min-height:44px;
+        padding:6px 10px; border:2px solid var(--line); border-radius:8px;
+        font-variant-numeric:tabular-nums; }
+  .mcfield input[type=range]{ width:100%; height:34px; }
+  .mcfield .hint{ font-size:13px; color:var(--ink-soft); margin-top:3px; }
+  .bar{ height:14px; border-radius:7px; background:var(--line-soft); overflow:hidden; margin-top:12px; }
+  .bar i{ display:block; height:100%; background:var(--accent); width:0; transition:width .1s linear; }
+  .runline{ font-size:15px; font-weight:700; color:var(--ink-soft); margin-top:8px;
+            font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <span class="pill" id="pill">1 / 6</span>
+    <span class="stagetitle" id="stitle">The board</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ============================================================ 1 BOARD -->
+<section id="s0">
+  <div class="card">
+    <h1>Fast forward — one season, five cities</h1>
+    <p class="muted" style="margin-top:6px;">
+      The same five bags and the same thirteen weeks as the game, squeezed into a
+      single shot, and played across five boutiques instead of two.
+    </p>
+    <div class="note">
+      <b>One rule is different here.</b> The warehouse resupplies a boutique the
+      moment it runs out. In reality that is one to three days, against a bag
+      that sells once a week or once a fortnight — close enough to instant that
+      this page treats it as instant. Everything central can therefore reach
+      whichever city turns out to want it.
+    </div>
+    <p class="small muted">
+      Two decisions, both taken before the season and never revisited: what
+      <b>target sell-through</b> to produce against, and what share of that
+      production to <b>place in the boutiques at launch</b>. The launch push
+      follows each city's own forecast. Whatever is not pushed stays central.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>The forecast</h2>
+    <p class="small muted" style="margin:4px 0 14px;">
+      Two pieces per city per bag per week, over thirteen weeks — 650 in all,
+      spread the way the collection and the network are actually weighted.
+    </p>
+    <div id="board-table"></div>
+  </div>
+</section>
+
+<!-- ============================================================ 2 TRIAL -->
+<section id="s1" class="hidden">
+  <div class="card">
+    <h2>Pick a combination and see the season out</h2>
+    <p class="small muted" style="margin:4px 0 0;">
+      Production is the forecast divided by the sell-through you target. The
+      launch push is split between the cities in proportion to their forecast.
+    </p>
+    <div class="picks" style="margin-top:16px;">
+      <div class="pick"><label>Target sell-through</label><div class="seg" id="seg-st"></div></div>
+      <div class="pick"><label>In the boutiques at launch</label><div class="seg" id="seg-sp"></div></div>
+    </div>
+    <div id="trial-say" class="small muted"></div>
+    <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
+      <button class="btn-primary btn-xl" id="btn-test" style="max-width:340px;">Run this season</button>
+    </div>
+  </div>
+  <div class="card hidden" id="trial-out"></div>
+</section>
+
+<!-- =========================================================== 3 MATRIX -->
+<section id="s2" class="hidden">
+  <div class="card">
+    <h2>Every combination</h2>
+    <p class="small muted" style="margin:4px 0 12px;" id="matrix-sub"></p>
+    <button class="btn-primary" id="btn-fill">Complete the matrix</button>
+    <div style="margin-top:18px;" class="matrices">
+      <div><h3 style="margin-bottom:8px;">Turnover</h3><div class="mwrap" id="mx-t"></div></div>
+      <div><h3 style="margin-bottom:8px;">Margin</h3><div class="mwrap" id="mx-m"></div></div>
+    </div>
+    <div id="matrix-read" class="hidden" style="margin-top:18px;"></div>
+  </div>
+</section>
+
+<!-- ====================================================== 4 MONTE CARLO -->
+<section id="s3" class="hidden">
+  <div class="card">
+    <h2>Any network, any collection</h2>
+    <p class="small muted" style="margin:4px 0 16px;">
+      Five bags and five cities is one board out of many. Set the shape you want
+      and the page plays whole seasons of it, over and over, with a fresh
+      forecast error each time.
+    </p>
+    <div class="mcform">
+      <div class="mcfield">
+        <label>Bags in the collection</label>
+        <input type="number" id="mc-sku" min="1" max="500" value="40">
+        <div class="hint">1 to 500</div>
+      </div>
+      <div class="mcfield">
+        <label>Boutiques in the network</label>
+        <input type="number" id="mc-store" min="1" max="500" value="40">
+        <div class="hint">1 to 500</div>
+      </div>
+      <div class="mcfield">
+        <label>Collection concentration</label>
+        <input type="range" id="mc-askew" min="0" max="100" value="55">
+        <div class="hint" id="mc-askew-h"></div>
+      </div>
+      <div class="mcfield">
+        <label>Network concentration</label>
+        <input type="range" id="mc-bskew" min="0" max="100" value="45">
+        <div class="hint" id="mc-bskew-h"></div>
+      </div>
+      <div class="mcfield">
+        <label>Error on a bag &nbsp;(min / max %)</label>
+        <input type="number" id="mc-emin" min="-25" max="100" value="-25" style="width:88px">
+        <input type="number" id="mc-emax" min="-25" max="100" value="60" style="width:88px">
+        <div class="hint">flat between the two, −25 to +100</div>
+      </div>
+      <div class="mcfield">
+        <label>Error on a city &nbsp;(min / max %)</label>
+        <input type="number" id="mc-fmin" min="-25" max="100" value="-25" style="width:88px">
+        <input type="number" id="mc-fmax" min="-25" max="100" value="60" style="width:88px">
+        <div class="hint">drawn separately, then multiplied</div>
+      </div>
+    </div>
+    <div class="note small" style="margin-top:18px;">
+      Every season is rescaled so the total lands exactly on the forecast — the
+      volume call is right, only its spread across bags and cities is wrong.
+      That keeps the sell-through axis readable. The range you type is therefore
+      recentred; the range that actually results is shown after the run.
+    </div>
+    <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
+      <button class="btn-primary btn-xl" id="btn-mc" style="max-width:300px;">Run</button>
+      <button class="btn-ghost" id="btn-mc-stop" disabled>Stop</button>
+    </div>
+    <div class="bar"><i id="mc-bar"></i></div>
+    <div class="runline" id="mc-line">Not run yet.</div>
+    <div id="mc-out" class="hidden" style="margin-top:20px;">
+      <div class="mcfield" style="max-width:520px;margin-bottom:16px;">
+        <label>Cost of one bag &nbsp;<span id="mc-cost-read"></span></label>
+        <input type="range" id="mc-cost" min="50" max="700" step="10" value="200">
+      </div>
+      <div class="matrices">
+        <div><h3 style="margin-bottom:8px;">Average turnover</h3><div class="mwrap" id="mx-mt"></div></div>
+        <div><h3 style="margin-bottom:8px;">Average margin</h3><div class="mwrap" id="mx-mm"></div></div>
+      </div>
+      <div id="mc-read" style="margin-top:16px;"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= 5 COST -->
+<section id="s4" class="hidden">
+  <div class="card">
+    <h2>What the bag costs to make</h2>
+    <p class="small muted" style="margin:4px 0 14px;">
+      Back to the five cities. Everything else is held still; only the cost of
+      making one bag moves. Two squares are marked: ★ the best turnover,
+      ◆ the best margin.
+    </p>
+    <div class="mcfield" style="max-width:520px;">
+      <label>Cost of one bag &nbsp;<span id="cost-read"></span></label>
+      <input type="range" id="cost-slider" min="50" max="700" step="10" value="200">
+    </div>
+    <div style="margin-top:16px;" class="matrices">
+      <div><h3 style="margin-bottom:8px;">Turnover</h3><div class="mwrap" id="mx-ct"></div></div>
+      <div><h3 style="margin-bottom:8px;">Margin</h3><div class="mwrap" id="mx-cm"></div></div>
+    </div>
+    <div id="cost-read2" style="margin-top:16px;"></div>
+  </div>
+</section>
+
+<!-- ============================================================ 6 LIMIT -->
+<section id="s5" class="hidden">
+  <div class="card">
+    <h2>What central stock cannot do</h2>
+    <p class="small muted" style="margin:4px 0 14px;">
+      Hold everything centrally and ship on demand, and every bag reaches
+      whichever city wanted it. Here is the same season played that way.
+    </p>
+    <div id="limit-body"></div>
+  </div>
+</section>
+
+</main>
+
+<div class="footbar">
+  <div class="footbar-inner">
+    <button class="btn-ghost" id="btn-prev">← Back</button>
+    <button class="btn-primary btn-xl" id="btn-next">Next<span class="kbd">↵ Enter</span></button>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   1. THE BOARD
+   =========================================================================
+   Same five bags as the game, five cities instead of two. The forecast total is
+   650 — two pieces per city per bag per week over thirteen weeks — split
+   across the collection and the network the way a real one is weighted.
+
+   HOW THIS PAGE DIFFERS FROM THE GAME AND THE DEBRIEF, in full:
+     1. There are no weeks. The season resolves in one shot: one demand
+        number per bag per city for the whole thirteen weeks.
+     2. The warehouse resupplies instantly and perfectly — no lead time, and
+        no guessing where demand will land. This page is therefore the upper
+        bound of what central stock can ever be worth.
+     3. Five cities, each with its own forecast, and the launch push follows
+        those forecasts instead of being split equally.
+     4. Because of 2, nothing can end up stranded in the wrong boutique. That
+        failure mode — the whole subject of the game's team panel — cannot
+        happen here by construction.
+   Production, price, unit cost and the fixed cost are set exactly as in the
+   game: production is the forecast divided by the sell-through targeted, and
+   the fixed cost is 45% of forecast sales.                                  */
+const BAGS = [
+  { name:'Aveline',  color:'#12395e' },
+  { name:'Bastide',  color:'#2f6ea8' },
+  { name:'Calanque', color:'#6ba3cd' },
+  { name:'Doriane',  color:'#8d99a6' },
+  { name:'Estérel',  color:'#464f59' }
+];
+const CITIES = ['Paris', 'Tokyo', 'New York', 'Shanghai', 'London'];
+const WEEKS = 13;
+
+/* Forecast: 37.5 / 30 / 15 / 12.5 / 5 % across the bags, 30 / 25 / 20 / 15 /
+   10 % across the cities. Hard-coded so every room sees the same board. */
+const FORECAST = [
+  [ 73, 61, 49, 37, 24],
+  [ 59, 49, 39, 29, 19],
+  [ 29, 24, 20, 15, 10],
+  [ 25, 20, 16, 12,  8],
+  [ 10,  8,  6,  5,  3]
+];
+/* What actually sold. The TOTAL is right — 650 forecast, 650 sold-able — so
+   nothing here is a volume story at company level. Every error is in the
+   spread: which bag, and which city. */
+const DEMAND = [
+  [ 54, 73, 73, 43, 27],
+  [ 68, 29, 38, 31, 14],
+  [ 30, 23, 21, 21, 15],
+  [ 30, 14,  8,  6,  4],
+  [  8, 10,  5,  3,  2]
+];
+
+const ECON = { price:1000, cost:200, fixedPct:0.45 };
+const rowSum = function(r){ return r.reduce(function(a, b){ return a + b; }, 0); };
+const F_BAG  = FORECAST.map(rowSum);
+const D_BAG  = DEMAND.map(rowSum);
+const F_TOTAL = rowSum(F_BAG);
+ECON.fixed = Math.round(ECON.fixedPct * F_TOTAL * ECON.price);
+const CITY_SHARE = CITIES.map(function(c, j){
+  return FORECAST.reduce(function(a, r){ return a + r[j]; }, 0) / F_TOTAL;
+});
+
+const ST_LEVELS = [60, 70, 80, 90, 100];
+const SP_LEVELS = [0, 20, 40, 60, 80, 100];
+
+const el = function(id){ return document.getElementById(id); };
+const fmt  = function(n){ return Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' '); };
+const fmtE = function(n){ return fmt(n) + ' €'; };
+/* matrix squares are narrow: keep every value to about six characters, so a
+   collection of 500 bags does not blow the column apart */
+const fmtK = function(n){
+  const a = Math.abs(n);
+  if(a >= 1e9) return (n / 1e9).toFixed(1) + ' Md';
+  if(a >= 1e7) return (n / 1e6).toFixed(0) + ' M';
+  if(a >= 1e6) return (n / 1e6).toFixed(1) + ' M';
+  return fmt(n / 1000) + 'k';
+};
+const esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){
+  return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+
+/* largest remainder: an integer split always sums back to the total */
+function split(total, shares){
+  const raw = shares.map(function(s){ return total * s; });
+  const out = raw.map(Math.floor);
+  let rem = total - rowSum(out);
+  const order = raw.map(function(v, i){ return [v - Math.floor(v), i]; })
+                   .sort(function(a, b){ return b[0] - a[0]; });
+  for(let k = 0; k < rem; k++) out[order[k % order.length][1]]++;
+  return out;
+}
+
+/* =========================================================================
+   2. THE MODEL
+   =========================================================================
+   One bag, one combination:
+     production   = forecast / target sell-through
+     pushed       = production x share placed at launch, split by city forecast
+     central      = the rest
+     sold at launch = min(pushed, demand) in each city
+     the warehouse then covers whatever the boutiques could not, up to what it
+     holds — instantly, and always in the right direction
+   The order in which central stock is handed out cannot change the total, so
+   none is assumed.                                                          */
+function runBag(i, stPct, spPct, unitCost){
+  const production = Math.round(F_BAG[i] / (stPct / 100));
+  const pushTotal  = Math.min(production, Math.round(production * spPct / 100));
+  const push       = split(pushTotal, CITY_SHARE);
+  const central    = production - pushTotal;
+  const sold = [], short = [];
+  for(let j = 0; j < CITIES.length; j++){
+    const s = Math.min(push[j], DEMAND[i][j]);
+    sold.push(s);
+    short.push(DEMAND[i][j] - s);
+  }
+  const shortTot = rowSum(short);
+  const served   = Math.min(shortTot, central);
+  const total    = rowSum(sold) + served;
+  return { production:production, push:push, pushTotal:pushTotal, central:central,
+           sold:sold, soldAtLaunch:rowSum(sold), short:short, shortTot:shortTot,
+           served:served, total:total, lost:shortTot - served,
+           left:production - total,
+           margin: total * ECON.price - production * unitCost };
+}
+
+function run(stPct, spPct, unitCost){
+  unitCost = unitCost === undefined ? ECON.cost : unitCost;
+  const bags = BAGS.map(function(b, i){ return runBag(i, stPct, spPct, unitCost); });
+  const t = { production:0, pushTotal:0, central:0, soldAtLaunch:0, served:0,
+              sold:0, lost:0, left:0 };
+  bags.forEach(function(r){
+    t.production += r.production; t.pushTotal += r.pushTotal; t.central += r.central;
+    t.soldAtLaunch += r.soldAtLaunch; t.served += r.served; t.sold += r.total;
+    t.lost += r.lost; t.left += r.left;
+  });
+  t.turnover = t.sold * ECON.price;
+  t.cogs     = t.production * unitCost;
+  t.margin   = t.turnover - t.cogs - ECON.fixed;
+  t.sellThrough = t.production ? t.sold / t.production * 100 : 0;
+  return { bags:bags, t:t };
+}
+
+/* =========================================================================
+   3. SHARED DRAWING
+   ========================================================================= */
+/* red at the worst square on screen, green at the best; five stops, because
+   three left the whole middle of the field one muddy olive */
+const RAMP = [[150,32,14],[192,84,22],[201,146,26],[104,148,52],[15,107,69]];
+function heat(v, lo, hi){
+  const t = hi === lo ? 1 : (v - lo) / (hi - lo);
+  const seg = Math.min(RAMP.length - 2, Math.floor(t * (RAMP.length - 1)));
+  const f = t * (RAMP.length - 1) - seg;
+  const a = RAMP[seg], b = RAMP[seg + 1];
+  return 'rgb(' + a.map(function(x, k){ return Math.round(x + (b[k] - x) * f); }).join(',') + ')';
+}
+
+/* A matrix of sell-through (across) by launch push (down). `get` returns a
+   number or null for a square not yet played. Bars run 45%→100% across the
+   range on screen: a zero-based bar hides a 10% spread, a purely range-based
+   one leaves the weakest square a stub. */
+function matrix(host, get, fmtFn, marks){
+  const vals = [];
+  SP_LEVELS.forEach(function(sp){ ST_LEVELS.forEach(function(st){
+    const v = get(st, sp); if(v !== null && v !== undefined) vals.push(v);
+  }); });
+  const lo = vals.length ? Math.min.apply(null, vals) : 0;
+  const hi = vals.length ? Math.max.apply(null, vals) : 1;
+
+  let h = '<table class="matrix"><thead><tr><th></th><th></th>'
+        + '<th colspan="' + ST_LEVELS.length + '">Target sell-through</th></tr>'
+        + '<tr><th></th><th></th>'
+        + ST_LEVELS.map(function(s){ return '<th>' + s + '%</th>'; }).join('') + '</tr></thead><tbody>';
+  SP_LEVELS.forEach(function(sp, r){
+    h += '<tr>' + (r === 0 ? '<th class="axis-y" rowspan="' + SP_LEVELS.length
+                           + '">In the boutiques at launch</th>' : '')
+       + '<th>' + sp + '%</th>';
+    ST_LEVELS.forEach(function(st){
+      const v = get(st, sp);
+      if(v === null || v === undefined){ h += '<td><div class="mcell"></div></td>'; return; }
+      const span = hi - lo;
+      const pct = 45 + (span === 0 ? 55 : (v - lo) / span * 55);
+      const c = heat(v, lo, hi);
+      const mk = marks ? marks(st, sp, v) : '';
+      h += '<td><div class="mcell on' + (mk.indexOf('tested') >= 0 ? ' tested' : '')
+         + '" style="background:' + c + '">'
+         + (mk.indexOf('T') >= 0 ? '<span class="star">★</span>' : '')
+         + (mk.indexOf('M') >= 0 ? '<span class="star" style="left:5px;right:auto">◆</span>' : '')
+         + '<span class="v">' + fmtFn(v) + '</span>'
+         + '<span class="b"><i style="width:' + pct.toFixed(0) + '%;background:rgba(255,255,255,.85)"></i></span>'
+         + '</div></td>';
+    });
+    h += '</tr>';
+  });
+  el(host).innerHTML = h + '</tbody></table>';
+}
+
+/* one horizontal bar inside a table cell */
+function cell(v, max, colour, cls){
+  return '<b class="num">' + fmt(v) + '</b><span class="cellbar' + (cls ? ' ' + cls : '')
+       + '" style="width:' + (max ? Math.max(2, v / max * 100) : 0).toFixed(0)
+       + '%' + (colour ? ';background:' + colour : '') + '"></span>';
+}
+
+/* =========================================================================
+   4. STAGE 1 — the board
+   ========================================================================= */
+function renderBoard(){
+  const maxCell = Math.max.apply(null, FORECAST.map(function(r){ return Math.max.apply(null, r); }));
+  let h = '<table class="grid"><thead><tr><th>Bag</th>'
+        + CITIES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
+        + '<th>Season</th></tr></thead><tbody>';
+  BAGS.forEach(function(b, i){
+    h += '<tr><td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>'
+       + FORECAST[i].map(function(v){ return '<td>' + cell(v, maxCell, b.color) + '</td>'; }).join('')
+       + '<td><b class="num">' + fmt(F_BAG[i]) + '</b></td></tr>';
+  });
+  h += '<tr class="tot"><td>All five</td>'
+     + CITIES.map(function(c, j){
+         return '<td>' + fmt(FORECAST.reduce(function(a, r){ return a + r[j]; }, 0)) + '</td>'; }).join('')
+     + '<td>' + fmt(F_TOTAL) + '</td></tr></tbody></table>';
+  h += '<p class="small muted" style="margin-top:12px;">'
+     + 'One bag sells for ' + fmtE(ECON.price) + ' and costs ' + fmtE(ECON.cost)
+     + ' to make, whether it sells or not. The fixed cost of the season is 45% of '
+     + 'forecast sales — ' + fmtE(ECON.fixed) + '.</p>';
+  el('board-table').innerHTML = h;
+}
+
+/* =========================================================================
+   5. STAGE 2 — one combination, played out
+   ========================================================================= */
+/* opens on a combination that actually loses something: a first trial where
+   nothing goes wrong teaches nothing */
+let stPick = 90, spPick = 80, tested = null, everTested = false;
+
+function buildSegs(){
+  const mk = function(host, levels, current, onPick){
+    el(host).innerHTML = levels.map(function(v){
+      return '<button type="button" data-v="' + v + '" aria-pressed="'
+           + (v === current) + '">' + v + '%</button>'; }).join('');
+    el(host).querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){ onPick(Number(b.dataset.v)); });
+    });
+  };
+  mk('seg-st', ST_LEVELS, stPick, function(v){ stPick = v; buildSegs(); sayTrial(); });
+  mk('seg-sp', SP_LEVELS, spPick, function(v){ spPick = v; buildSegs(); sayTrial(); });
+}
+
+function sayTrial(){
+  const prod = BAGS.map(function(b, i){ return Math.round(F_BAG[i] / (stPick / 100)); });
+  const total = rowSum(prod);
+  const pushed = Math.round(total * spPick / 100);
+  el('trial-say').innerHTML =
+      'Targeting <b>' + stPick + '%</b> means making <b class="num">' + fmt(total)
+    + '</b> bags against a forecast of ' + fmt(F_TOTAL) + '. '
+    + 'Placing <b>' + spPick + '%</b> sends about <b class="num">' + fmt(pushed)
+    + '</b> to the five boutiques and leaves <b class="num">' + fmt(total - pushed)
+    + '</b> central.';
+}
+
+function testCombo(){
+  const r = run(stPick, spPick);
+  tested = { st:stPick, sp:spPick };
+  everTested = true;
+  matrixCache[key(stPick, spPick)] = r.t;
+  const maxProd = Math.max.apply(null, r.bags.map(function(x){ return x.production; }));
+  let h = '<h3>' + stPick + '% sell-through · ' + spPick + '% in the boutiques</h3>'
+        + '<table class="grid" style="margin-top:12px;"><thead><tr><th>Bag</th>'
+        + '<th>Made</th><th>To boutiques</th><th>Central</th><th>Demand</th>'
+        + '<th>Sold on the shelf</th><th>Sent on demand</th><th>Sold</th>'
+        + '<th>Turned away</th><th>Left</th></tr></thead><tbody>';
+  BAGS.forEach(function(b, i){
+    const x = r.bags[i];
+    h += '<tr><td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>'
+       + '<td>' + cell(x.production, maxProd, '#9aa7b3') + '</td>'
+       + '<td>' + cell(x.pushTotal, maxProd, b.color) + '</td>'
+       + '<td>' + cell(x.central, maxProd, '#9aa7b3') + '</td>'
+       + '<td>' + cell(D_BAG[i], maxProd, '#4d5560') + '</td>'
+       + '<td>' + cell(x.soldAtLaunch, maxProd, b.color) + '</td>'
+       + '<td>' + cell(x.served, maxProd, '#0f6b45') + '</td>'
+       + '<td><b class="num">' + fmt(x.total) + '</b></td>'
+       + '<td>' + (x.lost ? '<span class="down">' + fmt(x.lost) + '</span>' : '—') + '</td>'
+       + '<td>' + (x.left ? fmt(x.left) : '—') + '</td></tr>';
+  });
+  const t = r.t;
+  h += '<tr class="tot"><td>All five</td><td>' + fmt(t.production) + '</td><td>' + fmt(t.pushTotal)
+     + '</td><td>' + fmt(t.central) + '</td><td>' + fmt(rowSum(D_BAG)) + '</td><td>' + fmt(t.soldAtLaunch)
+     + '</td><td>' + fmt(t.served) + '</td><td>' + fmt(t.sold) + '</td><td>'
+     + (t.lost ? '<span class="down">' + fmt(t.lost) + '</span>' : '—') + '</td><td>'
+     + (t.left ? fmt(t.left) : '—') + '</td></tr></tbody></table>';
+  h += '<div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:18px;">'
+     + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Turnover</div>'
+     + '<div style="font-size:30px;font-weight:800;">' + fmtE(t.turnover) + '</div></div>'
+     + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Margin</div>'
+     + '<div style="font-size:30px;font-weight:800;color:' + (t.margin > 0 ? 'var(--good)' : 'var(--bad)')
+     + '">' + fmtE(t.margin) + '</div></div>'
+     + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Sell-through reached</div>'
+     + '<div style="font-size:30px;font-weight:800;">' + t.sellThrough.toFixed(0) + '%</div></div>'
+     + '</div>';
+  el('trial-out').innerHTML = h;
+  el('trial-out').classList.remove('hidden');
+  renderMatrices();
+}
+
+/* =========================================================================
+   6. STAGE 3 — the matrix
+   ========================================================================= */
+const matrixCache = {};
+function key(st, sp){ return st + '/' + sp; }
+function getT(st, sp){ const c = matrixCache[key(st, sp)]; return c ? c.turnover : null; }
+function getM(st, sp){ const c = matrixCache[key(st, sp)]; return c ? c.margin : null; }
+
+function renderMatrices(){
+  const marks = function(st, sp){
+    return (tested && tested.st === st && tested.sp === sp) ? 'tested' : '';
+  };
+  matrix('mx-t', getT, fmtK, marks);
+  matrix('mx-m', getM, fmtK, marks);
+  const n = Object.keys(matrixCache).length;
+  const all = ST_LEVELS.length * SP_LEVELS.length;
+  el('matrix-sub').textContent = n + ' of ' + all + ' combinations played. '
+    + 'Sell-through across, share placed at launch down the side.';
+  el('btn-fill').classList.toggle('hidden', !everTested || n === all);
+  el('matrix-read').classList.toggle('hidden', n !== all);
+  if(n === all) readMatrix();
+}
+
+function fillAll(){
+  ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
+    if(!matrixCache[key(st, sp)]) matrixCache[key(st, sp)] = run(st, sp).t;
+  }); });
+  renderMatrices();
+}
+
+function best(getter){
+  let bs = null;
+  ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
+    const v = getter(st, sp);
+    if(v === null || v === undefined) return;
+    if(!bs || v > bs.v) bs = { st:st, sp:sp, v:v };
+  }); });
+  return bs;
+}
+
+function readMatrix(){
+  const bt = best(getT), bm = best(getM);
+  el('matrix-read').innerHTML =
+      '<div class="note"><b>Best turnover</b> ' + bt.st + '% / ' + bt.sp + '% at '
+    + fmtE(bt.v) + '. &nbsp; <b>Best margin</b> ' + bm.st + '% / ' + bm.sp + '% at '
+    + fmtE(bm.v) + '.</div>'
+    + '<div class="note q"><b>Two questions for the room.</b> Read down a column: '
+    + 'what does moving stock out of the boutiques cost you here, and why? '
+    + 'Then read across a row: what does the sell-through target change that the '
+    + 'placement decision cannot?</div>';
+}
+
+/* =========================================================================
+   7. STAGE 4 — any network, any collection
+   =========================================================================
+   The board is generated rather than typed: bag i takes share proportional to
+   (i+1)^-a, city j likewise, both normalised, with the season total held at two
+   pieces per city per bag per week.
+
+   A season draws one flat error per bag and one per city, multiplies them,
+   and then rescales every line so the season total lands exactly on the forecast
+   — the volume call is right and only its spread is wrong.
+
+   That makes the demand separable, d(i,j) = A(i)·B(j), and separable demand
+   collapses the arithmetic: a boutique runs out of bag i exactly when its own
+   error term clears a threshold that depends on i alone. Sort the boutiques
+   by that term once per season, keep two prefix sums, and every one of the
+   thirty combinations is then a binary search rather than a sweep of the
+   whole network. That is what lets 500 x 500 run thousands of times inside
+   twenty seconds. A test checks it against the plain loop.                  */
+let mcAbort = false, mcRunning = false;
+
+function paretoShares(n, skew){
+  const a = skew / 100 * 2;                    /* 0 = flat, 2 = very steep */
+  const w = [];
+  let s = 0;
+  for(let i = 0; i < n; i++){ const v = Math.pow(i + 1, -a); w.push(v); s += v; }
+  for(let i = 0; i < n; i++) w[i] /= s;
+  return w;
+}
+function topShare(w, frac){
+  const n = Math.max(1, Math.round(w.length * frac));
+  let s = 0;
+  for(let i = 0; i < n; i++) s += w[i];
+  return s;
+}
+function mcHints(){
+  const a = paretoShares(Number(el('mc-sku').value) || 1, Number(el('mc-askew').value));
+  const b = paretoShares(Number(el('mc-store').value) || 1, Number(el('mc-bskew').value));
+  el('mc-askew-h').textContent = 'the top fifth of the collection carries '
+    + (topShare(a, 0.2) * 100).toFixed(0) + '% of the forecast';
+  el('mc-bskew-h').textContent = 'the top fifth of the network carries '
+    + (topShare(b, 0.2) * 100).toFixed(0) + '% of the forecast';
+}
+
+function readMC(){
+  const clamp = function(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); };
+  const n = clamp(Math.round(Number(el('mc-sku').value) || 1), 1, 500);
+  const m = clamp(Math.round(Number(el('mc-store').value) || 1), 1, 500);
+  let e0 = clamp(Number(el('mc-emin').value), -25, 100);
+  let e1 = clamp(Number(el('mc-emax').value), -25, 100);
+  let f0 = clamp(Number(el('mc-fmin').value), -25, 100);
+  let f1 = clamp(Number(el('mc-fmax').value), -25, 100);
+  if(e1 < e0){ const t = e0; e0 = e1; e1 = t; }
+  if(f1 < f0){ const t = f0; f0 = f1; f1 = t; }
+  el('mc-sku').value = n; el('mc-store').value = m;
+  el('mc-emin').value = e0; el('mc-emax').value = e1;
+  el('mc-fmin').value = f0; el('mc-fmax').value = f1;
+  return { n:n, m:m, e0:e0 / 100, e1:e1 / 100, f0:f0 / 100, f1:f1 / 100,
+           aSkew:Number(el('mc-askew').value), bSkew:Number(el('mc-bskew').value) };
+}
+
+function mcStart(){
+  if(mcRunning) return;
+  const cfg = readMC();
+  const n = cfg.n, m = cfg.m;
+  const skuShare = paretoShares(n, cfg.aSkew);
+  const cityShare = paretoShares(m, cfg.bSkew);
+  const TOTAL = 2 * WEEKS * n * m;             /* two per city per bag per week */
+  const fixed = ECON.fixedPct * TOTAL * ECON.price;
+  const F = new Float64Array(n);               /* forecast per bag, all cities */
+  for(let i = 0; i < n; i++) F[i] = TOTAL * skuShare[i];
+  const g = new Float64Array(m);               /* city share of any bag */
+  for(let j = 0; j < m; j++) g[j] = cityShare[j];
+
+  const combos = [];
+  ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
+    combos.push({ st:st, sp:sp, s:st / 100, p:sp / 100 }); }); });
+  const sumT = new Float64Array(combos.length);
+  const sumM = new Float64Array(combos.length);
+  /* production is kept as well as margin: margin at any other unit cost is
+     then turnover − production x cost − fixed, with nothing to re-run */
+  const sumP = new Float64Array(combos.length);
+  const wins = new Float64Array(combos.length);
+
+  const A = new Float64Array(n), u = new Float64Array(m), B = new Float64Array(m);
+  const idx = new Int32Array(m);
+  const Pg = new Float64Array(m + 1), PB = new Float64Array(m + 1);
+  const su = new Float64Array(m);
+  let seasons = 0, minErr = 1e9, maxErr = -1e9;
+
+  function season(){
+    let SA = 0, SB = 0;
+    for(let i = 0; i < n; i++){
+      A[i] = F[i] * (1 + cfg.e0 + Math.random() * (cfg.e1 - cfg.e0));
+      SA += A[i];
+    }
+    for(let j = 0; j < m; j++){
+      u[j] = 1 + cfg.f0 + Math.random() * (cfg.f1 - cfg.f0);
+      B[j] = g[j] * u[j];
+      SB += B[j];
+    }
+    const scale = TOTAL / (SA * SB);
+    /* what the typed range actually became once the season was recentred */
+    for(let i = 0; i < n; i++){
+      const e = A[i] * SB * scale / F[i] - 1;
+      if(e < minErr) minErr = e;
+      if(e > maxErr) maxErr = e;
+    }
+    for(let j = 0; j < m; j++) idx[j] = j;
+    const arr = Array.prototype.slice.call(idx);
+    arr.sort(function(x, y){ return u[x] - u[y]; });
+    for(let k = 0; k < m; k++){ su[k] = u[arr[k]]; Pg[k + 1] = Pg[k] + g[arr[k]]; PB[k + 1] = PB[k] + B[arr[k]]; }
+    const Gall = Pg[m], Ball = PB[m];
+
+    let bestM = -Infinity, bestK = 0;
+    for(let c = 0; c < combos.length; c++){
+      const p = combos[c].p, s = combos[c].s;
+      let sold = 0, prodAll = 0;
+      for(let i = 0; i < n; i++){
+        const prod = F[i] / s;
+        prodAll += prod;
+        const dScale = A[i] * scale;           /* d(i,j) = dScale * B[j] */
+        if(p === 0){
+          const dTot = dScale * Ball;
+          sold += Math.min(dTot, prod);
+          continue;
+        }
+        const theta = prod * p / dScale;       /* a city runs out iff u >= theta */
+        let lo = 0, hi = m;                    /* first index with su >= theta */
+        while(lo < hi){ const mid = (lo + hi) >> 1; if(su[mid] < theta) lo = mid + 1; else hi = mid; }
+        const gHigh = Gall - Pg[lo], bLow = PB[lo], bHigh = Ball - PB[lo];
+        const onShelf = prod * p * gHigh + dScale * bLow;
+        const shortfall = Math.max(0, dScale * bHigh - prod * p * gHigh);
+        sold += onShelf + Math.min(shortfall, prod * (1 - p));
+      }
+      const turnover = sold * ECON.price;
+      const margin = turnover - prodAll * ECON.cost - fixed;
+      sumT[c] += turnover; sumM[c] += margin; sumP[c] += prodAll;
+      if(margin > bestM){ bestM = margin; bestK = c; }
+    }
+    wins[bestK]++;
+    seasons++;
+  }
+
+  mcRunning = true; mcAbort = false;
+  el('btn-mc').disabled = true; el('btn-mc-stop').disabled = false;
+  const t0 = performance.now(), BUDGET = 20000;
+  function chunk(){
+    const c0 = performance.now();
+    while(performance.now() - c0 < 70){
+      season();
+      if(performance.now() - t0 > BUDGET) break;
+    }
+    const done = Math.min(1, (performance.now() - t0) / BUDGET);
+    el('mc-bar').style.width = (done * 100).toFixed(1) + '%';
+    el('mc-line').textContent = fmt(seasons) + ' seasons · '
+      + fmt(seasons * combos.length) + ' combinations tested';
+    if(!mcAbort && performance.now() - t0 < BUDGET){ requestAnimationFrame(chunk); return; }
+    finish();
+  }
+  function finish(){
+    mcRunning = false;
+    el('btn-mc').disabled = false; el('btn-mc-stop').disabled = true;
+    el('mc-bar').style.width = '100%';
+    const avgT = {}, avgP = {}, win = {};
+    combos.forEach(function(c, i){
+      avgT[key(c.st, c.sp)] = sumT[i] / seasons;
+      avgP[key(c.st, c.sp)] = sumP[i] / seasons;
+      win[key(c.st, c.sp)] = wins[i] / seasons;
+    });
+    mcResult = { avgT:avgT, avgP:avgP, win:win, seasons:seasons, combos:combos.length,
+                 n:n, m:m, minErr:minErr, maxErr:maxErr, total:TOTAL, fixed:fixed };
+    renderMC();
+  }
+  requestAnimationFrame(chunk);
+}
+
+let mcResult = null;
+function renderMC(){
+  if(!mcResult) return;
+  const r = mcResult;
+  const cost = Number(el('mc-cost').value);
+  el('mc-cost-read').textContent = fmtE(cost) + ' — ' + (cost / ECON.price * 100).toFixed(0) + '% of the price';
+  const gT = function(st, sp){ return r.avgT[key(st, sp)]; };
+  const gM = function(st, sp){ return r.avgT[key(st, sp)] - r.avgP[key(st, sp)] * cost - r.fixed; };
+  const bt = best(gT), bm = best(gM);
+  matrix('mx-mt', gT, fmtK, function(st, sp){ return (st === bt.st && sp === bt.sp) ? 'T' : ''; });
+  matrix('mx-mm', gM, fmtK, function(st, sp){ return (st === bm.st && sp === bm.sp) ? 'M' : ''; });
+  el('mc-out').classList.remove('hidden');
+  el('mc-line').textContent = fmt(r.seasons) + ' seasons · '
+    + fmt(r.seasons * r.combos) + ' combinations tested · '
+    + fmt(r.n) + ' bags × ' + fmt(r.m) + ' boutiques';
+  let winner = null;
+  ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
+    const w = r.win[key(st, sp)];
+    if(!winner || w > winner.w) winner = { st:st, sp:sp, w:w }; }); });
+  el('mc-read').innerHTML =
+      '<div class="note"><b>★ Best average turnover</b> ' + bt.st + '% / ' + bt.sp + '%. &nbsp; '
+    + '<b>◆ Best average margin</b> ' + bm.st + '% / ' + bm.sp + '%. &nbsp; '
+    + 'The margin winner took ' + (winner.w * 100).toFixed(0) + '% of individual seasons at '
+    + winner.st + '% / ' + winner.sp + '%.</div>'
+    + '<p class="small muted">The error you typed became '
+    + (r.minErr * 100).toFixed(0) + '% to +' + (r.maxErr * 100).toFixed(0)
+    + '% per bag once each season was recentred on the forecast. '
+    + 'Margin is recomputed from the same seasons whenever the cost moves, so nothing '
+    + 'is re-run. Quantities are continuous here rather than whole bags — across '
+    + fmt(r.n * r.m) + ' lines the rounding changes nothing and costs a great deal of time.</p>';
+}
+
+/* =========================================================================
+   8. STAGE 5 — what the bag costs
+   =========================================================================
+   Only the margin optimum can move. Turnover does not contain the cost, so
+   its best square is fixed — which is exactly the point worth making. */
+function renderCost(){
+  const c = Number(el('cost-slider').value);
+  el('cost-read').textContent = fmtE(c) + ' — ' + (c / ECON.price * 100).toFixed(0) + '% of the price';
+  const cache = {};
+  ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
+    cache[key(st, sp)] = run(st, sp, c).t; }); });
+  const gT = function(st, sp){ return cache[key(st, sp)].turnover; };
+  const gM = function(st, sp){ return cache[key(st, sp)].margin; };
+  const bt = best(gT), bm = best(gM);
+  matrix('mx-ct', gT, fmtK, function(st, sp){ return (st === bt.st && sp === bt.sp) ? 'T' : ''; });
+  matrix('mx-cm', gM, fmtK, function(st, sp){
+    return ((st === bm.st && sp === bm.sp) ? 'M' : '') + ((st === bt.st && sp === bt.sp) ? 'T' : ''); });
+  const same = bt.st === bm.st && bt.sp === bm.sp;
+  el('cost-read2').innerHTML =
+      '<div class="note">★ turnover is best at <b>' + bt.st + '% / ' + bt.sp + '%</b> — and stays there '
+    + 'whatever the cost, because the cost is not in the turnover. '
+    + '◆ margin is best at <b>' + bm.st + '% / ' + bm.sp + '%</b>, worth ' + fmtE(bm.v) + '. '
+    + (same ? 'At this cost the two agree.'
+            : 'Chasing the turnover square instead would leave '
+              + fmtE(bm.v - cache[key(bt.st, bt.sp)].margin) + ' of margin on the table.')
+    + '</div>'
+    + '<div class="note q">Drag the cost and watch ◆ travel. At what point does it stop being '
+    + 'worth making the extra bags, and what in your own collection sits on either side of that line?</div>';
+}
+
+/* =========================================================================
+   9. STAGE 6 — what central stock cannot do
+   ========================================================================= */
+function renderLimit(){
+  let h = '<table class="grid"><thead><tr><th>Bag</th><th>Forecast</th><th>Made at 100%</th>'
+        + '<th>Real demand</th><th>Sold</th><th>Turned away</th><th>Left over</th>'
+        + '</tr></thead><tbody>';
+  let lost = 0, left = 0;
+  const maxV = Math.max.apply(null, D_BAG.concat(F_BAG));
+  BAGS.forEach(function(b, i){
+    const prod = F_BAG[i];                       /* 100% sell-through target */
+    const sold = Math.min(prod, D_BAG[i]);
+    const l = D_BAG[i] - sold, o = prod - sold;
+    lost += l; left += o;
+    h += '<tr><td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>'
+       + '<td>' + cell(F_BAG[i], maxV, '#9aa7b3') + '</td>'
+       + '<td>' + fmt(prod) + '</td>'
+       + '<td>' + cell(D_BAG[i], maxV, b.color) + '</td>'
+       + '<td>' + fmt(sold) + '</td>'
+       + '<td>' + (l ? '<span class="down">' + fmt(l) + '</span>' : '—') + '</td>'
+       + '<td>' + (o ? fmt(o) : '—') + '</td></tr>';
+  });
+  h += '<tr class="tot"><td>All five</td><td>' + fmt(F_TOTAL) + '</td><td>' + fmt(F_TOTAL)
+     + '</td><td>' + fmt(rowSum(D_BAG)) + '</td><td>' + fmt(rowSum(D_BAG) - lost)
+     + '</td><td><span class="down">' + fmt(lost) + '</span></td><td>' + fmt(left)
+     + '</td></tr></tbody></table>';
+  h += '<div class="note" style="margin-top:18px;">'
+     + 'Nothing was placed in a boutique in advance, every bag went out on demand, '
+     + 'and the season still turned <b>' + fmt(lost) + '</b> customers away while '
+     + '<b>' + fmt(left) + '</b> bags went unsold. The company made exactly the right '
+     + 'number in total — ' + fmt(F_TOTAL) + ' against ' + fmt(rowSum(D_BAG)) + ' — and '
+     + 'still lost ' + fmtE(lost * ECON.price) + ' of turnover.'
+     + '</div>'
+     + '<div class="note q">'
+     + 'A warehouse pools one bag across five cities. It does not pool one bag '
+     + 'against another. Which of the two errors did this season actually make, '
+     + 'and which one did the warehouse fix?'
+     + '</div>'
+     + '<p class="small muted" style="margin-top:14px;">'
+     + 'And this was the generous version: replenishment instant, always in the right '
+     + 'direction, never a day late. Put the lead time back, ask what an empty shelf '
+     + 'costs a boutique that lives on walk-in, and let the factory change its mind '
+     + 'mid-season — each of those is a further page.</p>';
+  el('limit-body').innerHTML = h;
+}
+
+/* =========================================================================
+   10. WIRING
+   ========================================================================= */
+const STAGES = [
+  { id:'s0', title:'The board' },
+  { id:'s1', title:'One combination' },
+  { id:'s2', title:'Every combination' },
+  { id:'s3', title:'Any network, any collection' },
+  { id:'s4', title:'What the bag costs' },
+  { id:'s5', title:'What central stock cannot do' }
+];
+let stage = 0;
+
+function renderStage(){
+  STAGES.forEach(function(s, i){ el(s.id).classList.toggle('hidden', i !== stage); });
+  el('pill').textContent = (stage + 1) + ' / ' + STAGES.length;
+  el('stitle').textContent = STAGES[stage].title;
+  el('btn-prev').disabled = stage === 0;
+  el('btn-next').disabled = stage === STAGES.length - 1;
+  el('btn-next').innerHTML = stage === STAGES.length - 1
+    ? 'End' : 'Next<span class="kbd">↵ Enter</span>';
+  if(stage === 2) renderMatrices();
+  if(stage === 3) mcHints();
+  if(stage === 4) renderCost();
+  if(stage === 5) renderLimit();
+  window.scrollTo(0, 0);
+}
+
+function init(){
+  renderBoard();
+  buildSegs();
+  sayTrial();
+  el('btn-test').addEventListener('click', testCombo);
+  el('btn-fill').addEventListener('click', fillAll);
+  el('btn-mc').addEventListener('click', mcStart);
+  el('btn-mc-stop').addEventListener('click', function(){ mcAbort = true; });
+  ['mc-sku','mc-store','mc-askew','mc-bskew'].forEach(function(id){
+    el(id).addEventListener('input', mcHints);
+  });
+  el('cost-slider').addEventListener('input', renderCost);
+  el('mc-cost').addEventListener('input', renderMC);
+  el('btn-next').addEventListener('click', function(){
+    if(stage < STAGES.length - 1){ stage++; renderStage(); } });
+  el('btn-prev').addEventListener('click', function(){
+    if(stage > 0){ stage--; renderStage(); } });
+  document.addEventListener('keydown', function(e){
+    if(/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+    if(e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight'){
+      e.preventDefault(); if(stage < STAGES.length - 1){ stage++; renderStage(); }
+    }else if(e.key === 'ArrowLeft'){
+      e.preventDefault(); if(stage > 0){ stage--; renderStage(); }
+    }
+  });
+  renderStage();
+}
+init();
+</script>
+</body>
+</html>
