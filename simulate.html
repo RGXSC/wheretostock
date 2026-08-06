@@ -121,6 +121,15 @@
   .dcell{ display:flex; align-items:baseline; justify-content:flex-end; gap:7px; }
   .dcell .was{ color:var(--ink-soft); font-size:13px; }
   .dcell .now{ font-weight:800; }
+  /* the three parts of a cell, named once above the table */
+  .dlegend{ display:flex; gap:18px; flex-wrap:wrap; margin:0 0 12px; font-size:13px;
+            font-weight:700; color:var(--ink-soft); }
+  .dlegend i{ font-style:normal; }
+  .dlegend i.was{ color:var(--ink-soft); font-size:13px; font-weight:600; }
+  .dlegend i.now{ color:var(--ink); font-weight:800; }
+  .dlegend i.dx{ font-size:12px; font-weight:800; padding:1px 7px; border-radius:4px;
+                 background:#efe3dc; color:var(--bad); }
+  td.seasontot{ border-left:2px solid var(--line-soft); }
   .dcell .dx{ font-size:12px; font-weight:800; padding:1px 5px; border-radius:4px;
               color:#fff; min-width:34px; text-align:center; }
   .dx.over{ background:var(--bad); }        /* asked for more than we planned */
@@ -137,18 +146,24 @@
   tr.follrow.lo td:first-child{ box-shadow:inset 3px 0 0 #8b96a1; }
   tr.follrow.hi td{ background:#fdf1ec; }
   tr.follrow.hi td:first-child{ box-shadow:inset 3px 0 0 var(--bad); }
+  /* the transposed table: boutiques across the top, one line of the story
+     per row, the two followed boutiques tinted down their whole column */
+  /* the row labels are a caption column, not a data column: give them what
+     they need and no more, so the boutiques keep the width */
+  table.flip th:first-child{ text-align:left; font-size:14px; font-weight:700;
+                             color:var(--ink-soft); white-space:nowrap;
+                             width:1%; padding:6px 16px 6px 0; text-transform:none;
+                             letter-spacing:0; }
+  table.flip thead th:first-child{ width:1%; }
+  table.flip td.foll.lo, table.flip th.foll.lo{ background:#eef1f4; }
+  table.flip td.foll.hi, table.flip th.foll.hi{ background:#fdf1ec; }
+  table.flip th.foll{ color:var(--ink); }
+  table.flip tr.need th, table.flip tr.miss th{ color:var(--bad); }
+  table.flip tr.sent th{ color:var(--good); }
+  table.flip tr.tot td, table.flip tr.tot th{ border-top:2px solid var(--line-soft); }
   .focuscard.good{ border-color:#8fc2a2; }
   .focuscard.good .big{ color:var(--good); }
-  .sdgrid{ display:grid; grid-template-columns:1fr; gap:0 22px; align-items:start; }
-  @media (min-width:1180px){
-    /* the table takes the width it needs — a fractional column squeezed the
-       season total off the right-hand edge — and the example takes the rest */
-    .sdgrid{ grid-template-columns:minmax(0,max-content) minmax(290px,1fr); }
-    .sdgrid #demand-table{ overflow-x:auto; }
-    .sdgrid #demand-focus{ margin-top:18px; }
-    .sdgrid .focusbox{ grid-template-columns:1fr; }
-    .sdgrid #demand-focus h3{ margin-top:0 !important; }
-  }
+  #demand-table{ overflow-x:auto; }
   .focusbox{ display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
              gap:18px; margin-top:16px; }
   .focuscard{ border:2px solid var(--line-soft); border-radius:var(--radius); padding:16px 18px; }
@@ -279,12 +294,7 @@
   <div class="card">
     <h2 style="margin-bottom:12px;">What the season actually asked for</h2>
     <button class="btn-primary" id="btn-reveal">Reveal the real demand</button>
-    <!-- the table and the worked example it points at, side by side on a wide
-         screen: stacked, the slide ran a third past the bottom of a laptop -->
-    <div class="sdgrid">
-      <div id="demand-table" style="margin-top:18px;"></div>
-      <div id="demand-focus" class="hidden"></div>
-    </div>
+    <div id="demand-table" style="margin-top:18px;"></div>
   </div>
   <div class="card hidden" id="trial-out"></div>
 </section>
@@ -295,7 +305,6 @@
     <h2 style="margin-bottom:4px;">The warehouse still holds stock</h2>
     <p class="small muted" id="wh-say" style="margin:0 0 12px;"></p>
     <button class="btn-primary" id="btn-warehouse">Use the warehouse stock</button>
-    <div id="wh-focus" style="margin-top:16px;"></div>
   </div>
   <div class="card hidden" id="wh-out"></div>
 </section>
@@ -750,33 +759,41 @@ function worstPair(){
 
 function renderDemand(){
   const w = demandShown ? worstPair() : null;
-  let h = '<table class="grid"><thead><tr><th>Bag</th>'
-        + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
-        + '<th>Season</th></tr></thead><tbody>';
+  /* one cell format everywhere — inside the matrix, down the season column
+     and along the bottom row — so the eye reads the same three parts each
+     time: what was forecast, what the season asked for, and the gap */
+  const dcell = function(f, d){
+    if(!demandShown)
+      return '<span class="dcell"><span class="was">' + fmt(f) + '</span>'
+           + '<span class="now" style="color:var(--ink-soft)">?</span></span>';
+    const dx = d - f;
+    return '<span class="dcell"><span class="was">' + fmt(f) + ' &rarr;</span>'
+         + '<span class="now">' + fmt(d) + '</span>'
+         + '<span class="dx ' + (dx > 0 ? 'over' : dx < 0 ? 'under' : 'flat') + '">'
+         + (dx > 0 ? '+' : '') + fmt(dx) + '</span></span>';
+  };
+
+  let h = '<div class="dlegend"><span><i class="was">forecast</i></span>'
+        + '<span><i class="now">the actual demand</i></span>'
+        + '<span><i class="dx over">the gap</i></span></div>';
+  h += '<table class="grid"><thead><tr><th>Bag</th>'
+     + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
+     + '<th>Season</th></tr></thead><tbody>';
   BAGS.forEach(function(b, i){
     h += '<tr><td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>';
     BOUTIQUES.forEach(function(c, j){
-      const f = FORECAST[i][j], d = DEMAND[i][j], dx = d - f;
       const hit = w && w.i === i ? (w.lo.j === j ? ' class="hit-left"'
                                   : w.hi.j === j ? ' class="hit-away"' : '') : '';
-      if(!demandShown){
-        h += '<td><span class="dcell"><span class="was">' + f + '</span>'
-           + '<span class="now" style="color:var(--ink-soft)">?</span></span></td>';
-        return;
-      }
-      h += '<td' + hit + '><span class="dcell"><span class="was">' + f + ' →</span>'
-         + '<span class="now">' + d + '</span>'
-         + '<span class="dx ' + (dx > 0 ? 'over' : dx < 0 ? 'under' : 'flat') + '">'
-         + (dx > 0 ? '+' : '') + dx + '</span></span></td>';
+      h += '<td' + hit + '>' + dcell(FORECAST[i][j], DEMAND[i][j]) + '</td>';
     });
-    h += '<td><b class="num">' + (demandShown ? fmt(D_BAG[i]) : fmt(F_BAG[i])) + '</b></td></tr>';
+    h += '<td class="seasontot">' + dcell(F_BAG[i], D_BAG[i]) + '</td></tr>';
   });
   h += '<tr class="tot"><td>All five</td>'
      + BOUTIQUES.map(function(c, j){
          const f = FORECAST.reduce(function(a, r){ return a + r[j]; }, 0);
          const d = DEMAND.reduce(function(a, r){ return a + r[j]; }, 0);
-         return '<td>' + (demandShown ? f + ' → ' + d : f) + '</td>'; }).join('')
-     + '<td>' + (demandShown ? fmt(rowSum(D_BAG)) : fmt(F_TOTAL)) + '</td></tr></tbody></table>';
+         return '<td>' + dcell(f, d) + '</td>'; }).join('')
+     + '<td class="seasontot">' + dcell(F_TOTAL, rowSum(D_BAG)) + '</td></tr></tbody></table>';
   el('demand-table').innerHTML = h;
   el('btn-reveal').classList.toggle('hidden', demandShown);
   if(demandShown) renderConsequence();
@@ -812,10 +829,9 @@ function followCards(after){
 }
 
 function renderConsequence(){
-  const box = el('demand-focus');
-  box.innerHTML = '<h3 style="margin-top:18px;">' + esc(BAGS[FOLLOW.i].name)
-                + ', placed to the plan</h3>' + followCards(false);
-  box.classList.remove('hidden');
+  /* No cards here. Before the warehouse has been asked, "left over" and
+     "turned away" are both premature — this slide is the demand and nothing
+     else, and the table below carries the two followed boutiques. */
   /* The demand is only half the story: what the boutiques could actually
      serve out of the launch push is the other half, and it is the step the
      warehouse then answers — on the next slide, so the before and the after
@@ -823,20 +839,21 @@ function renderConsequence(){
   testCombo();
 }
 
-/* Slide 4. Opens on the same two cases as they stood at the end of slide 3,
-   then the button refills what the central pile can reach. */
+/* Slide 4. Opens on the network exactly as slide 3 left it — the same
+   boutique table, with the row that says how much each one still needs — and
+   the button then fills what the central pile can reach. */
 function renderWarehouse(){
-  const x = runBag(FOLLOW.i, stPick, spPick);
-  const away = rowSum(BAGS.map(function(b, i){ return runBag(i, stPick, spPick).shortTot; }));
-  const central = rowSum(BAGS.map(function(b, i){ return runBag(i, stPick, spPick).central; }));
+  const bags = BAGS.map(function(b, i){ return runBag(i, stPick, spPick); });
+  const away = rowSum(bags.map(function(x){ return x.shortTot; }));
+  const central = rowSum(bags.map(function(x){ return x.central; }));
   el('wh-say').innerHTML = '<b class="num">' + fmt(central) + '</b> pieces never left the warehouse, '
-    + 'against <b class="num">' + fmt(away) + '</b> customers turned away.';
-  el('wh-focus').innerHTML =
-      '<h3 style="margin:0 0 10px;">' + esc(BAGS[FOLLOW.i].name) + ', '
-    + (whUsed ? 'after the warehouse' : 'as the boutiques left it') + '</h3>'
-    + followCards(whUsed);
+    + 'against <b class="num">' + fmt(away) + '</b> the boutiques still need.';
   el('btn-warehouse').classList.toggle('hidden', whUsed);
-  if(whUsed) testCombo(); else el('wh-out').classList.add('hidden');
+  if(whUsed){ testCombo(); return; }
+  const host = el('wh-out');
+  host.innerHTML = followTable(false);
+  host.classList.remove('hidden');
+  fitBars(host);
 }
 
 function useWarehouse(){
@@ -896,7 +913,7 @@ function renderPlacement(){
         + BOUTIQUES.map(function(c, j){
             return '<th' + (j === FOLLOW.a || j === FOLLOW.b ? ' class="foll"' : '') + '>'
                  + c + '</th>'; }).join('')
-        + '<th>Central</th></tr></thead><tbody>';
+        + '<th>Warehouse</th></tr></thead><tbody>';
   BAGS.forEach(function(b, i){
     const x = rows[i];
     h += '<tr' + (i === FOLLOW.i ? ' class="follrow"' : '') + '>'
@@ -925,36 +942,47 @@ function renderPlacement(){
 function followTable(after){
   const i = FOLLOW.i, x = runBag(i, stPick, spPick);
   const maxV = Math.max.apply(null, x.push.concat(DEMAND[i]));
+  const mark = function(j){
+    return j === FOLLOW.a ? ' class="foll lo"' : j === FOLLOW.b ? ' class="foll hi"' : '';
+  };
+  /* Boutiques across the top, the same axis they have on every other table on
+     this page. Each row is one line of the story, in the order it happens. */
+  const line = function(label, get, tot, cls){
+    return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><th>' + label + '</th>'
+         + BOUTIQUES.map(function(c, j){ return '<td' + mark(j) + '>' + get(j) + '</td>'; }).join('')
+         + '<td class="seasontot">' + tot + '</td></tr>';
+  };
   let h = '<h3>' + esc(BAGS[i].name) + ', boutique by boutique</h3>'
-        + '<table class="grid" style="margin-top:10px;"><thead><tr><th>Boutique</th>'
-        + '<th>Given at launch</th><th>Asked for</th><th>Sold on the shelf</th>'
-        + (after ? '<th>Sent on demand</th><th>Sold</th>' : '')
-        + '<th>Turned away</th><th>Left over</th></tr></thead><tbody>';
-  BOUTIQUES.forEach(function(c, j){
-    const given = x.push[j], want = DEMAND[i][j], shelf = x.sold[j];
-    const sent = after ? x.servedBy[j] : 0;
-    const away = after ? x.lostBy[j] : x.short[j];
-    const left = given - shelf;
-    const mark = j === FOLLOW.a ? ' class="follrow lo"'
-               : j === FOLLOW.b ? ' class="follrow hi"' : '';
-    h += '<tr' + mark + '><td><b>' + esc(c) + '</b></td>'
-       + '<td>' + cell(given, maxV, BAGS[i].color) + '</td>'
-       + '<td>' + cell(want, maxV, '#4d5560') + '</td>'
-       + '<td>' + cell(shelf, maxV, BAGS[i].color) + '</td>'
-       + (after ? '<td>' + cell(sent, maxV, '#0f6b45') + '</td>'
-                + '<td><b class="num">' + fmt(shelf + sent) + '</b></td>' : '')
-       + '<td>' + (away ? '<span class="down">' + fmt(away) + '</span>' : '—') + '</td>'
-       + '<td>' + (left ? fmt(left) : '—') + '</td></tr>';
-  });
-  const shelfTot = rowSum(x.sold);
-  h += '<tr class="tot"><td>All five</td><td>' + fmt(x.pushTotal) + '</td>'
-     + '<td>' + fmt(D_BAG[i]) + '</td><td>' + fmt(shelfTot) + '</td>'
-     + (after ? '<td>' + fmt(x.served) + '</td><td>' + fmt(x.total) + '</td>' : '')
-     + '<td><span class="down">' + fmt(after ? x.lost : x.shortTot) + '</span></td>'
-     + '<td>' + fmt(x.pushTotal - shelfTot) + '</td></tr></tbody></table>'
-     + '<p class="small muted" style="margin-top:8px;">'
-     + fmt(x.central) + ' ' + esc(BAGS[i].name) + ' stayed central'
-     + (after ? ', ' + fmt(x.served) + ' of them shipped on demand.' : '.') + '</p>';
+        + '<table class="grid flip" style="margin-top:10px;"><thead><tr><th></th>'
+        + BOUTIQUES.map(function(c, j){ return '<th' + mark(j) + '>' + c + '</th>'; }).join('')
+        + '<th>All five</th></tr></thead><tbody>';
+
+  h += line('Given at launch',
+        function(j){ return cell(x.push[j], maxV, BAGS[i].color); }, fmt(x.pushTotal));
+  h += line('The actual demand',
+        function(j){ return cell(DEMAND[i][j], maxV, '#4d5560'); }, fmt(D_BAG[i]));
+  h += line('Sold on the shelf',
+        function(j){ return cell(x.sold[j], maxV, BAGS[i].color); }, fmt(rowSum(x.sold)));
+  /* "turned away" is the wrong word before the warehouse has been asked:
+     nothing is lost yet, it is a quantity the boutique needs sending. */
+  h += line('Needed from the warehouse',
+        function(j){ return x.short[j] ? '<span class="down">' + fmt(x.short[j]) + '</span>' : '—'; },
+        '<span class="down">' + fmt(x.shortTot) + '</span>', 'need');
+  if(after){
+    h += line('Sent from the warehouse',
+          function(j){ return x.servedBy[j] ? cell(x.servedBy[j], maxV, '#0f6b45') : '—'; },
+          fmt(x.served), 'sent');
+    h += line('Still missing',
+          function(j){ return x.lostBy[j] ? '<span class="down">' + fmt(x.lostBy[j]) + '</span>' : '—'; },
+          '<span class="down">' + fmt(x.lost) + '</span>', 'miss');
+    h += line('Sold',
+          function(j){ return '<b class="num">' + fmt(x.sold[j] + x.servedBy[j]) + '</b>'; },
+          '<b class="num">' + fmt(x.total) + '</b>', 'tot');
+  }
+  h += line('Left on the shelf',
+        function(j){ const v = x.push[j] - x.sold[j]; return v ? fmt(v) : '—'; },
+        fmt(x.pushTotal - rowSum(x.sold)));
+  h += '</tbody></table>';
   return h;
 }
 
@@ -969,12 +997,27 @@ function testCombo(){
   let h = '<h3>' + stPick + '% sell-through · ' + spPick + '% in the boutiques</h3>';
   h += followTable(whUsed);
 
+  /* Slide 3 stops here. The whole-collection roll-up and the money belong on
+     the slide where the warehouse has actually been used; before that they
+     only make the page longer. The two followed boutiques come after the
+     table rather than before it — the network first, then the two cases. */
+  if(!whUsed){
+    const host0 = el('trial-out');
+    host0.innerHTML = h;
+    host0.classList.remove('hidden');
+    fitBars(host0);
+    return;
+  }
+  h += '<h3 style="margin-top:22px;">' + esc(BAGS[FOLLOW.i].name)
+     + ', the two we have been following</h3>' + followCards(true);
+
   h += '<h3 style="margin-top:22px;">All five bags, summed across the five boutiques</h3>';
   h += '<table class="grid" style="margin-top:10px;"><thead><tr><th>Bag</th>'
-     + '<th>Made</th><th>To boutiques</th><th>Central</th><th>Demand</th>'
+     + '<th>Made</th><th>To boutiques</th><th>Warehouse</th><th>Demand</th>'
      + '<th>Sold on the shelf</th>'
-     + (whUsed ? '<th>Sent on demand</th><th>Sold</th>' : '')
-     + '<th>Turned away</th><th>Left</th></tr></thead><tbody>';
+     /* the same words as the boutique table above it: one name per number */
+     + (whUsed ? '<th>Sent from the warehouse</th><th>Sold</th>' : '')
+     + '<th>Still missing</th><th>Left on the shelf</th></tr></thead><tbody>';
   BAGS.forEach(function(b, i){
     const x = r.bags[i];
     const away = whUsed ? x.lost : x.shortTot;
@@ -999,12 +1042,7 @@ function testCombo(){
      + '<td>' + (awayTot ? '<span class="down">' + fmt(awayTot) + '</span>' : '—') + '</td><td>'
      + (leftTot ? fmt(leftTot) : '—') + '</td></tr></tbody></table>';
 
-  if(!whUsed){
-    /* the warehouse is its own slide now; here we only note what is still
-       sitting in it, which is the question the next slide answers */
-    h += '<p class="small muted" style="margin-top:12px;">' + fmt(t.central)
-       + ' central against ' + fmt(awayTot) + ' turned away.</p>';
-  }else{
+  {
     h += '<div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:12px;">'
        + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Turnover</div>'
        + '<div style="font-size:26px;font-weight:800;">' + fmtE(t.turnover) + '</div></div>'
@@ -1016,9 +1054,7 @@ function testCombo(){
        + '</div>';
   }
 
-  /* the shelf-only table belongs to the demand slide, the refilled one to the
-     warehouse slide: two pictures, so the change between them is visible */
-  const host = whUsed ? el('wh-out') : el('trial-out');
+  const host = el('wh-out');
   host.innerHTML = h;
   host.classList.remove('hidden');
   fitBars(host);

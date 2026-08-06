@@ -10,12 +10,21 @@ pictures rather than one table changing under you.
 
 - **Slide 2** — the two sliders, and a table of where every piece goes: each
   bag's launch push spread across the five boutiques on that bag's own
-  forecast row, and what stays central.
+  forecast row, and what stays in the warehouse.
 - **Slide 3** — the real demand revealed, and what the launch push alone
-  could serve. This is where the gaps appear.
-- **Slide 4** — *Use the warehouse stock*: every gap the bag's own central
-  pile can reach is filled, and what is still lost is what no logistics could
-  have reached.
+  could serve. Nothing is called *turned away* here: before the warehouse has
+  been asked, the gap is a quantity a boutique **needs sending**, not a lost
+  sale. Nor is anything called *left over* — that is only true at the end.
+- **Slide 4** — the same boutique table, opening exactly as slide 3 left it,
+  and then *Use the warehouse stock*: **needed → sent → still missing**, three
+  lines, so the room watches the loss shrink. Only then the two followed
+  cases, and only then the whole-collection roll-up and the money.
+
+Every table on those slides puts the **boutiques across the top** — the axis
+they have on the board, on the demand matrix and on the placement table. The
+demand matrix uses one cell format throughout, inside the squares and down the
+season column and along the bottom row, with a legend naming its three parts:
+the forecast, the actual demand, the gap.
 
 **One bag and two boutiques are followed across all three.** Aveline in Paris
 and Tokyo, fixed rather than computed: the plan sends them almost the same
