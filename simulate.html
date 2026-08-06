@@ -38,7 +38,10 @@
             background:var(--surface); border-top:2px solid var(--line-soft); }
   .footbar-inner{ max-width:1240px; margin:0 auto; padding:12px 20px;
                   display:flex; gap:12px; align-items:center; }
-  main{ padding:26px 0 110px; }
+  /* .wrap is a class and main is an element, so `.wrap { padding }` wins on
+     specificity — the bottom padding has to be written on main.wrap or the
+     last of the page sits under the fixed bar with no way to scroll to it */
+  main.wrap{ padding:26px 20px 130px; }
 
   button{ font:inherit; cursor:pointer; border-radius:8px; border:2px solid var(--line);
           background:var(--surface); color:var(--ink); font-weight:700;
@@ -50,10 +53,10 @@
   .kbd{ font-size:12px; font-weight:800; opacity:.8; border:1px solid currentColor;
         border-radius:5px; padding:1px 6px; margin-left:9px; }
 
-  .card{ background:var(--surface); border-radius:var(--radius); padding:22px 24px;
-         margin-bottom:18px; }
+  .card{ background:var(--surface); border-radius:var(--radius); padding:18px 24px;
+         margin-bottom:14px; }
   .note{ background:var(--accent-soft); border-left:4px solid var(--accent);
-         padding:12px 16px; border-radius:6px; margin:14px 0; }
+         padding:10px 16px; border-radius:6px; margin:10px 0; }
   .note.q{ background:#fdf6ec; border-left-color:#b06e28; }
   .hidden{ display:none !important; }
 
@@ -89,25 +92,25 @@
   /* -------------------------------------------------------------- picks */
   /* the same slider the game uses, so the two pages feel like one tool */
   .picks{ display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
-          gap:10px 40px; margin:6px 0 4px; }
+          gap:6px 40px; margin:4px 0 2px; }
   .pick label{ display:block; font-size:12px; font-weight:800; color:var(--ink-soft);
                text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px; }
   .sliderbox{ padding:4px 4px 0; }
-  .slidernow{ font-size:32px; font-weight:800; line-height:1; color:var(--accent);
-              text-align:center; margin-bottom:6px; font-variant-numeric:tabular-nums; }
+  .slidernow{ font-size:26px; font-weight:800; line-height:1; color:var(--accent);
+              text-align:center; margin-bottom:4px; font-variant-numeric:tabular-nums; }
   .slider{ -webkit-appearance:none; appearance:none; width:100%;
-           background:transparent; height:46px; margin:0; cursor:pointer; }
+           background:transparent; height:40px; margin:0; cursor:pointer; }
   .slider:focus-visible{ outline:3px solid var(--accent); outline-offset:4px; border-radius:8px; }
   .slider::-webkit-slider-runnable-track{
     height:16px; border-radius:8px; background:var(--line-soft); border:2px solid var(--line); }
   .slider::-webkit-slider-thumb{
-    -webkit-appearance:none; width:42px; height:42px; border-radius:50%;
-    background:var(--accent); border:4px solid #fff; margin-top:-15px;
+    -webkit-appearance:none; width:36px; height:36px; border-radius:50%;
+    background:var(--accent); border:4px solid #fff; margin-top:-12px;
     box-shadow:0 2px 10px rgba(10,30,50,.4); }
   .slider::-moz-range-track{
     height:16px; border-radius:8px; background:var(--line-soft); border:2px solid var(--line); }
   .slider::-moz-range-thumb{
-    width:38px; height:38px; border-radius:50%; background:var(--accent);
+    width:32px; height:32px; border-radius:50%; background:var(--accent);
     border:4px solid #fff; box-shadow:0 2px 10px rgba(10,30,50,.4); }
   .ticks{ display:flex; justify-content:space-between; margin-top:-4px; }
   .ticks span{ font-size:14px; font-weight:700; color:var(--ink-soft);
@@ -123,6 +126,9 @@
   .dx.over{ background:var(--bad); }        /* asked for more than we planned */
   .dx.under{ background:#8b96a1; }          /* asked for less */
   .dx.flat{ background:none; color:var(--ink-soft); }
+  /* the two cells the worked example is about, marked in the table itself */
+  td.hit-left{ background:#eef1f4; box-shadow:inset 0 0 0 2px #8b96a1; }
+  td.hit-away{ background:#fdf1ec; box-shadow:inset 0 0 0 2px var(--bad); }
   .focusbox{ display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
              gap:18px; margin-top:16px; }
   .focuscard{ border:2px solid var(--line-soft); border-radius:var(--radius); padding:16px 18px; }
@@ -140,7 +146,7 @@
   table.matrix{ border-collapse:separate; border-spacing:4px; margin:0 auto; }
   table.matrix th{ font-size:12px; font-weight:800; color:var(--ink-soft);
                    text-transform:uppercase; letter-spacing:.04em; padding:3px 6px; }
-  table.matrix td{ min-width:78px; height:52px; padding:0; }
+  table.matrix td{ min-width:74px; height:44px; padding:0; }
   .mcell{ width:100%; height:100%; border-radius:7px; border:2px solid var(--line-soft);
           background:var(--surface); display:flex; flex-direction:column;
           justify-content:center; align-items:center; gap:3px; position:relative; }
@@ -214,11 +220,7 @@
 <!-- =========================================================== 2 DEMAND -->
 <section id="sd" class="hidden">
   <div class="card">
-    <h2>What the season actually asked for</h2>
-    <p class="small muted" style="margin:4px 0 14px;">
-      The forecast is the plan. Nobody knows the real demand until it walks
-      through the door.
-    </p>
+    <h2 style="margin-bottom:12px;">What the season actually asked for</h2>
     <button class="btn-primary" id="btn-reveal">Reveal the real demand</button>
     <div id="demand-table" style="margin-top:18px;"></div>
     <div id="demand-step2" class="hidden" style="margin-top:16px;">
@@ -232,11 +234,7 @@
 <section id="s1" class="hidden">
   <div class="card">
     <h2>Pick a combination and see the season out</h2>
-    <p class="small muted" style="margin:4px 0 0;">
-      Production is the forecast divided by the sell-through you target. The
-      launch push is split between the boutiques in proportion to their forecast.
-    </p>
-    <div class="picks" style="margin-top:18px;">
+    <div class="picks" style="margin-top:14px;">
       <div class="pick">
         <label>Target sell-through</label>
         <div class="sliderbox">
@@ -257,8 +255,8 @@
       </div>
     </div>
     <div id="trial-say" class="small muted"></div>
-    <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
-      <button class="btn-primary btn-xl" id="btn-test" style="max-width:340px;">Run this season</button>
+    <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
+      <button class="btn-primary" id="btn-test" style="max-width:340px;">Run this season</button>
     </div>
   </div>
   <div class="card hidden" id="trial-out"></div>
@@ -268,7 +266,7 @@
 <section id="s2" class="hidden">
   <div class="card">
     <h2>Every combination</h2>
-    <p class="small muted" style="margin:4px 0 12px;" id="matrix-sub"></p>
+    <p class="small muted" style="margin:2px 0 8px;" id="matrix-sub"></p>
     <div class="picks">
       <div class="pick">
         <label>Target sell-through</label>
@@ -289,28 +287,23 @@
         </div>
       </div>
     </div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:6px;">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:2px;">
       <button class="btn-primary" id="btn-test2">Test another combination</button>
       <button class="btn-ghost hidden" id="btn-fill">Test all combinations</button>
     </div>
-    <div style="margin-top:18px;" class="matrices">
+    <div style="margin-top:12px;" class="matrices">
       <div><h3 style="margin-bottom:8px;">Turnover</h3><div class="mwrap" id="mx-t"></div></div>
       <div><h3 style="margin-bottom:8px;">Margin</h3><div class="mwrap" id="mx-m"></div></div>
     </div>
     <div class="mlegend"><span><i style="background:#0f6b45;border-color:#0f6b45"></i>the best</span><span><i style="background:#cfe6d6;border-color:#8fc2a2"></i>within 5% of it</span><span><i style="background:#fff"></i>the rest</span></div>
-    <div id="matrix-read" class="hidden" style="margin-top:18px;"></div>
+    <div id="matrix-read" class="hidden" style="margin-top:6px;"></div>
   </div>
 </section>
 
 <!-- ====================================================== 4 MONTE CARLO -->
 <section id="s3" class="hidden">
   <div class="card">
-    <h2>Any network, any collection</h2>
-    <p class="small muted" style="margin:4px 0 16px;">
-      Five bags and five boutiques is one board out of many. Set the shape you want
-      and the page plays whole seasons of it, over and over, with a fresh
-      forecast error each time.
-    </p>
+    <h2 style="margin-bottom:14px;">Any network, any collection</h2>
     <div class="mcform">
       <div class="mcfield">
         <label>Bags in the collection</label>
@@ -338,13 +331,13 @@
         <label>Error on the forecast of a bag &nbsp;(min / max %)</label>
         <input type="number" id="mc-emin" min="-25" max="100" value="-25" style="width:88px">
         <input type="number" id="mc-emax" min="-25" max="100" value="60" style="width:88px">
-        <div class="hint">flat between the two, −25 to +100</div>
+        <div class="hint">flat distribution</div>
       </div>
       <div class="mcfield">
         <label>Error on the forecast of a boutique &nbsp;(min / max %)</label>
         <input type="number" id="mc-fmin" min="-25" max="100" value="-25" style="width:88px">
         <input type="number" id="mc-fmax" min="-25" max="100" value="60" style="width:88px">
-        <div class="hint">drawn separately, then multiplied</div>
+        <div class="hint">flat distribution</div>
       </div>
     </div>
     <div style="display:flex;gap:12px;margin-top:18px;flex-wrap:wrap;">
@@ -373,22 +366,17 @@
 <section id="s4" class="hidden">
   <div class="card">
     <h2>What the bag costs to make</h2>
-    <p class="small muted" style="margin:4px 0 14px;">
-      Back to the five boutiques. Everything else is held still; only the cost of
-      making one bag moves. Two squares are marked: ★ the best turnover,
-      ◆ the best margin.
-    </p>
-    <div class="mcfield" style="max-width:520px;">
+    <div class="mcfield" style="max-width:520px;margin-top:10px;">
       <label>Cost of one bag &nbsp;<span id="cost-read"></span></label>
       <input type="range" id="cost-slider" min="100" max="500" step="10" value="200">
     </div>
-    <div style="margin-top:16px;" class="matrices">
-      <div><h3 style="margin-bottom:8px;">Turnover</h3><div class="mwrap" id="mx-ct"></div></div>
-      <div><h3 style="margin-bottom:8px;">Margin</h3><div class="mwrap" id="mx-cm"></div></div>
+    <div style="margin-top:14px;max-width:640px;">
+      <div>
+        <h3 style="margin-bottom:6px;">Margin &nbsp;<span class="small muted" style="font-weight:600;">◆ best margin · ★ best turnover</span></h3>
+        <div class="mwrap" id="mx-cm"></div>
+        <div class="mlegend"><span><i style="background:#0f6b45;border-color:#0f6b45"></i>the best</span><span><i style="background:#cfe6d6;border-color:#8fc2a2"></i>within 5% of it</span><span><i style="background:#fff"></i>the rest</span></div>
+      </div>
     </div>
-    <div class="mlegend"><span><i style="background:#0f6b45;border-color:#0f6b45"></i>the best</span><span><i style="background:#cfe6d6;border-color:#8fc2a2"></i>within 5% of it</span><span><i style="background:#fff"></i>the rest</span></div>
-    <div id="cost-curve" style="margin-top:18px;"></div>
-    <div id="cost-read2" style="margin-top:16px;"></div>
   </div>
 </section>
 
@@ -661,7 +649,7 @@ function renderBoard(){
    is chosen from the tables rather than written down — the bag whose worst
    over-shoot and worst under-shoot are furthest apart in opposite directions,
    which is the clearest case of the same bag being in the wrong boutique. */
-let demandShown = false;
+let demandShown = false, focusOn = false;
 
 function worstPair(){
   let best = null;
@@ -680,7 +668,7 @@ function worstPair(){
 }
 
 function renderDemand(){
-  const maxCell = Math.max.apply(null, DEMAND.map(function(r){ return Math.max.apply(null, r); }));
+  const w = focusOn ? worstPair() : null;
   let h = '<table class="grid"><thead><tr><th>Bag</th>'
         + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
         + '<th>Season</th></tr></thead><tbody>';
@@ -688,12 +676,14 @@ function renderDemand(){
     h += '<tr><td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>';
     BOUTIQUES.forEach(function(c, j){
       const f = FORECAST[i][j], d = DEMAND[i][j], dx = d - f;
+      const hit = w && w.i === i ? (w.lo.j === j ? ' class="hit-left"'
+                                  : w.hi.j === j ? ' class="hit-away"' : '') : '';
       if(!demandShown){
         h += '<td><span class="dcell"><span class="was">' + f + '</span>'
            + '<span class="now" style="color:var(--ink-soft)">?</span></span></td>';
         return;
       }
-      h += '<td><span class="dcell"><span class="was">' + f + ' →</span>'
+      h += '<td' + hit + '><span class="dcell"><span class="was">' + f + ' →</span>'
          + '<span class="now">' + d + '</span>'
          + '<span class="dx ' + (dx > 0 ? 'over' : dx < 0 ? 'under' : 'flat') + '">'
          + (dx > 0 ? '+' : '') + dx + '</span></span></td>';
@@ -706,10 +696,6 @@ function renderDemand(){
          const d = DEMAND.reduce(function(a, r){ return a + r[j]; }, 0);
          return '<td>' + (demandShown ? f + ' → ' + d : f) + '</td>'; }).join('')
      + '<td>' + (demandShown ? fmt(rowSum(D_BAG)) : fmt(F_TOTAL)) + '</td></tr></tbody></table>';
-  if(demandShown)
-    h += '<div class="note" style="margin-top:16px;">'
-       + '<b>650 forecast, 650 sold.</b> The volume call was right to the unit. '
-       + 'Every error is in the spread — which bag, and which boutique.</div>';
   el('demand-table').innerHTML = h;
   el('demand-step2').classList.toggle('hidden', !demandShown);
   el('btn-reveal').classList.toggle('hidden', demandShown);
@@ -724,28 +710,21 @@ function renderConsequence(){
   const fHi = FORECAST[w.i][w.hi.j], dHi = DEMAND[w.i][w.hi.j];
   const left = fLo - dLo, away = dHi - fHi;
   el('demand-focus').innerHTML =
-      '<h3 style="margin-top:22px;">Take ' + esc(b.name) + ', and place it exactly to the plan</h3>'
-    + '<p class="small muted" style="margin-top:4px;">'
-    + esc(shopLo) + ' was given ' + fLo + ' and asked for ' + dLo + '. '
-    + esc(shopHi) + ' was given ' + fHi + ' and asked for ' + dHi + '.</p>'
+      '<h3 style="margin-top:18px;">' + esc(b.name) + ', placed exactly to the plan</h3>'
     + '<div class="focusbox">'
-    +   '<div class="focuscard left"><h4>' + esc(shopLo) + '</h4>'
+    +   '<div class="focuscard left"><h4>' + esc(shopLo) + ' · given ' + fLo
+    +     ', asked for ' + dLo + '</h4>'
     +     '<div class="big">' + left + ' left over</div>'
-    +     '<p>Bags that were made, paid for and shipped, and that nobody came in for. '
-    +     'They cost ' + fmtE(left * ECON.cost) + ' and earn nothing.</p></div>'
-    +   '<div class="focuscard away"><h4>' + esc(shopHi) + '</h4>'
+    +     '<p>' + fmtE(left * ECON.cost) + ' of stock</p></div>'
+    +   '<div class="focuscard away"><h4>' + esc(shopHi) + ' · given ' + fHi
+    +     ', asked for ' + dHi + '</h4>'
     +     '<div class="big">' + away + ' turned away</div>'
-    +     '<p>Customers who asked for ' + esc(b.name) + ' and were told there was none. '
-    +     'That is ' + fmtE(away * ECON.price) + ' of turnover that walked out.</p></div>'
-    + '</div>'
-    + '<div class="note q">The same bag, in the wrong boutique — and this is one bag out of '
-    + 'five, in one pair of boutiques out of ten. What would you have had to do differently '
-    + 'before the season started?</div>'
-    + '<p class="small muted" style="margin-top:12px;">Which is the whole question of the '
-    + 'next slide: how much to make, and how much of it to commit to a boutique before '
-    + 'anyone has walked in.</p>';
+    +     '<p>' + fmtE(away * ECON.price) + ' of turnover</p></div>'
+    + '</div>';
   el('demand-focus').classList.remove('hidden');
   el('btn-consequence').classList.add('hidden');
+  focusOn = true;
+  renderDemand();
 }
 
 /* =========================================================================
@@ -816,14 +795,14 @@ function testCombo(){
      + '</td><td>' + fmt(t.served) + '</td><td>' + fmt(t.sold) + '</td><td>'
      + (t.lost ? '<span class="down">' + fmt(t.lost) + '</span>' : '—') + '</td><td>'
      + (t.left ? fmt(t.left) : '—') + '</td></tr></tbody></table>';
-  h += '<div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:18px;">'
+  h += '<div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:12px;">'
      + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Turnover</div>'
-     + '<div style="font-size:30px;font-weight:800;">' + fmtE(t.turnover) + '</div></div>'
+     + '<div style="font-size:26px;font-weight:800;">' + fmtE(t.turnover) + '</div></div>'
      + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Margin</div>'
-     + '<div style="font-size:30px;font-weight:800;color:' + (t.margin > 0 ? 'var(--good)' : 'var(--bad)')
+     + '<div style="font-size:26px;font-weight:800;color:' + (t.margin > 0 ? 'var(--good)' : 'var(--bad)')
      + '">' + fmtE(t.margin) + '</div></div>'
      + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Sell-through reached</div>'
-     + '<div style="font-size:30px;font-weight:800;">' + t.sellThrough.toFixed(0) + '%</div></div>'
+     + '<div style="font-size:26px;font-weight:800;">' + t.sellThrough.toFixed(0) + '%</div></div>'
      + '</div>';
   el('trial-out').innerHTML = h;
   el('trial-out').classList.remove('hidden');
@@ -879,11 +858,7 @@ function readMatrix(){
   el('matrix-read').innerHTML =
       '<div class="note"><b>Best turnover</b> ' + bt.st + '% / ' + bt.sp + '% at '
     + fmtE(bt.v) + '. &nbsp; <b>Best margin</b> ' + bm.st + '% / ' + bm.sp + '% at '
-    + fmtE(bm.v) + '.</div>'
-    + '<div class="note q"><b>Two questions for the room.</b> Read down a column: '
-    + 'what does moving stock out of the boutiques cost you here, and why? '
-    + 'Then read across a row: what does the sell-through target change that the '
-    + 'placement decision cannot?</div>';
+    + fmtE(bm.v) + '.</div>';
 }
 
 /* =========================================================================
@@ -1149,66 +1124,8 @@ function renderCost(){
   const gT = function(st, sp){ return cache[key(st, sp)].turnover; };
   const gM = function(st, sp){ return cache[key(st, sp)].margin; };
   const bt = best(gT), bm = best(gM);
-  matrix('mx-ct', gT, fmtK, function(st, sp){ return (st === bt.st && sp === bt.sp) ? 'TR' : ''; });
   matrix('mx-cm', gM, fmtK, function(st, sp){
     return ((st === bm.st && sp === bm.sp) ? 'MR' : '') + ((st === bt.st && sp === bt.sp) ? 'T' : ''); });
-  const same = bt.st === bm.st && bt.sp === bm.sp;
-  el('cost-read2').innerHTML =
-      '<div class="note">★ turnover is best at <b>' + bt.st + '% / ' + bt.sp + '%</b> — and stays there '
-    + 'whatever the cost, because the cost is not in the turnover. '
-    + '◆ margin is best at <b>' + bm.st + '% / ' + bm.sp + '%</b>, worth ' + fmtE(bm.v) + '. '
-    + (same ? 'At this cost the two agree.'
-            : 'Chasing the turnover square instead would leave '
-              + fmtE(bm.v - cache[key(bt.st, bt.sp)].margin) + ' of margin on the table.')
-    + '</div>';
-  drawCostCurve(c);
-}
-
-/* What the best square is worth, across the whole cost range. On this board
-   the winning square barely moves between 10% and 50% of price — what moves
-   is the money, from a healthy margin to a loss, and that is the thing worth
-   watching. Drawn from the same model, not estimated. */
-function drawCostCurve(current){
-  const W = 900, H = 130, L = 62, R = 12, T = 12, B = 26;
-  const lo = Number(el('cost-slider').min), hi = Number(el('cost-slider').max);
-  const pts = [];
-  for(let c = lo; c <= hi; c += 10){
-    let bs = -Infinity, at = null;
-    ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
-      const m = run(st, sp, c).t.margin;
-      if(m > bs){ bs = m; at = st + '% / ' + sp + '%'; }
-    }); });
-    pts.push({ c:c, m:bs, at:at });
-  }
-  const mx = Math.max.apply(null, pts.map(function(p){ return p.m; }));
-  const mn = Math.min.apply(null, pts.map(function(p){ return p.m; }));
-  const top = Math.max(mx, 0), bot = Math.min(mn, 0);
-  const x = function(c){ return L + (c - lo) / (hi - lo) * (W - L - R); };
-  const y = function(m){ return T + (top - m) / (top - bot || 1) * (H - T - B); };
-  const line = pts.map(function(p){ return x(p.c).toFixed(1) + ',' + y(p.m).toFixed(1); }).join(' ');
-  const here = pts.reduce(function(a, p){
-    return Math.abs(p.c - current) < Math.abs(a.c - current) ? p : a; }, pts[0]);
-  let g = '<line x1="' + L + '" y1="' + y(0) + '" x2="' + (W - R) + '" y2="' + y(0)
-        + '" stroke="#c6ced7" stroke-dasharray="4 4"/>'
-    + '<polyline points="' + line + '" fill="none" stroke="#12557f" stroke-width="3"/>'
-    + '<circle cx="' + x(here.c).toFixed(1) + '" cy="' + y(here.m).toFixed(1)
-    + '" r="6" fill="#12557f" stroke="#fff" stroke-width="2.5"/>'
-    + '<text x="' + (L - 6) + '" y="' + (y(top) + 4) + '" font-size="11" fill="#7b8794" '
-    + 'text-anchor="end">' + fmtK(top) + '</text>'
-    + '<text x="' + (L - 6) + '" y="' + (y(0) + 4) + '" font-size="11" fill="#7b8794" '
-    + 'text-anchor="end">0</text>'
-    + '<text x="' + L + '" y="' + (H - 6) + '" font-size="11" fill="#7b8794">' + fmtE(lo) + '</text>'
-    + '<text x="' + (W - R) + '" y="' + (H - 6) + '" font-size="11" fill="#7b8794" '
-    + 'text-anchor="end">' + fmtE(hi) + '</text>';
-  if(bot < 0)
-    g += '<text x="' + (L - 6) + '" y="' + (y(bot) + 4) + '" font-size="11" fill="' + CLR_BAD
-       + '" text-anchor="end">' + fmtK(bot) + '</text>';
-  el('cost-curve').innerHTML =
-      '<h3 style="margin-bottom:4px;">What the best square is worth, at every cost</h3>'
-    + '<svg class="panelsvg" viewBox="0 0 ' + W + ' ' + H + '" role="img" '
-    + 'style="width:100%;height:auto;display:block;">' + g + '</svg>'
-    + '<p class="small muted" style="margin-top:2px;">At ' + fmtE(here.c) + ' the best you can do is '
-    + fmtE(here.m) + ', at ' + here.at + '.</p>';
 }
 
 /* =========================================================================
@@ -1264,6 +1181,19 @@ const STAGES = [
 ];
 let stage = 0;
 
+/* Enter and the big button do whatever this slide still has to give before
+   they move on. */
+function stepWithin(){
+  const id = STAGES[stage].id;
+  if(id === 'sd'){
+    if(!demandShown){ demandShown = true; renderDemand(); return true; }
+    if(!focusOn){ renderConsequence(); return true; }
+  }
+  if(id === 's1' && el('trial-out').classList.contains('hidden')){ testCombo(); return true; }
+  if(id === 's3' && !mcRunning && !mcResult){ mcStart(); return true; }
+  return false;
+}
+
 function renderStage(){
   STAGES.forEach(function(s, i){ el(s.id).classList.toggle('hidden', i !== stage); });
   el('pill').textContent = (stage + 1) + ' / ' + STAGES.length;
@@ -1276,7 +1206,16 @@ function renderStage(){
   window.scrollTo(0, 0);
 }
 
+/* the bar's real height, not a guess: the page must always be able to scroll
+   clear of it */
+function padForBar(){
+  const bar = document.querySelector('.footbar');
+  document.querySelector('main').style.paddingBottom = (bar.offsetHeight + 34) + 'px';
+}
+
 function init(){
+  padForBar();
+  window.addEventListener('resize', padForBar);
   renderBoard();
   ['', '2'].forEach(function(n){
     el('sl' + n + '-st').addEventListener('input', function(){
@@ -1299,13 +1238,16 @@ function init(){
   el('cost-slider').addEventListener('input', renderCost);
   el('mc-cost').addEventListener('input', renderMC);
   el('btn-next').addEventListener('click', function(){
+    if(stepWithin()) return;
     if(stage < STAGES.length - 1){ stage++; renderStage(); } });
   el('btn-prev').addEventListener('click', function(){
     if(stage > 0){ stage--; renderStage(); } });
   document.addEventListener('keydown', function(e){
     if(/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
     if(e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight'){
-      e.preventDefault(); if(stage < STAGES.length - 1){ stage++; renderStage(); }
+      e.preventDefault();
+      if(stepWithin()) return;
+      if(stage < STAGES.length - 1){ stage++; renderStage(); }
     }else if(e.key === 'ArrowLeft'){
       e.preventDefault(); if(stage > 0){ stage--; renderStage(); }
     }
