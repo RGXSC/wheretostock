@@ -190,7 +190,7 @@
   .panel.st{ border-left:8px solid var(--accent); position:relative; }
 
   .stores{ position:relative; }
-  /* real arrows, drawn from the warehouse into each shop across the gutter */
+  /* real arrows, drawn from the warehouse into each boutique across the gutter */
   .board{ position:relative; }
   #flow-svg{ position:absolute; inset:0; pointer-events:none; z-index:2; overflow:visible; }
   @media (max-width:900px){ #flow-svg{ display:none !important; } }
@@ -520,14 +520,14 @@
   <div class="card">
     <h2>Decision 2 — where does the stock go at product launch?</h2>
     <p class="muted" style="margin-top:0;">
-      Decide which part of the production goes to the shops before launch; the rest stays in the
+      Decide which part of the production goes to the boutiques before launch; the rest stays in the
       central warehouse, where you can send it week by week — it takes <b>one week to arrive</b>.
-      The shop share is <b>split equally between Paris and Tokyo</b>.
+      The boutique share is <b>split equally between Paris and Tokyo</b>.
     </p>
     <div class="sliderbox">
-      <div class="slidernow" id="val-sp">50% in store</div>
+      <div class="slidernow" id="val-sp">50% in boutique</div>
       <input class="slider" type="range" id="sl-sp" min="30" max="90" step="10" value="50"
-             aria-label="Share of production sent to the shops at launch">
+             aria-label="Share of production sent to the boutiques at launch">
       <div class="ticks" id="ticks-sp"></div>
     </div>
     <div class="consequence" id="cons-split"></div>
@@ -576,7 +576,7 @@
       </div>
       <!-- stores -->
       <div class="stores">
-        <p class="flowlabel">Shops &nbsp;—&nbsp; stock arrives here from the warehouse</p>
+        <p class="flowlabel">Boutiques &nbsp;—&nbsp; stock arrives here from the warehouse</p>
         <div class="panel st phys" id="panel-A">
           <div class="panel-head"><svg class="place" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#12557f" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3.5 9.2h17V20h-17z"/><path d="M3.5 9.2 5 4.6h14l1.5 4.6"/><path d="M8 9.2V4.6M12 9.2V4.6M16 9.2V4.6"/><path d="M6.3 20v-5.4h4.4V20"/><path d="M13.6 13.8h4.1v3.4h-4.1z"/></svg><h3>Paris</h3><span class="sub" id="A-total">—</span></div>
           <div class="colhead">
@@ -633,7 +633,7 @@ const ECON = {
 
 /* The five bags. Colours are a blue/grey scale; each also has its own
    silhouette so they stay distinguishable without relying on colour. */
-/* The two shops carry city names — the same naming the other pages use, so a
+/* The two boutiques carry city names — the same naming the other pages use, so a
    room never has to translate "Store A" into anything. Slots stay A and B
    internally; only the label and the exported Location change. */
 const STORES = { A:'Paris', B:'Tokyo' };
@@ -688,10 +688,10 @@ const BAG_SHAPES = [
       losing money against it. A wider spread pushes the optimum down
       towards 60%; a narrower one pushes it up towards 100%.
 
-   3. Paris is much the bigger shop (171 of the 260 against 89): every bag
-      sells about 2.5x more in one shop than the other, and four of the five
-      favour A. The launch split is forced to be equal between the shops, so
-      a team that puts most of its stock in the shops at launch has put half
+   3. Paris is much the bigger boutique (171 of the 260 against 89): every bag
+      sells about 2.5x more in one boutique than the other, and four of the five
+      favour A. The launch split is forced to be equal between the boutiques, so
+      a team that puts most of its stock in the boutiques at launch has put half
       of it in the wrong one.
 
      bag        vs forecast   total   store A   store B   ratio
@@ -747,7 +747,7 @@ const zeros = () => BAGS.map(function(){ return 0; });
 function producedPerBag(target){ return Math.round(FORECAST_PER_BAG * 100 / target); }
 
 /* Split one bag's production into store A / store B / warehouse.
-   The store share is always divided equally between the two shops. */
+   The store share is always divided equally between the two boutiques. */
 function splitStock(units, storePct){
   const perStore = Math.round(units * storePct / 100 / 2);
   return { store: perStore, central: units - 2 * perStore };
@@ -993,7 +993,7 @@ function renderDecisions(){
       '<span class="dchip"><span>Target sell-through</span> <b>' + s.sellThrough + '%</b></span>'
     + '<span class="dchip"><span>Produced</span> <b>' + fmt(s.perBag * BAGS.length) + '</b> <span>('
       + s.perBag + ' per bag)</span></span>'
-    + '<span class="dchip"><span>At launch</span> <b>' + s.storePct + '%</b> <span>to the shops — '
+    + '<span class="dchip"><span>At launch</span> <b>' + s.storePct + '%</b> <span>to the boutiques — '
       + s.perStore + ' per bag each, ' + s.central + ' central</span></span>';
 }
 
@@ -1108,7 +1108,7 @@ function renderAction(){
   p.textContent = last
     ? 'The season is over. Reveal the P&L to see how the launch actually performed.'
     : (state.skippedAlloc
-        ? 'The central warehouse is empty — there is nothing left to ship. Whatever is in the shops is all you have.'
+        ? 'The central warehouse is empty — there is nothing left to ship. Whatever is in the boutiques is all you have.'
         : 'Shipped stock is in transit and arrives at the start of week ' + (state.week + 1) + '.');
   host.appendChild(h); host.appendChild(p);
   const b = bigButton(last ? 'Reveal the P&L' : 'Start week ' + (state.week + 1) + ' →', closeWeek);
@@ -1138,13 +1138,13 @@ function confirmShipment(){
 
     const p = document.createElement('p');
     p.innerHTML = total === 0
-      ? 'The shops will receive <b>no new stock</b> for week ' + (state.week + 1)
+      ? 'The boutiques will receive <b>no new stock</b> for week ' + (state.week + 1)
         + '. Whatever is on their shelves now is all they will have to sell — and '
         + '<b>' + fmt(state.stock.W.reduce(function(a, b){ return a + b; }, 0))
         + '</b> units stay sitting in the warehouse earning nothing.'
-      : 'They arrive at the shops at the start of week ' + (state.week + 1)
-        + '. <b>Stock sent to a shop cannot be brought back</b> — not to the warehouse, '
-        + 'and not to the other shop.';
+      : 'They arrive at the boutiques at the start of week ' + (state.week + 1)
+        + '. <b>Stock sent to a boutique cannot be brought back</b> — not to the warehouse, '
+        + 'and not to the other boutique.';
     box.appendChild(p);
 
     if(lines.length){
@@ -1187,7 +1187,7 @@ function confirmShipment(){
 }
 
 /* The flow is the point of the animation, so make sure the warehouse and
-   both shops are actually on screen before anything flies between them. */
+   both boutiques are actually on screen before anything flies between them. */
 function showFlow(fn){
   const board = document.querySelector('.board');
   if(board){
@@ -1295,9 +1295,9 @@ function allocValid(){ return refreshAlloc(); }
 
 /* ------------------------------------------------------------- history */
 /* One block per closed week, newest first: the week's totals, then every bag
-   in all three places. Sales and missed sales are split by shop, because
+   in all three places. Sales and missed sales are split by boutique, because
    "we lost 6" is a different conversation from "we lost 6 in Paris while
-   Tokyo sat on stock". The filter narrows to one shop when the full width
+   Tokyo sat on stock". The filter narrows to one boutique when the full width
    is more than the room can read. */
 let histFilter = 'both';                       /* 'both' | 'A' | 'B' */
 
@@ -1361,7 +1361,7 @@ function renderHistFilter(){
   const host = el('hist-filter');
   if(!host) return;
   host.textContent = '';
-  [['both','Both shops'], ['A','Paris only'], ['B','Tokyo only']].forEach(function(o){
+  [['both','Both boutiques'], ['A','Paris only'], ['B','Tokyo only']].forEach(function(o){
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'btn-ghost';
@@ -1372,7 +1372,7 @@ function renderHistFilter(){
   });
 }
 
-/* Full arrows from the warehouse into each shop, drawn across the gutter and
+/* Full arrows from the warehouse into each boutique, drawn across the gutter and
    re-measured whenever the board changes shape. Small badges said nothing;
    an arrow that actually spans the distance says "this stock moves there". */
 function drawFlowArrows(){
@@ -1511,7 +1511,7 @@ function animateSales(){
   });
 }
 
-/* Stock leaving the warehouse for each shop. */
+/* Stock leaving the warehouse for each boutique. */
 function animateShipments(){
   ['A','B'].forEach(function(s){
     BAGS.forEach(function(b, i){
@@ -1542,20 +1542,20 @@ const HINTS = [
   { id:'intro-wh', week:1, step:'reveal', anchor:function(){ return el('panel-wh'); }, place:'rightof',
     spot:function(){ return [el('panel-wh')]; },
     title:'1 of 3 — the central warehouse',
-    text:'Everything you produced that did not go to the shops is here.' },
+    text:'Everything you produced that did not go to the boutiques is here.' },
   { id:'intro-a', week:1, step:'reveal', anchor:function(){ return el('panel-A'); }, place:'leftof',
     spot:function(){ return [el('panel-A')]; },
     title:'2 of 3 — Paris',
-    text:'One of your two shops. Stock sitting here can be sold to the customers who walk in.' },
+    text:'One of your two boutiques. Stock sitting here can be sold to the customers who walk in.' },
   { id:'intro-b', week:1, step:'reveal', anchor:function(){ return el('panel-B'); }, place:'leftof',
     spot:function(){ return [el('panel-B')]; },
     title:'3 of 3 — Tokyo',
-    text:'Your second shop. The two shops sell different amounts, and cannot pass stock '
+    text:'Your second boutique. The two boutiques sell different amounts, and cannot pass stock '
        + 'to each other.' },
   { id:'reveal',  week:1, step:'reveal',   anchor:function(){ return el('action-panel'); },
     spot:function(){ return [document.querySelector('#action-panel button.btn-primary')]; }, place:'rightof',
     title:'1 — Reveal the demand',
-    text:'Each week, customers walk into both shops. You never know what they want until you reveal it.' },
+    text:'Each week, customers walk into both boutiques. You never know what they want until you reveal it.' },
   { id:'demand',  week:1, step:'sell',     anchor:function(){ return el('panel-A'); }, place:'leftof',
     spot:function(){ return ['A','B'].reduce(function(a, s){
       return a.concat(BAGS.map(function(b, i){ return el(s + '-dem-' + i); })); }, []); },
@@ -1564,11 +1564,11 @@ const HINTS = [
   { id:'sell',    week:1, step:'sell',     anchor:function(){ return el('action-panel'); },
     spot:function(){ return [document.querySelector('#action-panel button.btn-primary')]; }, place:'rightof',
     title:'2 — Sell what you can',
-    text:'You sell from the stock already in the shop. What you cannot serve is lost for good.' },
+    text:'You sell from the stock already in the boutique. What you cannot serve is lost for good.' },
   { id:'alloc',   week:1, step:'allocate', anchor:function(){ return el('action-panel'); }, place:'rightof',
     spot:function(){ return [document.querySelector('#action-panel table.alloc')]; },
     title:'3 — Ship from the warehouse',
-    text:'Type how many pieces leave the warehouse for each shop. ↑ ↓ change a quantity, Tab moves on, Enter confirms. Stock arrives next week.' },
+    text:'Type how many pieces leave the warehouse for each boutique. ↑ ↓ change a quantity, Tab moves on, Enter confirms. Stock arrives next week.' },
   { id:'confirm', week:1, step:'confirm',  anchor:function(){ return el('action-panel'); },
     spot:function(){ return [document.querySelector('#action-panel button.btn-primary')]; }, place:'rightof',
     title:'4 — Close the week',
@@ -1904,7 +1904,7 @@ function openExport(){
 function renderEnd(){
   const t = totals(), s = state.setup;
   el('end-who').textContent = state.team + ' · ' + state.game
-    + ' · target sell-through ' + s.sellThrough + '% · ' + s.storePct + '% to the shops at launch';
+    + ' · target sell-through ' + s.sellThrough + '% · ' + s.storePct + '% to the boutiques at launch';
 
   const perBag = BAGS.map(function(b, i){
     const sold = state.sold.A[i] + state.sold.B[i];
@@ -1970,11 +1970,11 @@ function renderEnd(){
 
    The lesson it is built to carry: under variability it pays to hold stock
    centrally, because a bag in the warehouse can still be sent wherever the
-   demand turns out to be, while a bag pushed into a shop at launch is
-   committed there — this game has no shop-to-shop transfer. Nothing here is
+   demand turns out to be, while a bag pushed into a boutique at launch is
+   committed there — this game has no boutique-to-boutique transfer. Nothing here is
    counterfactual: it says where the stock was and where the customers were.
    It must also not teach "hoard everything", which is why "still central,
-   not in the shop yet" is one of the three causes of a lost sale. */
+   not in the boutique yet" is one of the three causes of a lost sale. */
 const PCLR = { W:'#9aa7b3', A:'#12557f', B:'#6ba3cd', sold:'#4d5560', missed:'#8a3115' };
 
 /* the team and game names are typed by the players, so they are escaped
@@ -1990,7 +1990,7 @@ function esc(s){
    anything still on a truck when the season closed):
      short   - the bag was oversold: max(0, missed − left)
      central - of the rest, as many as were still central or in transit
-     wrong   - the remainder, capped by what the OTHER shop finished unsold
+     wrong   - the remainder, capped by what the OTHER boutique finished unsold
    Central is charged first: where both could explain a lost sale, the
    reading that does not blame placement is the conservative one. */
 function teamDetail(){
@@ -2061,14 +2061,14 @@ function openTeamDetail(){
       +   '<div><h2 style="margin:0;">Zoom on margin</h2>'
       +     '<div class="muted" style="font-size:14px;margin-top:4px;">' + esc(state.team)
       +     ' · ' + esc(state.game) + ' · ' + s.sellThrough + '% sell-through target · '
-      +     s.storePct + '% into the shops at launch · ' + fmt(t.produced) + ' bags made</div></div>'
+      +     s.storePct + '% into the boutiques at launch · ' + fmt(t.produced) + ' bags made</div></div>'
       +   '<div><div class="panelbig ' + (t.margin > 0 ? 'g' : 'r') + '">' + fmtE(t.margin) + '</div>'
       +     '<div class="muted" style="font-size:12px;font-weight:800;text-align:right;'
       +     'text-transform:uppercase;letter-spacing:.06em;">margin</div></div>'
       + '</div>'
       + '<h3 class="ph3">Where the money went</h3>'
       + panelBridge(t, euro)
-      + '<h3 class="ph3">Which bag, which shop</h3>'
+      + '<h3 class="ph3">Which bag, which boutique</h3>'
       + '<div class="plegend">'
       +   '<span><i style="background:' + PCLR.A + '"></i>sold in A</span>'
       +   '<span><i style="background:' + PCLR.B + '"></i>sold in B</span>'
@@ -2079,7 +2079,7 @@ function openTeamDetail(){
       + '<h3 class="ph3">All five bags, week by week — and how much was still central</h3>'
       + panelStock(d)
       + (d.worst ? '<p class="punch">' + d.worst.n + ' ' + esc(d.worst.bag)
-          + ' finished the season unsold in one shop while the other shop was turning '
+          + ' finished the season unsold in one boutique while the other boutique was turning '
           + 'customers away.</p>' : '')
       + '<h3 class="ph3">Why those sales were lost</h3>'
       + panelCauses(d, t.missed)
@@ -2222,8 +2222,8 @@ function panelCauses(d, missed){
     return '<p class="punch" style="color:var(--live);border-color:var(--live);">'
          + 'Every customer who asked for a bag got one.</p>';
   const parts = [
-    { v:d.late,  c:'#b06e28', lab:'still central — not in the shop yet' },
-    { v:d.wrong, c:PCLR.missed, lab:'stranded in the other shop' },
+    { v:d.late,  c:'#b06e28', lab:'still central — not in the boutique yet' },
+    { v:d.wrong, c:PCLR.missed, lab:'stranded in the other boutique' },
     { v:d.short, c:'#6b7580', lab:'never made — the bag sold out everywhere' }
   ];
   let html = '<div class="causes">';
@@ -2252,7 +2252,7 @@ function openModal(build, opts){
 
   /* "beside" keeps the board readable: the panel sits over the decision
      column instead of the middle of the screen, so the warehouse and both
-     shops stay visible while the shipment is being checked. */
+     boutiques stay visible while the shipment is being checked. */
   if(opts && opts.beside){
     const ref = el('action-panel'), stores = document.querySelector('.stores');
     if(ref && stores){
@@ -2397,7 +2397,7 @@ function renderSetupOptions(){
   draft.storePct    = Number(el('sl-sp').value);
 
   el('val-st').textContent = draft.sellThrough + '% sell-through';
-  el('val-sp').textContent = draft.storePct + '% in store';
+  el('val-sp').textContent = draft.storePct + '% in boutique';
   buildTicks('ticks-st', SELL_THROUGH_OPTIONS, draft.sellThrough);
   buildTicks('ticks-sp', SPLIT_OPTIONS, draft.storePct);
 
@@ -2413,7 +2413,7 @@ function renderSetupOptions(){
   el('cons-split').innerHTML =
     'Per bag: <b>' + sp2.store + '</b> to Paris and <b>' + sp2.store
     + '</b> to Tokyo, <b>' + sp2.central + '</b> kept central.<br>'
-    + 'Across the five bags: <b>' + fmt(sp2.store * BAGS.length) + '</b> units in each shop, <b>'
+    + 'Across the five bags: <b>' + fmt(sp2.store * BAGS.length) + '</b> units in each boutique, <b>'
     + fmt(sp2.central * BAGS.length) + '</b> units in the warehouse.';
 
   el('btn-begin').textContent =

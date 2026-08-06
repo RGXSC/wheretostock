@@ -321,7 +321,7 @@
     <div id="board" class="board">
       <div class="rowhead">
         <span class="c-rank">Rank</span><span>Team</span>
-        <span class="c-setup">Target S/T</span><span class="c-setup">% in store</span>
+        <span class="c-setup">Target S/T</span><span class="c-setup">% in boutique</span>
         <span class="c-turnover">Turnover</span><span class="c-margin">Margin</span>
         <span class="c-margin">Margin&nbsp;%</span>
       </div>
@@ -450,12 +450,12 @@ function parseBlob(text, sourceName){
 
 /* Every row is normalised to a slot on the way in, so nothing downstream
    reads the label. A location the tool has never heard of is kept as itself
-   rather than silently folded into a shop — the row-count check then badges
+   rather than silently folded into a boutique — the row-count check then badges
    the file instead of quietly mis-reading it. */
-const SHOPS = { A:'Paris', B:'Tokyo' };
+const BOUTIQUES = { A:'Paris', B:'Tokyo' };
 const SLOTS = { 'Paris':'A', 'Tokyo':'B', 'Warehouse':'W' };
 function slotOf(loc){ return SLOTS[loc] || loc; }
-function shopName(slot){ return SHOPS[slot] || slot; }
+function shopName(slot){ return BOUTIQUES[slot] || slot; }
 
 function buildDetail(key, rows, at, sourceName){
   const g = {
@@ -496,7 +496,7 @@ function buildDetail(key, rows, at, sourceName){
   g.turnover = turnover; g.sold = sold; g.missed = missed;
   g.weeks = maxWeek; g.bagCount = bags.size; g.locCount = locs.size;
   g.rowCount = rows.length;
-  /* A Location the tool does not know reads as an empty shop everywhere
+  /* A Location the tool does not know reads as an empty boutique everywhere
      downstream, so it is called out here rather than left to look like a
      team that sold nothing. */
   const strange = Array.prototype.filter.call(Array.from(locs), function(x){
@@ -714,7 +714,7 @@ function renderImport(){
   el('loaded-title').textContent = 'Loaded — ' + games.length + ' of ' + MAX_GAMES;
   const t = el('games-table');
   if(games.length){
-    let html = '<thead><tr><th>Team</th><th>Target S/T</th><th>% in store</th><th>Weeks</th>'
+    let html = '<thead><tr><th>Team</th><th>Target S/T</th><th>% in boutique</th><th>Weeks</th>'
              + '<th>Turnover</th><th>Margin</th><th></th></tr></thead><tbody>';
     sortedForDisplay().forEach(function(g, i){
       const e = economics(g);
@@ -890,8 +890,8 @@ function renderStage(){
 /* =========================================================================
    6. THE MAP — where each team stood
    =========================================================================
-   Axes deliberately: % in store DOWN the side, low at the top, so reading
-   downwards is "committing more and more to the shops"; sell-through target
+   Axes deliberately: % in boutique DOWN the side, low at the top, so reading
+   downwards is "committing more and more to the boutiques"; sell-through target
    ACROSS, low to high. Each team is a bar whose length is its result, so the
    spread is legible at a glance and not only through colour. Built once,
    then the metric is swapped and the bars animate. */
@@ -914,7 +914,7 @@ function renderMatrix(){
 
   splits.forEach(function(sp, i){
     html += '<tr>' + (i === 0
-      ? '<th class="axis-y" rowspan="' + splits.length + '">% in store at launch</th>' : '');
+      ? '<th class="axis-y" rowspan="' + splits.length + '">% in boutique at launch</th>' : '');
     html += '<th class="rowlab">' + sp + '%</th>';
     targets.forEach(function(t){
       const here = all.filter(function(g){ return g.target === t && g.storePct === sp; });
@@ -1117,7 +1117,7 @@ function stockChart(series, opt){
   const yS = function(v){ return T + stockH - (v / maxStock) * stockH; };
 
   let g = '';
-  /* stock: warehouse at the bottom, then the two shops */
+  /* stock: warehouse at the bottom, then the two boutiques */
   series.forEach(function(s, i){
     let acc = 0;
     [['wh', CLR.W], ['a', CLR.A], ['b', CLR.B]].forEach(function(pair){
@@ -1164,11 +1164,11 @@ function stockChart(series, opt){
 }
 
 /* =========================================================================
-   6c. THE ZOOM — one bag, big, and split by shop
+   6c. THE ZOOM — one bag, big, and split by boutique
    =========================================================================
    The card answers "where did the stock sit"; the zoom answers "and which
-   shop was it wrong in". Layout: the whole-bag stack across the top, then
-   the two shops side by side underneath, drawn on ONE shared pair of
+   boutique was it wrong in". Layout: the whole-bag stack across the top, then
+   the two boutiques side by side underneath, drawn on ONE shared pair of
    scales — a store selling half as much must look half as tall, which is
    the entire point of the 2:1 skew in the demand table. */
 let zoomIdx = -1;
@@ -1207,7 +1207,7 @@ function drawZoom(){
   if(!d) return;
   const s = d.series;
 
-  /* shared scales across the two shops */
+  /* shared scales across the two boutiques */
   const maxStock = Math.max(1, Math.max.apply(null, s.map(function(x){ return Math.max(x.a, x.b); })));
   const maxDem = Math.max(1, Math.max.apply(null,
     s.map(function(x){ return Math.max(x.aSold + x.aMissed, x.bSold + x.bMissed); })));
@@ -1242,7 +1242,7 @@ function drawZoom(){
     + '</div>'
     + '<h3 class="zh3">The whole bag — stock at the end of each week, and the demand it met</h3>'
     + stockChart(s, { W:960, stockH:180, stripH:86, fs:12 })
-    + '<h3 class="zh3">Shop by shop — same scale on both, so the difference is the point</h3>'
+    + '<h3 class="zh3">Boutique by boutique — same scale on both, so the difference is the point</h3>'
     + '<div class="zoomstores">'
     +   storePanel(shopName('A'), s, 'a', CLR.A, maxStock, maxDem, tot('aSold'), tot('aMissed'))
     +   storePanel(shopName('B'), s, 'b', CLR.B, maxStock, maxDem, tot('bSold'), tot('bMissed'))
@@ -1256,7 +1256,7 @@ function drawZoom(){
   box.querySelector('#z-close').focus();
 }
 
-/* One shop: its own stock on top, its own demand underneath. Both maxima are
+/* One boutique: its own stock on top, its own demand underneath. Both maxima are
    passed in, never computed here, so A and B can be compared by eye. */
 function storePanel(name, series, key, colour, maxStock, maxDem, sold, missed){
   const W = 470, L = 30, R = 8, T = 10;
@@ -1313,8 +1313,8 @@ function storePanel(name, series, key, colour, maxStock, maxDem, sold, missed){
    =========================================================================
    The point of this screen is a lesson: under variability it pays to hold
    stock centrally, because a unit in the warehouse can still be sent to
-   whichever shop turns out to need it, while a unit pushed into a shop at
-   launch is committed there for good — this game has no shop-to-shop
+   whichever boutique turns out to need it, while a unit pushed into a boutique at
+   launch is committed there for good — this game has no boutique-to-boutique
    transfer.
 
    Everything here is measured, never counterfactual. The tool does NOT say
@@ -1334,7 +1334,7 @@ function teamList(){ return sortedForDisplay(); }
 /* Every lost sale gets exactly ONE cause. The attribution is done over the
    SEASON, not week by week, and every bucket is bounded by units that really
    existed — an earlier week-by-week version charged a miss to "the other
-   shop" whenever that shop happened to hold stock, which counted the same
+   boutique" whenever that boutique happened to hold stock, which counted the same
    seven physical bags seventeen times.
 
    Per bag, with left = made − sold (which includes anything still on a truck
@@ -1342,9 +1342,9 @@ function teamList(){ return sortedForDisplay(); }
      short   - made fewer than the season asked for: max(0, missed − left).
                No placement could have fixed these.
      central - of what remains, as many as were still central or in transit:
-               the team had them, they were simply not in the shop yet.
-     wrong   - the rest, capped by what the OTHER shop finished with unsold:
-               the bag existed, in the wrong shop, and nothing could move it.
+               the team had them, they were simply not in the boutique yet.
+     wrong   - the rest, capped by what the OTHER boutique finished with unsold:
+               the bag existed, in the wrong boutique, and nothing could move it.
    Central is charged before wrong on purpose: when both could explain a
    miss, the reading that does NOT blame placement is the conservative one. */
 function teamStats(g){
@@ -1377,7 +1377,7 @@ function teamStats(g){
     }
     /* made − sold is the honest count of what was never bought: the closing
        columns miss anything shipped in the last week, which left the
-       warehouse and never reached a shop */
+       warehouse and never reached a boutique */
     p.left = (g.producedPerBag || 0) - p.soldA - p.soldB;
     p.transit = Math.max(0, p.left - p.endA - p.endB - p.endW);
     const missed = p.missA + p.missB;
@@ -1397,7 +1397,7 @@ function teamStats(g){
   for(let i = 0; i < weekly.length; i++){ if(weekly[i].wh === 0){ emptyAt = i + 1; break; } }
 
   /* the sharpest single fact on the screen: stock that finished the season
-     unsold in one shop while the other shop was turning customers away */
+     unsold in one boutique while the other boutique was turning customers away */
   let worst = null;
   bags.forEach(function(b){
     const p = per[b];
@@ -1464,7 +1464,7 @@ function drawTeamZoom(){
     +   '<div><h2 style="font-size:26px;">' + esc(g.team) + ' <span class="muted" style="font-weight:700;">'
     +     esc(g.game) + '</span></h2>'
     +     '<div class="muted small" style="margin-top:4px;">' + g.target + '% sell-through target · '
-    +     g.storePct + '% of production into the shops at launch · ' + fmt(g.producedTotal)
+    +     g.storePct + '% of production into the boutiques at launch · ' + fmt(g.producedTotal)
     +     ' bags made</div></div>'
     +   '<div style="text-align:right;">'
     +     '<div class="teambig ' + (m > 0 ? 'g' : 'r') + '">' + fmtE(m) + '</div>'
@@ -1480,7 +1480,7 @@ function drawTeamZoom(){
     + '<h3 class="zh3">Where the money went</h3>'
     + bridgePanel(g, e, m, dead, sc)
     + (st
-        ? '<h3 class="zh3">Which bag, which shop</h3>'
+        ? '<h3 class="zh3">Which bag, which boutique</h3>'
           + '<div class="legend" style="margin:0 0 8px;">'
           +   '<span><i style="background:' + CLR.A + '"></i>sold in ' + shopName('A') + '</span>'
           +   '<span><i style="background:' + CLR.B + '"></i>sold in ' + shopName('B') + '</span>'
@@ -1492,12 +1492,12 @@ function drawTeamZoom(){
           + teamStockChart(st)
           + (st.worst
               ? '<p class="punch">' + st.worst.n + ' ' + esc(st.worst.bag) + ' finished the season '
-                + 'unsold in one shop while the other shop was turning customers away.</p>'
+                + 'unsold in one boutique while the other boutique was turning customers away.</p>'
               : '')
           + '<h3 class="zh3">Why those sales were lost</h3>'
           + causesPanel(st, g.missed || 0, sc)
         : '<p class="muted" style="margin-top:18px;">' + esc(g.team) + ' was imported as a one-line '
-          + 'summary, so there is no week-by-week data: no bags, no shops, no causes. '
+          + 'summary, so there is no week-by-week data: no bags, no boutiques, no causes. '
           + 'Re-import the CSV to see the rest.</p>');
 
   back.appendChild(box);
@@ -1538,7 +1538,7 @@ function bridgePanel(g, e, m, dead, sc){
   return html + '</div>';
 }
 
-/* --- panel 2: the game board, 5 bags x the two shops and the warehouse -- */
+/* --- panel 2: the game board, 5 bags x the two boutiques and the warehouse -- */
 function boardPanel(g, st, sc){
   const cell = function(sold, miss, left, colour, transit){
     const w = function(v){ return (v / sc.unit * 100).toFixed(1) + '%'; };
@@ -1550,7 +1550,7 @@ function boardPanel(g, st, sc){
     const bits = [];
     if(sold) bits.push(sold + ' sold');
     if(miss) bits.push('<b style="color:' + CLR.missed + '">' + miss + ' turned away</b>');
-    /* a last-week shipment left the warehouse and never reached a shop; it is
+    /* a last-week shipment left the warehouse and never reached a boutique; it is
        still the team's stock, so it is said rather than quietly dropped */
     if(left) bits.push(left + ' left' + (transit ? ' (' + transit + ' still in transit)' : ''));
     return '<div class="bcell">' + bar + '<span class="csub">'
@@ -1600,8 +1600,8 @@ function causesPanel(st, missed, sc){
     return '<p class="punch" style="color:#0f6b45;border-color:#0f6b45;">'
          + 'Every customer who asked for a bag got one.</p>';
   const parts = [
-    { v:st.late,  c:'#b06e28', lab:'still central — not in the shop yet' },
-    { v:st.wrong, c:CLR.missed, lab:'stranded in the other shop' },
+    { v:st.late,  c:'#b06e28', lab:'still central — not in the boutique yet' },
+    { v:st.wrong, c:CLR.missed, lab:'stranded in the other boutique' },
     { v:st.short, c:'#6b7580', lab:'never made — the bag sold out everywhere' }
   ];
   /* the bar's full width is the worst team in the session, so stepping
