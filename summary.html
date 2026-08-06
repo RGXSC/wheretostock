@@ -45,7 +45,7 @@
   button:disabled{ opacity:.4; cursor:not-allowed; }
   .btn-primary{ background:var(--accent); color:#fff; border-color:var(--accent); }
   .btn-primary:hover:not(:disabled){ filter:brightness(1.15); }
-  .btn-ghost{ min-height:40px; padding:6px 12px; font-size:15px;
+  .btn-ghost{ min-height:44px; padding:8px 14px; font-size:15px;
               border-color:var(--line-soft); color:var(--ink-soft); background:transparent; }
   .btn-danger{ color:var(--bad); border-color:#dcb5a5; }
   .btn-xl{ font-size:23px; min-height:70px; padding:16px 30px; }
@@ -145,14 +145,23 @@
   table.matrix th{ font-size:13px; font-weight:800; color:var(--ink-soft);
                    text-transform:uppercase; letter-spacing:.04em; padding:4px 8px; }
   table.matrix th.rowlab{ font-size:14px; white-space:nowrap; }
-  table.matrix td{ min-width:190px; height:74px; vertical-align:top;
+  /* Sized to what is in them, not to the busiest square: with five targets
+     and seven splits, a flat 74px made the map two screens tall on a 720p
+     projector while most squares held nothing at all. */
+  table.matrix td{ min-width:190px; height:1px; vertical-align:top;
                    background:var(--surface); border:2px solid var(--line-soft);
                    border-radius:8px; padding:6px; }
+  table.matrix td:empty{ height:26px; background:transparent; border-style:dashed; }
 
   /* one bar per team: length is the result, so the spread reads at a glance
      and not only through colour */
   .mrow{ position:relative; height:26px; margin-bottom:4px; }
   .mrow:last-child{ margin-bottom:0; }
+  /* the two result columns stay blanked until the facilitator asks for them */
+  table.games .res{ color:transparent; user-select:none; }
+  table.games .res::after{ content:'\2022\2002\2022\2002\2022'; color:var(--line); }
+  table.games.peek .res{ color:inherit; user-select:auto; }
+  table.games.peek .res::after{ content:none; }
   /* the value lives in its own gutter, so it can never end up sitting on a bar */
   .mtrack{ position:absolute; inset:0 50px 0 0; }
   .mbar{ position:absolute; inset:0 auto 0 0; width:12%; border-radius:5px;
@@ -162,10 +171,50 @@
   .mlab{ position:absolute; left:8px; top:0; line-height:26px; font-size:14px;
          font-weight:800; color:#fff; white-space:nowrap; text-shadow:0 1px 2px rgba(0,0,0,.35);
          transition:left 900ms cubic-bezier(.2,.8,.2,1); }
-  /* a bar too short to hold its name puts the name after it, in dark ink */
-  .mrow.short .mlab{ left:calc(var(--w) + 7px); color:var(--ink); text-shadow:none; }
+  /* a bar too short to hold its name puts the name after it, in dark ink —
+     clipped at the track, so a long team name cannot run over its own value */
+  .mrow.short .mlab{ left:calc(var(--w) + 7px); color:var(--ink); text-shadow:none;
+                     right:2px; overflow:hidden; text-overflow:ellipsis; }
   .mval{ position:absolute; right:4px; top:0; width:46px; text-align:right; line-height:26px;
          font-size:13px; font-weight:800; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
+  /* a loss is not just the shortest bar on the board — it is a different
+     kind of number, and it says so */
+  .mrow.negative .mval{ color:var(--warn); }
+  .mrow.negative .mbar{ outline:2px solid var(--warn); outline-offset:-2px; }
+  /* The map is the one screen a room reads from the back, and on a 1280x720
+     projector it was 828px tall against 620px of usable height — the bottom
+     two splits sat under the bar. Below 820px of viewport the squares tighten
+     rather than the map being cut off. */
+  @media (max-height:820px){
+    table.matrix{ border-spacing:3px; }
+    table.matrix td{ min-width:168px; padding:3px; }
+    table.matrix th{ padding:2px 6px; font-size:12px; }
+    .mrow{ height:21px; margin-bottom:2px; }
+    .mlab{ line-height:21px; font-size:13px; }
+    .mval{ line-height:21px; font-size:12px; }
+    table.matrix td:empty{ height:21px; }
+  }
+  /* ------------------------------------------------------------- print
+     A facilitator asked to "print the map" got the sticky bars, the import
+     screen and the nav buttons on paper. Printing gives the board and the
+     map, in landscape, with everything the screen needs and paper does not
+     taken out. */
+  @media print{
+    @page{ size:landscape; margin:12mm; }
+    body{ background:#fff; }
+    #screen-import, .footbar, header.topbar, #modal-root,
+    #detail-card, #btn-peek, #btn-clear, [data-rm]{ display:none !important; }
+    #screen-reveal{ display:block !important; }
+    main.wrap{ padding:0 !important; max-width:none; }
+    .card{ break-inside:avoid; box-shadow:none; border:1px solid #ccc; }
+    .board, #matrix-wrap{ display:block !important; }
+    /* the map is built hidden until its stage: on paper both it and the
+       ranking are wanted, whichever stage the screen happens to be on */
+    #matrix-wrap.hidden{ display:block !important; }
+    .mbar, .mlab{ transition:none !important; }
+    .trow{ transform:none !important; transition:none !important; }
+  }
+
   .axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-size:13px;
            font-weight:800; color:var(--ink-soft); text-transform:uppercase;
            letter-spacing:.06em; padding:0 2px; }
@@ -198,10 +247,15 @@
              align-items:flex-start; }
   .zoombox{ background:#fff; border-radius:var(--radius); padding:22px 24px 26px;
             width:100%; max-width:1060px; }
+  /* the panel is taller than the screen and scrolls inside itself, so the
+     team's name and the < > that walk between teams stay at the top of it */
   .zoomhead{ display:flex; justify-content:space-between; align-items:flex-start;
-             gap:16px; flex-wrap:wrap; }
+             gap:16px; flex-wrap:wrap;
+             position:sticky; top:-22px; z-index:2; background:#fff;
+             padding:22px 0 10px; margin:-22px 0 0;
+             box-shadow:0 6px 10px -8px rgba(12,16,22,.3); }
   .zoomnav{ display:flex; align-items:center; gap:10px; }
-  .zoomnav button{ min-height:42px; }
+  .zoomnav button{ min-height:44px; }
   .zoomnav #z-prev, .zoomnav #z-next{ font-size:22px; line-height:1; padding:6px 16px; }
   .zh3{ font-size:15px; font-weight:800; color:var(--ink-soft); margin:16px 0 4px; }
   .zoombox > svg{ width:100%; height:auto; display:block; }
@@ -300,7 +354,10 @@
   <div id="loaded-card" class="card hidden">
     <div style="display:flex;align-items:baseline;gap:12px;">
       <h2 id="loaded-title">Loaded</h2>
-      <button id="btn-clear" class="btn-ghost btn-danger" style="margin-left:auto;">Remove all…</button>
+      <!-- the results are hidden here: this screen is on the projector while
+           the files come in, and the reveal is the point of the next one -->
+      <button id="btn-peek" class="btn-ghost" style="margin-left:auto;">Show results</button>
+      <button id="btn-clear" class="btn-ghost btn-danger">Remove all…</button>
     </div>
     <div style="overflow-x:auto;"><table class="games" id="games-table"></table></div>
   </div>
@@ -321,7 +378,7 @@
     <div id="board" class="board">
       <div class="rowhead">
         <span class="c-rank">Rank</span><span>Team</span>
-        <span class="c-setup">Target S/T</span><span class="c-setup">% in boutique</span>
+        <span class="c-setup">Sell-through</span><span class="c-setup">In the boutiques</span>
         <span class="c-turnover">Turnover</span><span class="c-margin">Margin</span>
         <span class="c-margin">Margin&nbsp;%</span>
       </div>
@@ -376,7 +433,11 @@
 const MAX_GAMES = 20;
 
 /* CSV/TSV field splitter that honours quoted fields and doubled quotes. */
+/* Quoting is a CSV convention. A tab-separated file pasted out of a
+   spreadsheet has no quoting at all, so a team called 5" Heels used to lose
+   half its row to a quote that was never a delimiter. */
 function splitLine(line, delim){
+  if(delim === '\t') return line.split('\t');
   const out = []; let cur = '', q = false;
   for(let i = 0; i < line.length; i++){
     const ch = line[i];
@@ -519,7 +580,10 @@ function buildSummary(key, c, at, sourceName){
     target:num(c[at['TargetSellThrough']]), storePct:num(c[at['StorePctAtSetup']]),
     producedTotal:num(c[at['Produced']]), sold:num(c[at['Sold']]),
     missed:num(c[at['Missed']]), turnover:num(c[at['Revenue']]),
-    unitCost:num(c[at['Produced']]) ? num(c[at['COGS']]) / num(c[at['Produced']]) : null,
+    /* no COGS column at all means "not stated", which is what triggers the
+       assumed-cost badge — a missing column used to arrive as a real 0 */
+    unitCost:(at['COGS'] !== undefined && num(c[at['Produced']]))
+      ? num(c[at['COGS']]) / num(c[at['Produced']]) : null,
     fixedCost:at['FixedCost'] !== undefined ? num(c[at['FixedCost']]) : null,
     weeks:null, demandHash:null, issues:[]
   };
@@ -535,6 +599,7 @@ const STORAGE_KEY = 'wheretostock.debrief.v1';
 let games = [];                 /* loaded team-games            */
 let conflicts = [];             /* awaiting a keep/replace call */
 let messages = [];              /* one-off import feedback      */
+let peeking = false;            /* results shown on the import screen */
 let fallbackCost = 200, fallbackFixed = 117000;
 
 const el = function(id){ return document.getElementById(id); };
@@ -560,7 +625,9 @@ function margin(g){
   const e = economics(g);
   return g.turnover - g.producedTotal * e.cost - e.fixed;
 }
-function marginPct(g){ return g.turnover ? margin(g) / g.turnover * 100 : 0; }
+/* null, not 0: a team with no turnover has no margin percentage, and 0.0%
+   read as "broke even" next to a six-figure loss */
+function marginPct(g){ return g.turnover ? margin(g) / g.turnover * 100 : null; }
 
 function save(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ games:games, fallbackCost:fallbackCost, fallbackFixed:fallbackFixed })); }
@@ -594,10 +661,17 @@ function addBlob(text, sourceName){
         /* A one-line summary and a full export of the same game are not in
            conflict — they are the same result at two levels of detail. Keep
            the fuller one without bothering the facilitator. */
-        if(g.source === 'detail'){
-          games[games.indexOf(existing)] = g;
+        /* More detail is only better if it is also the whole season: a
+           part-game detail export used to overwrite a finished summary. */
+        if(g.source === 'detail' && isComplete(g)){
+          const at = games.indexOf(existing);
+          if(at < 0) games.push(g); else games[at] = g;
           messages.push({ kind:'ok', text:g.team + ' · ' + g.game
             + ' — full export replaces the summary that was loaded' });
+        }else if(g.source === 'detail'){
+          messages.push({ kind:'ok', text:g.team + ' · ' + g.game
+            + ' — that export stops at week ' + (g.weeks || '?')
+            + ', the finished summary was kept' });
         }else{
           messages.push({ kind:'ok', text:g.team + ' · ' + g.game
             + ' — the full export is already loaded, summary ignored' });
@@ -650,9 +724,19 @@ function renderImport(){
       + 'before the game finished.</p>';
     const row = document.createElement('div'); row.className = 'row-buttons';
     row.appendChild(mkBtn('Replace with the new one', function(){
-      games[games.indexOf(c.existing)] = c.incoming; conflicts.splice(idx, 1); save(); renderImport();
+      /* the loaded game can have been removed while this note sat on screen;
+         indexOf then returns −1 and the write landed on games[games.length−1] */
+      const at = games.indexOf(c.existing);
+      if(at < 0) games.push(c.incoming); else games[at] = c.incoming;
+      conflicts.splice(idx, 1); save(); renderImport();
     }));
     row.appendChild(mkBtn('Keep both', function(){
+      if(games.length >= MAX_GAMES){
+        conflicts.splice(idx, 1);
+        messages.push({ kind:'bad', text:'room for ' + MAX_GAMES + ' games only — '
+          + c.incoming.team + ' · ' + c.incoming.game + ' not added' });
+        renderImport(); return;
+      }
       let n2 = 2; while(games.find(function(x){ return x.id === c.incoming.team + '||' + c.incoming.game + ' (' + n2 + ')'; })) n2++;
       c.incoming.game = c.incoming.game + ' (' + n2 + ')';
       c.incoming.id = c.incoming.team + '||' + c.incoming.game;
@@ -714,8 +798,8 @@ function renderImport(){
   el('loaded-title').textContent = 'Loaded — ' + games.length + ' of ' + MAX_GAMES;
   const t = el('games-table');
   if(games.length){
-    let html = '<thead><tr><th>Team</th><th>Target S/T</th><th>% in boutique</th><th>Weeks</th>'
-             + '<th>Turnover</th><th>Margin</th><th></th></tr></thead><tbody>';
+    let html = '<thead><tr><th>Team</th><th>Sell-through</th><th>In the boutiques</th><th>Weeks</th>'
+             + '<th class="res">Turnover</th><th class="res">Margin</th><th></th></tr></thead><tbody>';
     sortedForDisplay().forEach(function(g, i){
       const e = economics(g);
       html += '<tr><td class="nm">' + esc(g.team) + ' · ' + esc(g.game)
@@ -723,8 +807,9 @@ function renderImport(){
            + (g.source === 'summary' ? '<span class="badge sum">summary only</span>' : '')
            + (e.assumed ? '<span class="badge assumed">costs assumed</span>' : '')
            + '</td><td>' + g.target + '%</td><td>' + g.storePct + '%</td>'
-           + '<td>' + (g.weeks || '—') + '</td><td>' + fmtE(g.turnover) + '</td>'
-           + '<td>' + fmtE(margin(g)) + '</td>'
+           + '<td>' + (g.weeks || '—') + '</td>'
+           + '<td class="res">' + fmtE(g.turnover) + '</td>'
+           + '<td class="res">' + fmtE(margin(g)) + '</td>'
            + '<td><button class="btn-ghost" data-rm="' + i + '">Remove</button></td></tr>';
     });
     t.innerHTML = html + '</tbody>';
@@ -735,6 +820,9 @@ function renderImport(){
       });
     });
   }else t.textContent = '';
+
+  el('games-table').classList.toggle('peek', peeking);
+  el('btn-peek').textContent = peeking ? 'Hide results' : 'Show results';
 
   const rankable = games.filter(isComplete).length;
   const start = el('btn-start');
@@ -782,6 +870,9 @@ function startReveal(){
   stage = 0;
   el('screen-import').classList.add('hidden');
   el('screen-reveal').classList.remove('hidden');
+  /* the map is built once and cached; going back to import, changing the
+     line-up and revealing again used to redraw nothing and show the old teams */
+  el('matrix-wrap').dataset.built = '';
   buildRows();
   renderDetail();
   renderStage();
@@ -803,7 +894,8 @@ function buildRows(){
       + '<div class="big c-setup">' + g.storePct + '%</div>'
       + '<div class="big c-turnover">' + fmtE(g.turnover) + '</div>'
       + '<div class="big c-margin' + (m < 0 ? ' neg' : '') + '">' + fmtE(m) + '</div>'
-      + '<div class="big c-margin' + (m < 0 ? ' neg' : '') + '">' + mp.toFixed(1) + '%</div>';
+      + '<div class="big c-margin' + (m < 0 ? ' neg' : '') + '">'
+      +   (mp === null ? '—' : mp.toFixed(1) + '%') + '</div>';
     host.appendChild(d);
   });
   renderExcluded();
@@ -822,6 +914,9 @@ function renderExcluded(){
 
 /* First-Last-Invert-Play: rows glide to their new places, so a room can be
    watched overtaking another rather than the list simply blinking. */
+let sorting = false;              /* rows are gliding; the stage is locked */
+let sortTimer = 0;
+
 function reorder(order){
   const host = el('rows');
   const kids = Array.prototype.slice.call(host.children);
@@ -833,9 +928,11 @@ function reorder(order){
     if(node) host.appendChild(node);
   });
 
+  let moved = false;
   kids.forEach(function(k, i){
     const dy = before[k.dataset.id] - k.getBoundingClientRect().top;
     if(!dy) return;
+    moved = true;
     k.style.transition = 'none';
     k.style.transform = 'translateY(' + dy + 'px)';
     requestAnimationFrame(function(){
@@ -843,6 +940,28 @@ function reorder(order){
       k.style.transform = '';
     });
   });
+
+  clearTimeout(sortTimer);
+  sorting = moved;
+  if(moved) sortTimer = setTimeout(function(){ sorting = false; }, 1400 + kids.length * 50);
+}
+
+/* Asking for the next stage while the rows are still gliding used to leave
+   half the board in mid-air under the following heading. Rather than lock the
+   input out, the sort is snapped to its finished state first — the press is
+   never swallowed, and the board is never caught between two orders. */
+function finishSort(){
+  if(!sorting) return;
+  clearTimeout(sortTimer);
+  sorting = false;
+  const kids = el('rows').children;
+  for(let i = 0; i < kids.length; i++){
+    kids[i].style.transition = 'none';
+    kids[i].style.transform = '';
+  }
+  void el('rows').offsetWidth;
+  for(let i = 0; i < kids.length; i++) kids[i].style.transition = '';
+  setRanks();
 }
 
 function setRanks(){
@@ -866,14 +985,16 @@ function renderStage(){
   board.classList.toggle('hidden', onMap);
   el('excluded').classList.toggle('hidden', onMap || !games.some(function(g){ return !isComplete(g); }));
 
-  if(s.key === 'sortT'){
-    reorder(ranked.slice().sort(function(a, b){ return b.turnover - a.turnover; }));
-    setTimeout(setRanks, 40);
-  }
-  if(s.key === 'sortM'){
-    reorder(ranked.slice().sort(function(a, b){ return margin(b) - margin(a); }));
-    setTimeout(setRanks, 40);
-  }
+  /* The order belongs to the stage, not to the act of arriving at it going
+     forwards: stepping back out of a ranking used to leave the rows ranked
+     under a heading that says "still in alphabetical order". */
+  const sortM = STAGES.findIndex(function(x){ return x.key === 'sortM'; });
+  const sortT = STAGES.findIndex(function(x){ return x.key === 'sortT'; });
+  let want = ranked;
+  if(stage >= sortM)      want = ranked.slice().sort(function(a, b){ return margin(b) - margin(a); });
+  else if(stage >= sortT) want = ranked.slice().sort(function(a, b){ return b.turnover - a.turnover; });
+  reorder(want);
+  setTimeout(setRanks, 40);
   if(onMap){
     if(!el('matrix-wrap').dataset.built) renderMatrix();
     /* the bars are already on screen from the turnover stage, so switching
@@ -914,7 +1035,7 @@ function renderMatrix(){
 
   splits.forEach(function(sp, i){
     html += '<tr>' + (i === 0
-      ? '<th class="axis-y" rowspan="' + splits.length + '">% in boutique at launch</th>' : '');
+      ? '<th class="axis-y" rowspan="' + splits.length + '">In the boutiques at launch</th>' : '');
     html += '<th class="rowlab">' + sp + '%</th>';
     targets.forEach(function(t){
       const here = all.filter(function(g){ return g.target === t && g.storePct === sp; });
@@ -1023,11 +1144,16 @@ function renderDetail(){
     b.type = 'button';
     /* Summary-only teams are selectable too: they have no week data, so no
        charts, but the money panel is computable from the one line they sent. */
-    b.title = g.source === 'detail' ? '' : 'summary only — no week-by-week data in this file';
+    b.title = g.source === 'detail'
+      ? (isComplete(g) ? '' : 'part game — this file stops at week ' + (g.weeks || '?'))
+      : 'summary only — no week-by-week data in this file';
     b.setAttribute('aria-pressed', String(detailTeam === g.id));
+    /* a part game says so here as well as in the ranking: its panel shows a
+       shorter season, and nothing on it should read as a finished result */
     b.innerHTML = '<span class="dot" style="background:' + (g.colour || '#8d99a6') + '"></span>'
                 + esc(g.team) + ' · ' + esc(g.game)
-                + (g.source === 'detail' ? '' : ' (summary)');
+                + (g.source !== 'detail' ? ' (summary)'
+                   : isComplete(g) ? '' : ' (part, week ' + (g.weeks || '?') + ')');
     b.addEventListener('click', function(){
       detailTeam = (detailTeam === g.id) ? null : g.id;
       renderDetail();
@@ -1341,8 +1467,8 @@ function teamList(){ return sortedForDisplay(); }
    when the season ended):
      short   - made fewer than the season asked for: max(0, missed − left).
                No placement could have fixed these.
-     central - of what remains, as many as were still central or in transit:
-               the team had them, they were simply not in the boutique yet.
+     late    - of what remains, as many as were still central or in transit:
+               the team had them, they were simply not on that shelf in time.
      wrong   - the rest, capped by what the OTHER boutique finished with unsold:
                the bag existed, in the wrong boutique, and nothing could move it.
    Central is charged before wrong on purpose: when both could explain a
@@ -1386,9 +1512,10 @@ function teamStats(g){
     p.late = Math.min(rest, p.endW + p.transit);
     rest -= p.late;
     p.wrong = Math.min(rest, Math.min(p.endB, p.missA) + Math.min(p.endA, p.missB));
-    /* anything the three cannot explain stays with the production bucket, so
-       the parts always add up to the misses on screen */
-    p.short += rest - p.wrong;
+    /* whatever the three cannot explain stays here, so the parts always add
+       up to the misses on screen. It cannot be a production shortfall — those
+       bags existed, they were simply not on the right shelf. */
+    p.late += rest - p.wrong;
     per[bag] = p;
   });
 
@@ -1422,7 +1549,10 @@ function teamScales(){
     const st = teamStats(g);
     if(st) st.bags.forEach(function(b){
       const p = st.per[b];
-      unit = Math.max(unit, p.soldA + p.missA + p.endA, p.soldB + p.missB + p.endB, p.endW);
+      /* endW alone under-counts the central pile: anything still on a truck
+         when the season ended is the team's stock too, and the bar draws it */
+      unit = Math.max(unit, p.soldA + p.missA + p.endA, p.soldB + p.missB + p.endB,
+                      p.endW + (p.transit || 0));
     });
   });
   return { euro:euro, unit:unit, missed:missed };
@@ -1464,10 +1594,16 @@ function drawTeamZoom(){
     +   '<div><h2 style="font-size:26px;">' + esc(g.team) + ' <span class="muted" style="font-weight:700;">'
     +     esc(g.game) + '</span></h2>'
     +     '<div class="muted small" style="margin-top:4px;">' + g.target + '% sell-through target · '
-    +     g.storePct + '% of production into the boutiques at launch · ' + fmt(g.producedTotal)
-    +     ' bags made</div></div>'
+    +     g.storePct + '% in the boutiques at launch · ' + fmt(g.producedTotal)
+    +     ' bags made</div>'
+    /* everything below is computed over the weeks the file actually holds:
+       an unfinished season must not be read as a result */
+    +     (isComplete(g) ? ''
+          : '<div class="badge part" style="margin-top:6px;">part game — stops at week '
+            + (g.weeks || '?') + ' of ' + seasonWeeks() + '</div>')
+    +   '</div>'
     +   '<div style="text-align:right;">'
-    +     '<div class="teambig ' + (m > 0 ? 'g' : 'r') + '">' + fmtE(m) + '</div>'
+    +     '<div class="teambig ' + (m < 0 ? 'r' : 'g') + '">' + fmtE(m) + '</div>'
     +     '<div class="muted small" style="letter-spacing:.06em;text-transform:uppercase;font-weight:800;">margin</div>'
     +   '<div class="zoomnav" style="margin-top:10px;justify-content:flex-end;">'
     +     '<button type="button" class="btn-ghost" id="z-prev">‹</button>'
@@ -1570,7 +1706,7 @@ function boardPanel(g, st, sc){
       + cell(p.soldA, p.missA, p.endA, CLR.A)
       + cell(p.soldB, p.missB, p.endB, CLR.B)
       + cell(0, 0, p.endW + p.transit, CLR.W, p.transit)
-      + '<div class="bmargin ' + (bm > 0 ? 'g' : 'r') + '">' + fmtE(bm) + '</div>';
+      + '<div class="bmargin ' + (bm < 0 ? 'r' : 'g') + '">' + fmtE(bm) + '</div>';
   });
   return html + '</div><p class="muted small" style="margin-top:6px;">'
     + 'All the bars share one scale, across every team loaded.</p>';
@@ -1600,7 +1736,7 @@ function causesPanel(st, missed, sc){
     return '<p class="punch" style="color:#0f6b45;border-color:#0f6b45;">'
          + 'Every customer who asked for a bag got one.</p>';
   const parts = [
-    { v:st.late,  c:'#b06e28', lab:'still central — not in the boutique yet' },
+    { v:st.late,  c:'#b06e28', lab:'the bag existed — not on this shelf in time' },
     { v:st.wrong, c:CLR.missed, lab:'stranded in the other boutique' },
     { v:st.short, c:'#6b7580', lab:'never made — the bag sold out everywhere' }
   ];
@@ -1624,6 +1760,11 @@ function causesPanel(st, missed, sc){
    ========================================================================= */
 function init(){
   load();
+  /* the saved costs drive every margin on the page, so the two fields must
+     show them: after a reload they still read 200 / 117 000 while the figures
+     underneath had been computed at whatever was actually typed */
+  el('in-cost').value = fallbackCost;
+  el('in-fixed').value = fallbackFixed;
   renderImport();
 
   const drop = el('drop');
@@ -1635,6 +1776,12 @@ function init(){
   });
   drop.addEventListener('drop', function(e){ readFiles(e.dataTransfer.files); });
 
+  /* A file dropped anywhere but the zone made the browser navigate away from
+     the page, taking the loaded games with it. */
+  ['dragover','drop'].forEach(function(ev){
+    window.addEventListener(ev, function(e){ e.preventDefault(); });
+  });
+
   el('btn-pick').addEventListener('click', function(){ el('file-input').click(); });
   el('file-input').addEventListener('change', function(e){ readFiles(e.target.files); e.target.value = ''; });
 
@@ -1644,8 +1791,13 @@ function init(){
   el('btn-paste-close').addEventListener('click', function(){ el('paste-card').classList.add('hidden'); });
   el('btn-paste-add').addEventListener('click', function(){
     const v = el('paste').value.trim();
-    if(!v) return;
     messages = [];
+    /* pressing Add on an empty box used to do nothing at all, which reads
+       exactly like a paste that failed */
+    if(!v){
+      messages.push({ kind:'bad', text:'nothing pasted — paste the export first' });
+      renderImport(); return;
+    }
     addBlob(v, 'pasted text');
     el('paste').value = '';
   });
@@ -1656,6 +1808,10 @@ function init(){
       fallbackFixed = Number(el('in-fixed').value) || 0;
       save(); renderImport();
     });
+  });
+
+  el('btn-peek').addEventListener('click', function(){
+    peeking = !peeking; renderImport();
   });
 
   el('btn-clear').addEventListener('click', function(){
@@ -1680,18 +1836,39 @@ function init(){
   el('btn-back-import').addEventListener('click', function(){
     el('screen-reveal').classList.add('hidden');
     el('screen-import').classList.remove('hidden');
+    /* "Team 3 — added" belongs to the import that was just done, not to a
+       screen returned to twenty minutes later */
+    messages = [];
     renderImport();
   });
   el('btn-next').addEventListener('click', function(){
+    finishSort();
     if(stage < STAGES.length - 1){ stage++; renderStage(); }
   });
   el('btn-prev').addEventListener('click', function(){
+    finishSort();
     if(stage > 0){ stage--; renderStage(); }
+  });
+
+  /* A button clicked with the mouse keeps the focus ring, and the next Enter
+     then fires that button again instead of moving the stage on. Keyboard
+     activation reports detail 0 and keeps its focus, as it must. */
+  document.addEventListener('click', function(e){
+    const b = e.target.closest && e.target.closest('button');
+    if(b && e.detail > 0) b.blur();
   });
 
   document.addEventListener('keydown', function(e){
     if(el('modal-root').firstChild) return;
     if(el('screen-reveal').classList.contains('hidden')) return;
+    /* Enter and Space belong to whatever is focused when that thing is a
+       control: pressing Space on the Back button used to walk the stage
+       forward instead of taking it back. */
+    const t = e.target, tag = t && t.tagName;
+    if(tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT'
+       || tag === 'TEXTAREA' || (t && t.isContentEditable)) return;
+    if(e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight'
+       || e.key === 'ArrowLeft') finishSort();
     if(e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight'){
       e.preventDefault(); if(stage < STAGES.length - 1){ stage++; renderStage(); }
     }else if(e.key === 'ArrowLeft'){

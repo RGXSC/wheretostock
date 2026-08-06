@@ -142,8 +142,12 @@
   .focuscard p{ font-size:15px; margin-top:8px; }
 
   /* ------------------------------------------------------------- matrix */
-  .mwrap{ overflow-x:auto; }
-  table.matrix{ border-collapse:separate; border-spacing:4px; margin:0 auto; }
+  /* "safe center" so a matrix wider than the card scrolls from its first
+     column instead of having the left-hand edge clipped off by the centring */
+  .mwrap{ overflow-x:auto; display:flex; justify-content:safe center; }
+  table.matrix{ border-collapse:separate; border-spacing:4px; margin:0 auto;
+                width:100%; }
+  table.matrix td{ min-width:74px; }
   table.matrix th{ font-size:12px; font-weight:800; color:var(--ink-soft);
                    text-transform:uppercase; letter-spacing:.04em; padding:3px 6px; }
   table.matrix td{ min-width:74px; height:44px; padding:0; }
@@ -317,13 +321,13 @@
       </div>
       <div class="mcfield">
         <label>Collection concentration</label>
-        <input type="range" id="mc-askew" min="0" max="100" value="55">
+        <input class="slider" type="range" id="mc-askew" min="0" max="100" value="55">
         <div class="shape" id="mc-askew-s"></div>
         <div class="hint" id="mc-askew-h"></div>
       </div>
       <div class="mcfield">
         <label>Network concentration</label>
-        <input type="range" id="mc-bskew" min="0" max="100" value="45">
+        <input class="slider" type="range" id="mc-bskew" min="0" max="100" value="45">
         <div class="shape" id="mc-bskew-s"></div>
         <div class="hint" id="mc-bskew-h"></div>
       </div>
@@ -349,7 +353,7 @@
     <div id="mc-out" class="hidden" style="margin-top:20px;">
       <div class="mcfield" style="max-width:520px;margin-bottom:16px;">
         <label>Cost of one bag &nbsp;<span id="mc-cost-read"></span></label>
-        <input type="range" id="mc-cost" min="100" max="500" step="10" value="200">
+        <input class="slider" type="range" id="mc-cost" min="100" max="500" step="10" value="200">
       </div>
       <div class="matrices">
         <div><h3 style="margin-bottom:8px;">Average turnover</h3><div class="mwrap" id="mx-mt"></div></div>
@@ -368,7 +372,7 @@
     <h2>What the bag costs to make</h2>
     <div class="mcfield" style="max-width:520px;margin-top:10px;">
       <label>Cost of one bag &nbsp;<span id="cost-read"></span></label>
-      <input type="range" id="cost-slider" min="100" max="500" step="10" value="200">
+      <input class="slider" type="range" id="cost-slider" min="100" max="500" step="10" value="200">
     </div>
     <div style="margin-top:14px;max-width:640px;">
       <div>
@@ -473,8 +477,9 @@ const fmtE = function(n){ return fmt(n) + ' €'; };
 const fmtK = function(n){
   const a = Math.abs(n);
   if(a >= 1e9) return (n / 1e9).toFixed(2) + ' Md';
-  if(a >= 1e6) return (n / 1e6).toFixed(1) + ' M';
-  return fmt(n / 1000) + 'k';
+  if(a >= 999500) return (n / 1e6).toFixed(1) + ' M';   /* 999 999 is 1.0 M, not 1 000k */
+  const k = Math.round(n / 1000);
+  return (k === 0 ? '0' : fmt(k)) + 'k';                /* never "-0k" */
 };
 const esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){
   return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
@@ -876,7 +881,7 @@ function readMatrix(){
    collapses the arithmetic: a boutique runs out of bag i exactly when its own
    error term clears a threshold that depends on i alone. Sort the boutiques
    by that term once per season, keep two prefix sums, and every one of the
-   thirty combinations is then a binary search rather than a sweep of the
+   forty combinations is then a binary search rather than a sweep of the
    whole network. That is what lets 500 x 500 run thousands of times inside
    twenty seconds. A test checks it against the plain loop.                  */
 let mcAbort = false, mcRunning = false;
@@ -944,14 +949,24 @@ function shapeSVG(w){
 }
 
 function mcHints(){
-  const a = paretoShares(Number(el('mc-sku').value) || 1, Number(el('mc-askew').value));
-  const b = paretoShares(Number(el('mc-store').value) || 1, Number(el('mc-bskew').value));
+  /* the same clamp the run uses: typing 900 bags used to draw a preview of a
+     900-item board that the simulation would never run */
+  const cl = function(v){ return Math.max(1, Math.min(500, Math.round(Number(v) || 1))); };
+  const n = cl(el('mc-sku').value), m = cl(el('mc-store').value);
+  const a = paretoShares(n, Number(el('mc-askew').value));
+  const b = paretoShares(m, Number(el('mc-bskew').value));
   el('mc-askew-s').innerHTML = shapeSVG(a);
   el('mc-bskew-s').innerHTML = shapeSVG(b);
-  el('mc-askew-h').textContent = 'the top 20% of bags carry '
-    + (topShare(a, 0.2) * 100).toFixed(0) + '% of the forecast';
-  el('mc-bskew-h').textContent = 'the top 20% of boutiques carry '
-    + (topShare(b, 0.2) * 100).toFixed(0) + '% of the forecast';
+  /* "the top 20%" of two items is one item, which is 50% — a share that says
+     nothing about concentration. Below five, name the biggest instead. */
+  el('mc-askew-h').textContent = n < 5
+    ? 'the largest of the ' + n + ' bag' + (n > 1 ? 's' : '') + ' carries '
+      + (a[0] * 100).toFixed(0) + '% of the forecast'
+    : 'the top 20% of bags carry ' + (topShare(a, 0.2) * 100).toFixed(0) + '% of the forecast';
+  el('mc-bskew-h').textContent = m < 5
+    ? 'the largest of the ' + m + ' boutique' + (m > 1 ? 's' : '') + ' carries '
+      + (b[0] * 100).toFixed(0) + '% of the forecast'
+    : 'the top 20% of boutiques carry ' + (topShare(b, 0.2) * 100).toFixed(0) + '% of the forecast';
 }
 
 function readMC(){
@@ -973,6 +988,11 @@ function readMC(){
 
 function mcStart(){
   if(mcRunning) return;
+  /* the previous run's matrices are wrong the moment the board changes, and
+     leaving them up for twenty seconds read as live results */
+  mcResult = null;
+  ['mx-mt','mx-mm'].forEach(function(id){ el(id).textContent = ''; });
+  el('mc-foot').textContent = '';
   const cfg = readMC();
   const n = cfg.n, m = cfg.m;
   const skuShare = paretoShares(n, cfg.aSkew);
@@ -988,9 +1008,9 @@ function mcStart(){
   ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
     combos.push({ st:st, sp:sp, s:st / 100, p:sp / 100 }); }); });
   const sumT = new Float64Array(combos.length);
-  const sumM = new Float64Array(combos.length);
-  /* production is kept as well as margin: margin at any other unit cost is
-     then turnover − production x cost − fixed, with nothing to re-run */
+  /* production is kept as well as turnover: margin at any unit cost is then
+     turnover − production x cost − fixed, with nothing to re-run. The margin
+     itself is never accumulated — it would freeze the cost the run used. */
   const sumP = new Float64Array(combos.length);
   const wins = new Float64Array(combos.length);
 
@@ -1047,7 +1067,7 @@ function mcStart(){
       }
       const turnover = sold * ECON.price;
       const margin = turnover - prodAll * ECON.cost - fixed;
-      sumT[c] += turnover; sumM[c] += margin; sumP[c] += prodAll;
+      sumT[c] += turnover; sumP[c] += prodAll;
       if(margin > bestM){ bestM = margin; bestK = c; }
     }
     wins[bestK]++;
@@ -1073,7 +1093,9 @@ function mcStart(){
   function finish(){
     mcRunning = false;
     el('btn-mc').disabled = false; el('btn-mc-stop').disabled = true;
-    el('mc-bar').style.width = '100%';
+    /* a run that was stopped early keeps the bar where it actually got to:
+       snapping to 100% claimed the full twenty seconds had been spent */
+    if(!mcAbort) el('mc-bar').style.width = '100%';
     const avgT = {}, avgP = {}, win = {};
     combos.forEach(function(c, i){
       avgT[key(c.st, c.sp)] = sumT[i] / seasons;
@@ -1106,8 +1128,12 @@ function renderMC(){
   el('mc-read').innerHTML =
       '<div class="note"><b>★ Best average turnover</b> ' + bt.st + '% / ' + bt.sp + '%. &nbsp; '
     + '<b>◆ Best average margin</b> ' + bm.st + '% / ' + bm.sp + '%.</div>';
-  el('mc-foot').textContent = 'Errors of ' + (r.minErr * 100).toFixed(0) + '% to +'
-    + (r.maxErr * 100).toFixed(0) + '% per bag once recentred · continuous quantities.';
+  /* signs are taken from the numbers, not assumed: a range of ±0.4% used to
+     be printed as "-0% to +0%" */
+  const pc = function(v){ const x = v * 100;
+    return (Math.abs(x) < 0.5 ? '' : (x > 0 ? '+' : '−')) + Math.abs(x).toFixed(0) + '%'; };
+  el('mc-foot').textContent = 'Errors of ' + pc(r.minErr) + ' to ' + pc(r.maxErr)
+    + ' per bag once recentred · continuous quantities.';
 }
 
 /* =========================================================================
@@ -1190,7 +1216,12 @@ function stepWithin(){
     if(!focusOn){ renderConsequence(); return true; }
   }
   if(id === 's1' && el('trial-out').classList.contains('hidden')){ testCombo(); return true; }
-  if(id === 's3' && !mcRunning && !mcResult){ mcStart(); return true; }
+  if(id === 's3'){
+    /* twenty seconds of simulation is not a reason to skip the slide: while
+       it runs, Enter does nothing rather than jumping to the next one */
+    if(mcRunning) return true;
+    if(!mcResult){ mcStart(); return true; }
+  }
   return false;
 }
 
@@ -1213,9 +1244,19 @@ function padForBar(){
   document.querySelector('main').style.paddingBottom = (bar.offsetHeight + 34) + 'px';
 }
 
+/* Bar widths are a percentage of a column that changes with the window, so a
+   label that fitted at 1600px does not at 900px. Re-measure whatever is on
+   screen instead of leaving the placement frozen at first draw. */
+function refitVisible(){
+  ['board-table','trial-out','limit-body'].forEach(function(id){
+    const h = el(id);
+    if(h && h.offsetParent !== null) fitBars(h);
+  });
+}
+
 function init(){
   padForBar();
-  window.addEventListener('resize', padForBar);
+  window.addEventListener('resize', function(){ padForBar(); refitVisible(); });
   renderBoard();
   ['', '2'].forEach(function(n){
     el('sl' + n + '-st').addEventListener('input', function(){
@@ -1242,8 +1283,20 @@ function init(){
     if(stage < STAGES.length - 1){ stage++; renderStage(); } });
   el('btn-prev').addEventListener('click', function(){
     if(stage > 0){ stage--; renderStage(); } });
+  /* A button clicked with the mouse keeps the focus ring, and the next Enter
+     then fires that button again instead of moving the slide on. Keyboard
+     activation reports detail 0 and keeps its focus, as it must. */
+  document.addEventListener('click', function(e){
+    const b = e.target.closest && e.target.closest('button');
+    if(b && e.detail > 0) b.blur();
+  });
+
   document.addEventListener('keydown', function(e){
-    if(/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+    if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    /* Enter and Space belong to whatever is focused when that is a control:
+       pressing Space on Stop or Back used to advance the slide instead */
+    if((e.key === 'Enter' || e.key === ' ')
+       && /^(BUTTON|A)$/.test(e.target.tagName)) return;
     if(e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight'){
       e.preventDefault();
       if(stepWithin()) return;

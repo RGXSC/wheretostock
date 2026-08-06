@@ -53,6 +53,13 @@
   h1,h2,h3{ margin:0; font-weight:800; letter-spacing:-0.015em; }
   .wrap{ max-width:1180px; margin:0 auto; padding:0 18px; }
   .narrow{ max-width:820px; }
+  /* The two decisions are one choice made twice, and reading them side by
+     side is how a room compares them. Below 1000px they stack again. */
+  .setupwrap{ max-width:1180px; }
+  .twodec{ display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  .twodec > .card{ margin-bottom:0; height:100%; }
+  @media (max-width:1000px){ .setupwrap{ max-width:820px; }
+                             .twodec{ grid-template-columns:1fr; } }
   .hidden{ display:none !important; }
   .muted{ color:var(--ink-soft); }
   .small{ font-size:15px; }
@@ -70,7 +77,7 @@
   .btn-primary{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
   .btn-primary:hover:not(:disabled){ filter:brightness(1.15); }
   .btn-danger{ color:var(--warn); border-color:#dcb5a5; }
-  .btn-ghost{ min-height:40px; padding:6px 12px; font-size:15px;
+  .btn-ghost{ min-height:44px; padding:8px 14px; font-size:15px;
               border-color:var(--line-soft); color:var(--ink-soft); background:transparent; }
   .btn-xl{ font-size:23px; min-height:70px; padding:16px 30px; }
 
@@ -264,7 +271,7 @@
   table.alloc td.nm svg{ flex:none; }
   table.alloc td.avail{ text-align:center; font-variant-numeric:tabular-nums;
                         font-weight:800; font-size:18px; }
-  table.alloc input{ min-height:42px; padding:6px; font-size:18px; }
+  table.alloc input{ min-height:44px; padding:6px; font-size:18px; }
   table.alloc th{ white-space:nowrap; }
   table.alloc input.bad{ border-color:var(--warn); background:#fdf1ec; }
   @keyframes clampflash{ 0%,100%{ background:var(--surface); border-color:var(--line) }
@@ -301,6 +308,34 @@
   .dchip span{ font-weight:600; color:#4a6b83; }
   .dchip b{ font-variant-numeric:tabular-nums; }
 
+  /* On a 1280x720 projector the header's three stacked rows ate a third of
+     the screen and the boutiques fell below the fold. Below 780px of height
+     the steps and the two locked decisions share one row and the paddings
+     tighten — the same information, half the height. */
+  @media (max-height:780px){
+    header.topbar{ display:flex; flex-wrap:wrap; align-items:center;
+                   max-width:1180px; margin:0 auto; }
+    .bar-inner{ flex:1 1 100%; padding:6px 18px; }
+    .weekbox .n{ font-size:28px; }
+    .kpi .v{ font-size:19px; }
+    .bar-meta .t{ font-size:17px; }
+    .steps{ flex:1 1 460px; padding:0 8px 8px 18px; margin:0; }
+    .step{ padding:5px 11px; font-size:14px; }
+    .step .num{ width:22px; height:22px; font-size:13px; }
+    .decisions{ flex:0 1 auto; padding:0 18px 8px 0; margin:0; }
+    main{ padding-top:10px; }
+    /* and the same trim on the board itself, so the second boutique lands
+       above the fold rather than 46px below it */
+    .panel{ padding:10px 14px; }
+    .panel + .panel{ margin-top:11px; }
+    .panel-head{ margin-bottom:6px; padding-bottom:5px; }
+    .panel-head h3{ font-size:17px; }
+    .brow{ padding:3px 0; }
+    .qty{ font-size:19px; }
+    .cell .v, .demandcell{ font-size:17px; }
+    .action{ margin-bottom:11px; }
+  }
+
   /* --------------------------------------------------------- animation */
   #fly-layer{ position:fixed; inset:0; pointer-events:none; z-index:45; }
   .fly{ position:absolute; width:22px; height:22px; border-radius:6px;
@@ -333,7 +368,7 @@
          box-shadow:0 8px 28px rgba(0,0,0,.3); }
   .hint h4{ margin:0 0 6px; font-size:17px; }
   .hint p{ margin:0 0 14px; font-size:15px; line-height:1.4; color:#dfe5ea; }
-  .hint button{ min-height:40px; padding:6px 16px; font-size:15px;
+  .hint button{ min-height:44px; padding:8px 18px; font-size:15px;
                 background:#fff; color:var(--ink); border-color:#fff; }
   .hint:after{ content:''; position:absolute; width:14px; height:14px;
                background:var(--ink); transform:rotate(45deg); }
@@ -447,7 +482,8 @@
   /* 6 tiles: 3x2 on desktop, 2x3 on a tablet — never an orphan on its own row */
   .stat{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:18px 0; }
   @media (max-width:620px){ .stat{ grid-template-columns:repeat(2,1fr); } }
-  .stat div{ border:2px solid var(--line-soft); border-radius:var(--radius); padding:12px 14px; }
+  /* direct children only: a nested div picked up a second and a third box */
+  .stat > div{ border:2px solid var(--line-soft); border-radius:var(--radius); padding:12px 14px; }
   .stat .k{ font-size:12px; font-weight:800; text-transform:uppercase;
             letter-spacing:.05em; color:var(--ink-soft); }
   .stat .v{ font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; }
@@ -456,7 +492,7 @@
 <!-- ========================================================= SCREEN: START -->
 <section id="screen-start" class="wrap narrow" style="padding:34px 0 70px;">
   <h1 style="font-size:27px;">Product launch: how much stock? where do we put it?</h1>
-  <p class="muted" style="margin-top:6px;">1 warehouse · 2 stores · 5 bags · 13 weeks</p>
+  <p class="muted" style="margin-top:6px;">1 warehouse · 2 boutiques · 5 bags · 13 weeks</p>
 
   <div id="storage-warning" class="banner hidden">
     <strong>Note:</strong> this browser will not let the page save locally. The game still works,
@@ -492,7 +528,7 @@
 </section>
 
 <!-- ========================================================= SCREEN: SETUP -->
-<section id="screen-setup" class="wrap narrow hidden" style="padding:28px 0 70px;">
+<section id="screen-setup" class="wrap setupwrap hidden" style="padding:28px 0 70px;">
   <h1 style="font-size:29px;">Briefing &amp; setup</h1>
   <p class="muted" style="margin-top:4px;" id="setup-who"></p>
 
@@ -502,6 +538,7 @@
     <ul id="econ-list"></ul>
   </div>
 
+  <div class="twodec">
   <div class="card">
     <h2>Decision 1 — target sell-through</h2>
     <p class="muted" style="margin-top:0;">
@@ -525,12 +562,13 @@
       The boutique share is <b>split equally between Paris and Tokyo</b>.
     </p>
     <div class="sliderbox">
-      <div class="slidernow" id="val-sp">50% in boutique</div>
+      <div class="slidernow" id="val-sp">50% in the boutiques</div>
       <input class="slider" type="range" id="sl-sp" min="30" max="90" step="10" value="50"
              aria-label="Share of production sent to the boutiques at launch">
       <div class="ticks" id="ticks-sp"></div>
     </div>
     <div class="consequence" id="cons-split"></div>
+  </div>
   </div>
 
   <button id="btn-begin" class="btn-primary btn-xl" style="width:100%;">Lock the setup and start week 1</button>
@@ -778,14 +816,34 @@ function newState(team, game){
 function save(){
   if(!state) return;
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-  catch(err){ storageOK = false; el('storage-warning').classList.remove('hidden'); }
+  catch(err){
+    /* The banner lives on the start screen, which is gone once the game is
+       running: a save that fails in week 6 has to say so where the players
+       actually are. Said once, not on every keystroke. */
+    const first = storageOK;
+    storageOK = false;
+    el('storage-warning').classList.remove('hidden');
+    if(first && typeof toast === 'function' && el('screen-start').classList.contains('hidden')){
+      toast('This browser will not let the page save — export before you finish');
+    }
+  }
 }
+/* Boutiques used to be called Store A and Store B. A game saved under the old
+   names resumes fine — the slots were always A and B — but its finished weeks
+   still carry the old Location, and exporting would then hand the debrief a
+   file that is half one vocabulary and half the other. Rename on the way in,
+   once, so what leaves the game is always current. */
+const LEGACY_LOC = { 'Store A':'A', 'Store B':'B' };
 function loadSaved(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     if(!raw) return null;
     const o = JSON.parse(raw);
-    return (o && o.version === 2 && o.team) ? o : null;
+    if(!(o && o.version === 2 && o.team)) return null;
+    if(Array.isArray(o.log)) o.log.forEach(function(r){
+      if(LEGACY_LOC[r.loc]) r.loc = SN(LEGACY_LOC[r.loc]);
+    });
+    return o;
   }catch(err){ return null; }
 }
 function clearSaved(){ try{ localStorage.removeItem(STORAGE_KEY); }catch(err){} }
@@ -835,8 +893,13 @@ function doSell(){
   /* Nothing left to ship means nothing to decide — don't make them click
      through an empty table every week for the rest of the season. */
   const warehouseEmpty = state.stock.W.reduce(function(a, b){ return a + b; }, 0) === 0;
-  state.skippedAlloc = warehouseEmpty;
-  state.step = warehouseEmpty ? 'confirm' : 'allocate';
+  /* A shipment sent in the last week can never arrive — there is no week 14 —
+     so the step is skipped rather than offered as a trap that would strand
+     stock in transit and make the P&L, the export and the panel disagree. */
+  const lastWeek = state.week >= WEEKS;
+  state.skippedAlloc = warehouseEmpty || lastWeek;
+  state.lastWeekNoShip = !warehouseEmpty && lastWeek;
+  state.step = state.skippedAlloc ? 'confirm' : 'allocate';
   save();
 }
 
@@ -1056,7 +1119,7 @@ function renderAction(){
 
   if(state.step === 'reveal'){
     h.textContent = 'Week ' + state.week + ' — who walks in?';
-    p.textContent = 'Reveal what customers ask for in each store this week.';
+    p.textContent = 'Reveal what customers ask for in each boutique this week.';
     host.appendChild(h); host.appendChild(p);
     host.appendChild(bigButton('Reveal demand', function(){
       state.step = 'sell'; save(); renderGame(); animateDemand(); maybeHint();
@@ -1079,7 +1142,7 @@ function renderAction(){
 
   if(state.step === 'allocate'){
     h.textContent = 'Week ' + state.week + ' — ship from the warehouse';
-    p.textContent = 'Decide what leaves the central warehouse. It arrives at the stores next week, ready to sell.';
+    p.textContent = 'Decide what leaves the central warehouse. It arrives at the boutiques next week, ready to sell.';
     host.appendChild(h); host.appendChild(p);
     host.appendChild(buildAllocTable());
     const btn = bigButton('Confirm shipment', function(){
@@ -1093,9 +1156,18 @@ function renderAction(){
     none.className = 'btn-ghost';
     none.style.marginTop = '8px';
     none.textContent = 'Ship nothing this week';
+    /* The typed quantities are cleared on screen as well as in the state:
+       going back from the confirmation used to show numbers in the cells that
+       were no longer in the shipment. */
     none.addEventListener('click', function(){
       state.ship = { A:zeros(), B:zeros() };
-      save();
+      BAGS.forEach(function(b, i){
+        ['A','B'].forEach(function(s){
+          const inp = el('ship-' + s + '-' + i);
+          if(inp) inp.value = '0';
+        });
+      });
+      save(); refreshAlloc();
       confirmShipment();
     });
     host.appendChild(none);
@@ -1104,7 +1176,7 @@ function renderAction(){
 
   /* confirm */
   const last = state.week >= WEEKS;
-  h.textContent = last ? 'Week 25 complete' : 'Week ' + state.week + ' complete';
+  h.textContent = 'Week ' + (last ? WEEKS : state.week) + ' complete';
   p.textContent = last
     ? 'The season is over. Reveal the P&L to see how the launch actually performed.'
     : (state.skippedAlloc
@@ -1148,7 +1220,8 @@ function confirmShipment(){
     box.appendChild(p);
 
     if(lines.length){
-      let t = '<table class="shiplist"><thead><tr><th>Bag</th><th>→ A</th><th>→ B</th></tr></thead><tbody>';
+      let t = '<table class="shiplist"><thead><tr><th>Bag</th><th>→ ' + SN('A')
+            + '</th><th>→ ' + SN('B') + '</th></tr></thead><tbody>';
       lines.forEach(function(l){
         t += '<tr><td>' + bagIcon(l.i, 16) + ' ' + l.name + '</td>'
            + '<td>' + (l.a || '—') + '</td><td>' + (l.b || '—') + '</td></tr>';
@@ -1174,13 +1247,13 @@ function confirmShipment(){
     go.setAttribute('data-default', '1');
     go.innerHTML = '<span>' + (total === 0 ? 'Send nothing' : 'Send them')
                  + '</span><span class="kbd">↵ Enter</span>';
-    go.addEventListener('click', function(){
+    go.addEventListener('click', guarded(function(){
       closeModal();
       doShip();
       renderGame();
       showFlow(animateShipments);
       maybeHint();
-    });
+    }));
     row.appendChild(back); row.appendChild(go);
     box.appendChild(row);
   }, { beside:true });
@@ -1201,6 +1274,18 @@ function showFlow(fn){
   requestAnimationFrame(function(){ requestAnimationFrame(fn); });
 }
 
+/* Every step button rebuilds the panel underneath itself, so the second half
+   of a double-click lands on whatever button took its place and plays the
+   next step too. detail counts the clicks of a multi-click at one spot even
+   when the element under the cursor has changed, so anything above the first
+   is dropped. Keyboard and programmatic clicks report 0 and always pass. */
+function guarded(fn){
+  return function(e){
+    if(e && e.detail > 1) return;
+    fn(e);
+  };
+}
+
 function bigButton(label, fn){
   const b = document.createElement('button');
   b.className = 'btn-primary btn-xl';
@@ -1208,7 +1293,7 @@ function bigButton(label, fn){
   /* Enter works on every step, so say so on the button itself rather than
      only once in the guide. */
   b.innerHTML = '<span>' + label + '</span><span class="kbd">↵ Enter</span>';
-  b.addEventListener('click', fn);
+  b.addEventListener('click', guarded(fn));
   return b;
 }
 
@@ -1236,9 +1321,13 @@ function buildAllocTable(){
         let v = Math.max(0, Math.floor(Number(inp.value) || 0));
         const other = (s === 'A' ? state.ship.B[i] : state.ship.A[i]) || 0;
         const max = Math.max(0, state.stock.W[i] - other);
-        if(v > max){
-          v = max;
-          inp.value = String(v);
+        const over = v > max;
+        if(over) v = max;
+        /* the field always shows the quantity that will actually be shipped:
+           a decimal, a minus sign or stray text used to leave one number on
+           screen and a different one in the shipment */
+        if(inp.value !== String(v)) inp.value = String(v);
+        if(over){
           inp.classList.remove('clamped');
           void inp.offsetWidth;                 /* restart the flash */
           inp.classList.add('clamped');
@@ -1287,7 +1376,10 @@ function refreshAlloc(){
   const btn = el('btn-ship');
   if(btn){
     btn.disabled = !ok;
-    btn.textContent = ok ? 'Confirm shipment' : 'Not enough stock in the warehouse';
+    /* rebuild both spans: writing textContent here used to delete the
+       "↵ Enter" badge the moment anything was typed into a cell */
+    btn.innerHTML = '<span>' + (ok ? 'Confirm shipment' : 'Not enough stock in the warehouse')
+                  + '</span><span class="kbd">↵ Enter</span>';
   }
   return ok;
 }
@@ -1591,6 +1683,7 @@ const HINTS = [
 
 let hintOpen = false;
 let hintPending = false;      /* a hint is queued but not yet on screen */
+let replayQueue = null;       /* "?" walks every bubble for the current step */
 let closeOpenHint = null;     /* tears down whichever hint is currently up   */
 
 /* Smallest rectangle containing all of the given elements. */
@@ -1747,6 +1840,15 @@ function showHint(h){
     hintOpen = false;
     closeOpenHint = null;
     if(silent === true) return;      /* being replaced, don't chain */
+    /* A replay walks every bubble for this step, whatever week they were
+       written for. Without it, "?" after week 3 showed "1 of 3" and stopped,
+       because the automatic chain only fires on the week a hint belongs to. */
+    if(replayQueue){
+      const nxt = replayQueue.shift();
+      if(!replayQueue.length) replayQueue = null;
+      if(nxt){ showHint(nxt); return; }
+      replayQueue = null;
+    }
     maybeHint();                     /* several hints can share a step */
     focusShipCell();                 /* the bubble had taken the cursor */
   };
@@ -1904,12 +2006,15 @@ function openExport(){
 function renderEnd(){
   const t = totals(), s = state.setup;
   el('end-who').textContent = state.team + ' · ' + state.game
-    + ' · target sell-through ' + s.sellThrough + '% · ' + s.storePct + '% to the boutiques at launch';
+    + ' · target sell-through ' + s.sellThrough + '% · ' + s.storePct + '% in the boutiques at launch';
 
   const perBag = BAGS.map(function(b, i){
     const sold = state.sold.A[i] + state.sold.B[i];
     const miss = state.missed.A[i] + state.missed.B[i];
-    const left = state.stock.W[i] + state.stock.A[i] + state.stock.B[i];
+    /* transit counts: a game saved before the last-week step was removed can
+       still hold units that left the warehouse and never arrived */
+    const left = state.stock.W[i] + state.stock.A[i] + state.stock.B[i]
+               + (state.transit.A[i] || 0) + (state.transit.B[i] || 0);
     return { b:b, i:i, sold:sold, miss:miss, left:left };
   });
 
@@ -1988,11 +2093,18 @@ function esc(s){
 /* Every lost sale gets exactly one cause, and every bucket is bounded by
    bags that really existed. Per bag, with left = made − sold (which counts
    anything still on a truck when the season closed):
-     short   - the bag was oversold: max(0, missed − left)
-     central - of the rest, as many as were still central or in transit
-     wrong   - the remainder, capped by what the OTHER boutique finished unsold
-   Central is charged first: where both could explain a lost sale, the
-   reading that does not blame placement is the conservative one. */
+     short - the bag was oversold: max(0, missed − left). Nothing could have
+             been done with stock, because there was none anywhere.
+     wrong - capped by what the OTHER boutique finished unsold: the bag
+             existed, on the wrong shelf, and nothing could move it.
+     late  - everything else. The bag existed and simply was not on this
+             shelf in time: still central, on a truck, or delivered to this
+             very boutique after the customer had gone.
+   `late` absorbs the remainder rather than `short`, which used to claim the
+   bag had never been made while dozens of it sat unsold in the boutique that
+   turned the customer away. Timing is charged before placement, so where
+   both could explain a lost sale the reading that does not blame the launch
+   split is the one taken. */
 function teamDetail(){
   const s = state.setup, maxW = WEEKS;
   const per = {}, weekly = [];
@@ -2026,7 +2138,7 @@ function teamDetail(){
     p.late = Math.min(rest, p.endW + p.transit);
     rest -= p.late;
     p.wrong = Math.min(rest, Math.min(p.endB, p.missA) + Math.min(p.endA, p.missB));
-    p.short += rest - p.wrong;   /* whatever the three cannot explain stays here,
+    p.late += rest - p.wrong;   /* whatever the three cannot explain stays here,
                                     so the parts always add up on screen */
   });
 
@@ -2061,8 +2173,8 @@ function openTeamDetail(){
       +   '<div><h2 style="margin:0;">Zoom on margin</h2>'
       +     '<div class="muted" style="font-size:14px;margin-top:4px;">' + esc(state.team)
       +     ' · ' + esc(state.game) + ' · ' + s.sellThrough + '% sell-through target · '
-      +     s.storePct + '% into the boutiques at launch · ' + fmt(t.produced) + ' bags made</div></div>'
-      +   '<div><div class="panelbig ' + (t.margin > 0 ? 'g' : 'r') + '">' + fmtE(t.margin) + '</div>'
+      +     s.storePct + '% in the boutiques at launch · ' + fmt(t.produced) + ' bags made</div></div>'
+      +   '<div><div class="panelbig ' + (t.margin < 0 ? 'r' : 'g') + '">' + fmtE(t.margin) + '</div>'
       +     '<div class="muted" style="font-size:12px;font-weight:800;text-align:right;'
       +     'text-transform:uppercase;letter-spacing:.06em;">margin</div></div>'
       + '</div>'
@@ -2070,8 +2182,8 @@ function openTeamDetail(){
       + panelBridge(t, euro)
       + '<h3 class="ph3">Which bag, which boutique</h3>'
       + '<div class="plegend">'
-      +   '<span><i style="background:' + PCLR.A + '"></i>sold in A</span>'
-      +   '<span><i style="background:' + PCLR.B + '"></i>sold in B</span>'
+      +   '<span><i style="background:' + PCLR.A + '"></i>sold in ' + SN('A') + '</span>'
+      +   '<span><i style="background:' + PCLR.B + '"></i>sold in ' + SN('B') + '</span>'
       +   '<span><i style="background:' + PCLR.missed + '"></i>customers turned away</span>'
       +   '<span><i style="background:' + PCLR.W + ';opacity:.5"></i>still unsold at the end</span>'
       + '</div>'
@@ -2150,7 +2262,7 @@ function panelBoard(d, unit, perBag){
       + cell(p.soldA, p.missA, p.endA, PCLR.A)
       + cell(p.soldB, p.missB, p.endB, PCLR.B)
       + cell(0, 0, p.endW + p.transit, PCLR.W, p.transit)
-      + '<div class="bmargin ' + (bm > 0 ? 'g' : 'r') + '">' + fmtE(bm) + '</div>';
+      + '<div class="bmargin ' + (bm < 0 ? 'r' : 'g') + '">' + fmtE(bm) + '</div>';
   });
   return html + '</div>';
 }
@@ -2222,7 +2334,7 @@ function panelCauses(d, missed){
     return '<p class="punch" style="color:var(--live);border-color:var(--live);">'
          + 'Every customer who asked for a bag got one.</p>';
   const parts = [
-    { v:d.late,  c:'#b06e28', lab:'still central — not in the boutique yet' },
+    { v:d.late,  c:'#b06e28', lab:'the bag existed — not on this shelf in time' },
     { v:d.wrong, c:PCLR.missed, lab:'stranded in the other boutique' },
     { v:d.short, c:'#6b7580', lab:'never made — the bag sold out everywhere' }
   ];
@@ -2327,10 +2439,10 @@ let draft = { sellThrough:80, storePct:50 };
    HTML, so changing WEEKS or the economics updates what players are told. */
 function renderBriefing(){
   const items = [
-    'You are launching <b>' + BAGS.length + ' bags</b> in <b>2 stores</b>, supplied by '
+    'You are launching <b>' + BAGS.length + ' bags</b> in <b>2 boutiques</b>, supplied by '
       + '<b>1 central warehouse</b>.',
     'You will simulate <b>' + WEEKS + ' rounds</b> — every round is one week.',
-    'The forecast is <b>2 pieces per week, per store, per bag</b> → <b>' + FORECAST_PER_BAG
+    'The forecast is <b>2 pieces per week, per boutique, per bag</b> → <b>' + FORECAST_PER_BAG
       + ' pieces per bag</b> over the ' + WEEKS + ' weeks. <b>' + FORECAST_TOTAL + '</b> in total.',
     'Forecasted demand has a <b>curve</b> shape:' + curveSketch(),
     'Every bag sells for <b>' + fmtE(ECON.price) + '</b> and costs <b>' + fmtE(ECON.cost)
@@ -2397,7 +2509,7 @@ function renderSetupOptions(){
   draft.storePct    = Number(el('sl-sp').value);
 
   el('val-st').textContent = draft.sellThrough + '% sell-through';
-  el('val-sp').textContent = draft.storePct + '% in boutique';
+  el('val-sp').textContent = draft.storePct + '% in the boutiques';
   buildTicks('ticks-st', SELL_THROUGH_OPTIONS, draft.sellThrough);
   buildTicks('ticks-sp', SPLIT_OPTIONS, draft.storePct);
 
@@ -2522,11 +2634,13 @@ function init(){
   el('btn-begin').addEventListener('click', beginGame);
   el('btn-export').addEventListener('click', openExport);
   el('btn-help').addEventListener('click', function(){
-    /* replay the guide from the current step */
-    state.hintsSeen = {};
-    save();
-    const h = HINTS.find(function(x){ return x.step === state.step; });
-    if(h) showHint(h); else toast('No guide for this step');
+    /* replay every bubble written for the step in front of you, in order */
+    if(!state || state.finished) return;
+    const q = HINTS.filter(function(x){ return x.step === state.step; });
+    if(!q.length){ toast('No guide for this step'); return; }
+    replayQueue = q.slice(1);
+    if(!replayQueue.length) replayQueue = null;
+    showHint(q[0]);
   });
 
   ['in-team','in-game'].forEach(function(id, idx, all){
