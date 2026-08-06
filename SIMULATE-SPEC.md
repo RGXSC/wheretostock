@@ -5,10 +5,23 @@ network, system fonts, runs from a double-clicked `file://`. Seven slides, a
 sticky stage pill and one big **Next**; ← → and Enter also move.
 
 The order is the game's: **the strategy is set before its consequences are
-shown**. Slide 2 is the two sliders and nothing else. Slide 3 then plays that
-strategy out in two presses — first what the launch push alone can serve,
-which is where the gaps appear, then *Use the warehouse stock*, which fills
-every gap the bag's own central pile can reach.
+shown**, and each step gets its own slide so the before and the after are two
+pictures rather than one table changing under you.
+
+- **Slide 2** — the two sliders, and a table of where every piece goes: each
+  bag's launch push spread across the five boutiques on that bag's own
+  forecast row, and what stays central.
+- **Slide 3** — the real demand revealed, and what the launch push alone
+  could serve. This is where the gaps appear.
+- **Slide 4** — *Use the warehouse stock*: every gap the bag's own central
+  pile can reach is filled, and what is still lost is what no logistics could
+  have reached.
+
+**One bag and two boutiques are followed across all three.** Aveline in Paris
+and Tokyo, fixed rather than computed: the plan sends them almost the same
+quantity — 65 and 54 — and the season asks Paris for 40 and Tokyo for 101.
+Every table on those slides keeps the boutique axis, because summing it away
+is exactly where the thread the room is holding breaks.
 
 ---
 

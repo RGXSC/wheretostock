@@ -129,6 +129,16 @@
   /* the two cells the worked example is about, marked in the table itself */
   td.hit-left{ background:#eef1f4; box-shadow:inset 0 0 0 2px #8b96a1; }
   td.hit-away{ background:#fdf1ec; box-shadow:inset 0 0 0 2px var(--bad); }
+  /* the bag and the two boutiques followed from placement to resupply */
+  th.foll{ color:var(--accent); }
+  tr.follrow td{ background:#f4f8fb; }
+  tr.follrow td:first-child{ box-shadow:inset 3px 0 0 var(--accent); }
+  tr.follrow.lo td{ background:#eef1f4; }
+  tr.follrow.lo td:first-child{ box-shadow:inset 3px 0 0 #8b96a1; }
+  tr.follrow.hi td{ background:#fdf1ec; }
+  tr.follrow.hi td:first-child{ box-shadow:inset 3px 0 0 var(--bad); }
+  .focuscard.good{ border-color:#8fc2a2; }
+  .focuscard.good .big{ color:var(--good); }
   .sdgrid{ display:grid; grid-template-columns:1fr; gap:0 22px; align-items:start; }
   @media (min-width:1180px){
     /* the table takes the width it needs — a fractional column squeezed the
@@ -256,7 +266,9 @@
       </div>
     </div>
     <div id="trial-say" class="small muted"></div>
-    <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
+    <!-- where every piece goes, so the split is seen rather than asserted -->
+    <div id="place-table" style="margin-top:14px;"></div>
+    <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;">
       <button class="btn-primary" id="btn-test" style="max-width:340px;">Run the season</button>
     </div>
   </div>
@@ -275,6 +287,17 @@
     </div>
   </div>
   <div class="card hidden" id="trial-out"></div>
+</section>
+
+<!-- ======================================================== 4 WAREHOUSE -->
+<section id="sw" class="hidden">
+  <div class="card">
+    <h2 style="margin-bottom:4px;">The warehouse still holds stock</h2>
+    <p class="small muted" id="wh-say" style="margin:0 0 12px;"></p>
+    <button class="btn-primary" id="btn-warehouse">Use the warehouse stock</button>
+    <div id="wh-focus" style="margin-top:16px;"></div>
+  </div>
+  <div class="card hidden" id="wh-out"></div>
 </section>
 
 <!-- =========================================================== 3 MATRIX -->
@@ -701,6 +724,14 @@ function renderBoard(){
    which is the clearest case of the same bag being in the wrong boutique. */
 let demandShown = false, whUsed = false;
 
+/* One bag and two boutiques are followed from the moment the stock is placed
+   to the moment the warehouse refills it. Fixed, not computed: the room has
+   to recognise the same two cases on three slides running, and Aveline in
+   Paris and Tokyo is the sharpest pair on this board — the plan sends them
+   nearly the same quantity and the season asks for less than half in one and
+   more than double in the other. */
+const FOLLOW = { i:0, a:0, b:1 };
+
 function worstPair(){
   let best = null;
   BAGS.forEach(function(b, i){
@@ -751,36 +782,67 @@ function renderDemand(){
   if(demandShown) renderConsequence();
 }
 
+/* The two followed cases, drawn the same way on both slides so the change
+   between them is the only thing that moves. `after` adds what the warehouse
+   sent and what that leaves. */
+function followCards(after){
+  const i = FOLLOW.i, x = runBag(i, stPick, spPick);
+  const one = function(j, kind){
+    const given = x.push[j], want = DEMAND[i][j];
+    const sent = after ? x.servedBy[j] : 0;
+    const away = after ? x.lostBy[j] : Math.max(0, want - given);
+    const left = Math.max(0, given - want);
+    let body;
+    if(kind === 'left'){
+      body = '<div class="big">' + left + ' left over</div>'
+           + '<p>' + fmtE(left * ECON.cost) + ' of stock'
+           + (after ? ' — the warehouse cannot take it back' : '') + '</p>';
+    }else{
+      body = '<div class="big">' + away + ' turned away</div>'
+           + '<p>' + (after
+               ? (sent ? fmt(sent) + ' sent from the warehouse, ' : '')
+                 + fmtE(away * ECON.price) + ' still lost'
+               : fmtE(away * ECON.price) + ' of turnover') + '</p>';
+    }
+    return '<div class="focuscard ' + (kind === 'left' ? 'left' : (away ? 'away' : 'good')) + '">'
+         + '<h4>' + esc(BOUTIQUES[j]) + ' · given ' + given + ', asked for ' + want + '</h4>'
+         + body + '</div>';
+  };
+  return '<div class="focusbox">' + one(FOLLOW.a, 'left') + one(FOLLOW.b, 'away') + '</div>';
+}
+
 function renderConsequence(){
-  const w = worstPair();
   const box = el('demand-focus');
-  if(!w){ box.classList.add('hidden'); testCombo(); return; }
-  const b = BAGS[w.i];
-  /* what the boutique was actually given, not what the plan said: the push is
-     spPick% of production spread by forecast share, which is close to the
-     forecast but not equal to it */
-  const x = runBag(w.i, stPick, spPick);
-  const shopLo = BOUTIQUES[w.lo.j], shopHi = BOUTIQUES[w.hi.j];
-  const gLo = x.push[w.lo.j], dLo = DEMAND[w.i][w.lo.j];
-  const gHi = x.push[w.hi.j], dHi = DEMAND[w.i][w.hi.j];
-  const left = Math.max(0, gLo - dLo), away = Math.max(0, dHi - gHi);
-  box.innerHTML =
-      '<h3 style="margin-top:18px;">' + esc(b.name) + ', placed to the plan</h3>'
-    + '<div class="focusbox">'
-    +   '<div class="focuscard left"><h4>' + esc(shopLo) + ' · given ' + gLo
-    +     ', asked for ' + dLo + '</h4>'
-    +     '<div class="big">' + left + ' left over</div>'
-    +     '<p>' + fmtE(left * ECON.cost) + ' of stock</p></div>'
-    +   '<div class="focuscard away"><h4>' + esc(shopHi) + ' · given ' + gHi
-    +     ', asked for ' + dHi + '</h4>'
-    +     '<div class="big">' + away + ' turned away</div>'
-    +     '<p>' + fmtE(away * ECON.price) + ' of turnover</p></div>'
-    + '</div>';
+  box.innerHTML = '<h3 style="margin-top:18px;">' + esc(BAGS[FOLLOW.i].name)
+                + ', placed to the plan</h3>' + followCards(false);
   box.classList.remove('hidden');
   /* The demand is only half the story: what the boutiques could actually
      serve out of the launch push is the other half, and it is the step the
-     warehouse then answers. */
+     warehouse then answers — on the next slide, so the before and the after
+     are two separate pictures rather than one table changing under you. */
   testCombo();
+}
+
+/* Slide 4. Opens on the same two cases as they stood at the end of slide 3,
+   then the button refills what the central pile can reach. */
+function renderWarehouse(){
+  const x = runBag(FOLLOW.i, stPick, spPick);
+  const away = rowSum(BAGS.map(function(b, i){ return runBag(i, stPick, spPick).shortTot; }));
+  const central = rowSum(BAGS.map(function(b, i){ return runBag(i, stPick, spPick).central; }));
+  el('wh-say').innerHTML = '<b class="num">' + fmt(central) + '</b> pieces never left the warehouse, '
+    + 'against <b class="num">' + fmt(away) + '</b> customers turned away.';
+  el('wh-focus').innerHTML =
+      '<h3 style="margin:0 0 10px;">' + esc(BAGS[FOLLOW.i].name) + ', '
+    + (whUsed ? 'after the warehouse' : 'as the boutiques left it') + '</h3>'
+    + followCards(whUsed);
+  el('btn-warehouse').classList.toggle('hidden', whUsed);
+  if(whUsed) testCombo(); else el('wh-out').classList.add('hidden');
+}
+
+function useWarehouse(){
+  if(whUsed) return;
+  whUsed = true;
+  renderWarehouse();
 }
 
 /* =========================================================================
@@ -819,12 +881,83 @@ function sayTrial(){
     + 'Placing <b>' + spPick + '%</b> sends about <b class="num">' + fmt(pushed)
     + '</b> to the five boutiques and leaves <b class="num">' + fmt(total - pushed)
     + '</b> central.';
+  renderPlacement();
 }
 
-/* The season in two passes. First what the launch push alone can serve —
-   stock is where it was placed, and the gaps are the gaps. Then the warehouse
-   is opened and fills what it can. Two presses, because the second only means
-   something once the first has been read. */
+/* Where every piece actually goes. The launch push is spread on each bag's
+   own forecast row, so the quantity a boutique opens with is that bag's
+   forecast share of it — the point is easier to see in the table than to
+   take on trust. The followed pair is marked here and stays marked. */
+function renderPlacement(){
+  const rows = BAGS.map(function(b, i){ return runBag(i, stPick, spPick); });
+  const maxCell = Math.max.apply(null, rows.map(function(x){
+    return Math.max.apply(null, x.push.concat([x.central])); }));
+  let h = '<table class="grid"><thead><tr><th>Bag</th><th>Made</th>'
+        + BOUTIQUES.map(function(c, j){
+            return '<th' + (j === FOLLOW.a || j === FOLLOW.b ? ' class="foll"' : '') + '>'
+                 + c + '</th>'; }).join('')
+        + '<th>Central</th></tr></thead><tbody>';
+  BAGS.forEach(function(b, i){
+    const x = rows[i];
+    h += '<tr' + (i === FOLLOW.i ? ' class="follrow"' : '') + '>'
+       + '<td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>'
+       + '<td><b class="num">' + fmt(x.production) + '</b></td>'
+       + x.push.map(function(v, j){
+           const mark = (i === FOLLOW.i && (j === FOLLOW.a || j === FOLLOW.b))
+             ? (j === FOLLOW.a ? ' class="hit-left"' : ' class="hit-away"') : '';
+           return '<td' + mark + '>' + cell(v, maxCell, b.color) + '</td>'; }).join('')
+       + '<td>' + cell(x.central, maxCell, '#9aa7b3') + '</td></tr>';
+  });
+  const t = rows.reduce(function(a, x){
+    a.prod += x.production; a.central += x.central;
+    x.push.forEach(function(v, j){ a.push[j] += v; }); return a;
+  }, { prod:0, central:0, push:BOUTIQUES.map(function(){ return 0; }) });
+  h += '<tr class="tot"><td>All five</td><td>' + fmt(t.prod) + '</td>'
+     + t.push.map(function(v){ return '<td>' + fmt(v) + '</td>'; }).join('')
+     + '<td>' + fmt(t.central) + '</td></tr></tbody></table>';
+  el('place-table').innerHTML = h;
+  fitBars('place-table');
+}
+
+/* The bag followed since the stock was placed, boutique by boutique. The
+   all-bags table below sums the five boutiques away, and without this the
+   thread the room has been holding since slide 2 simply disappears. */
+function followTable(after){
+  const i = FOLLOW.i, x = runBag(i, stPick, spPick);
+  const maxV = Math.max.apply(null, x.push.concat(DEMAND[i]));
+  let h = '<h3>' + esc(BAGS[i].name) + ', boutique by boutique</h3>'
+        + '<table class="grid" style="margin-top:10px;"><thead><tr><th>Boutique</th>'
+        + '<th>Given at launch</th><th>Asked for</th><th>Sold on the shelf</th>'
+        + (after ? '<th>Sent on demand</th><th>Sold</th>' : '')
+        + '<th>Turned away</th><th>Left over</th></tr></thead><tbody>';
+  BOUTIQUES.forEach(function(c, j){
+    const given = x.push[j], want = DEMAND[i][j], shelf = x.sold[j];
+    const sent = after ? x.servedBy[j] : 0;
+    const away = after ? x.lostBy[j] : x.short[j];
+    const left = given - shelf;
+    const mark = j === FOLLOW.a ? ' class="follrow lo"'
+               : j === FOLLOW.b ? ' class="follrow hi"' : '';
+    h += '<tr' + mark + '><td><b>' + esc(c) + '</b></td>'
+       + '<td>' + cell(given, maxV, BAGS[i].color) + '</td>'
+       + '<td>' + cell(want, maxV, '#4d5560') + '</td>'
+       + '<td>' + cell(shelf, maxV, BAGS[i].color) + '</td>'
+       + (after ? '<td>' + cell(sent, maxV, '#0f6b45') + '</td>'
+                + '<td><b class="num">' + fmt(shelf + sent) + '</b></td>' : '')
+       + '<td>' + (away ? '<span class="down">' + fmt(away) + '</span>' : '—') + '</td>'
+       + '<td>' + (left ? fmt(left) : '—') + '</td></tr>';
+  });
+  const shelfTot = rowSum(x.sold);
+  h += '<tr class="tot"><td>All five</td><td>' + fmt(x.pushTotal) + '</td>'
+     + '<td>' + fmt(D_BAG[i]) + '</td><td>' + fmt(shelfTot) + '</td>'
+     + (after ? '<td>' + fmt(x.served) + '</td><td>' + fmt(x.total) + '</td>' : '')
+     + '<td><span class="down">' + fmt(after ? x.lost : x.shortTot) + '</span></td>'
+     + '<td>' + fmt(x.pushTotal - shelfTot) + '</td></tr></tbody></table>'
+     + '<p class="small muted" style="margin-top:8px;">'
+     + fmt(x.central) + ' ' + esc(BAGS[i].name) + ' stayed central'
+     + (after ? ', ' + fmt(x.served) + ' of them shipped on demand.' : '.') + '</p>';
+  return h;
+}
+
 function testCombo(){
   const r = run(stPick, spPick);
   tested = { st:stPick, sp:spPick };
@@ -834,8 +967,10 @@ function testCombo(){
   const maxProd = Math.max.apply(null, r.bags.map(function(x){ return x.production; }));
 
   let h = '<h3>' + stPick + '% sell-through · ' + spPick + '% in the boutiques</h3>';
+  h += followTable(whUsed);
 
-  h += '<table class="grid" style="margin-top:12px;"><thead><tr><th>Bag</th>'
+  h += '<h3 style="margin-top:22px;">All five bags, summed across the five boutiques</h3>';
+  h += '<table class="grid" style="margin-top:10px;"><thead><tr><th>Bag</th>'
      + '<th>Made</th><th>To boutiques</th><th>Central</th><th>Demand</th>'
      + '<th>Sold on the shelf</th>'
      + (whUsed ? '<th>Sent on demand</th><th>Sold</th>' : '')
@@ -865,10 +1000,10 @@ function testCombo(){
      + (leftTot ? fmt(leftTot) : '—') + '</td></tr></tbody></table>';
 
   if(!whUsed){
-    h += '<div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;align-items:center;">'
-       + '<button class="btn-primary" id="btn-warehouse">Use the warehouse stock</button>'
-       + '<span class="small muted">' + fmt(t.central) + ' central against '
-       + fmt(awayTot) + ' turned away</span></div>';
+    /* the warehouse is its own slide now; here we only note what is still
+       sitting in it, which is the question the next slide answers */
+    h += '<p class="small muted" style="margin-top:12px;">' + fmt(t.central)
+       + ' central against ' + fmt(awayTot) + ' turned away.</p>';
   }else{
     h += '<div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:12px;">'
        + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Turnover</div>'
@@ -881,18 +1016,13 @@ function testCombo(){
        + '</div>';
   }
 
-  el('trial-out').innerHTML = h;
-  el('trial-out').classList.remove('hidden');
-  const bw = el('btn-warehouse');
-  if(bw) bw.addEventListener('click', useWarehouse);
-  fitBars('trial-out');
+  /* the shelf-only table belongs to the demand slide, the refilled one to the
+     warehouse slide: two pictures, so the change between them is visible */
+  const host = whUsed ? el('wh-out') : el('trial-out');
+  host.innerHTML = h;
+  host.classList.remove('hidden');
+  fitBars(host);
   if(whUsed) renderMatrices();
-}
-
-function useWarehouse(){
-  if(whUsed) return;
-  whUsed = true;
-  testCombo();
 }
 
 /* =========================================================================
@@ -1282,6 +1412,7 @@ const STAGES = [
   { id:'s0', title:'The board' },
   { id:'s1', title:'Your combination', on:sayTrial },
   { id:'sd', title:'What the season asked for', on:renderDemand },
+  { id:'sw', title:'And the warehouse', on:renderWarehouse },
   { id:'s2', title:'Every combination', on:renderMatrices },
   { id:'s3', title:'Any network, any collection', on:mcHints },
   { id:'s4', title:'What the bag costs', on:renderCost },
@@ -1294,10 +1425,8 @@ let stage = 0;
 function stepWithin(){
   const id = STAGES[stage].id;
   /* the strategy slide has nothing to reveal — its button is the way on */
-  if(id === 'sd'){
-    if(!demandShown){ demandShown = true; renderDemand(); return true; }
-    if(!whUsed){ useWarehouse(); return true; }
-  }
+  if(id === 'sd' && !demandShown){ demandShown = true; renderDemand(); return true; }
+  if(id === 'sw' && !whUsed){ useWarehouse(); return true; }
   if(id === 's3'){
     /* twenty seconds of simulation is not a reason to skip the slide: while
        it runs, Enter does nothing rather than jumping to the next one */
@@ -1344,11 +1473,16 @@ function init(){
      old one is no longer the answer: the warehouse step replays */
   const repick = function(){
     buildSegs(); sayTrial();
+    /* a new strategy places the stock differently, so the table on the
+       strategy slide follows immediately */
+    renderPlacement();
     if(!whUsed) return;
     whUsed = false;
-    /* redraw now if the consequences are on screen; otherwise arriving at
-       that slide rebuilds them anyway */
-    if(STAGES[stage].id === 'sd' && demandShown) testCombo();
+    /* redraw now if either consequence slide is on screen; otherwise
+       arriving at one rebuilds it anyway */
+    const id = STAGES[stage].id;
+    if(id === 'sd' && demandShown) testCombo();
+    if(id === 'sw') renderWarehouse();
   };
   ['', '2'].forEach(function(n){
     el('sl' + n + '-st').addEventListener('input', function(){
@@ -1364,6 +1498,7 @@ function init(){
     stage = STAGES.findIndex(function(x){ return x.id === 'sd'; });
     renderStage();
   });
+  el('btn-warehouse').addEventListener('click', useWarehouse);
   el('btn-test2').addEventListener('click', function(){ whUsed = true; testCombo(); });
   el('btn-fill').addEventListener('click', fillAll);
   el('btn-mc').addEventListener('click', mcStart);
