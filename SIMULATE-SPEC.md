@@ -28,9 +28,10 @@ Everything below is a deliberate change, and each one is stated on the page:
    fortnight, so it is close to true. The consequence is that this page is the
    **upper bound** of what central stock can ever be worth.
 3. **Five cities, not two** — Paris, Tokyo, New York, Shanghai, London — and
-   each carries its own forecast. The launch push follows those forecasts
-   instead of being split equally, so the naive-equal-split error of the main
-   game is removed and only the demand error is left.
+   each carries its own forecast. The launch push follows **each bag's own
+   forecast row**, not one network-wide share applied to the whole collection,
+   so the naive-equal-split error of the main game is removed and only the
+   demand error is left.
 4. **Nothing can be stranded in the wrong boutique.** That failure mode — the
    whole subject of the debrief's team panel — cannot happen here by
    construction, because of 2.
@@ -50,8 +51,19 @@ at zero: no boutique opens a launch with an empty window, and the same floor
 is used in the game.
 
 Real demand is hard-coded and also totals **650**. That is the point of the
-whole page: **the volume call was right**, and every error is in the spread —
-per bag −23% to +12%, per city-bag −50% to +50%.
+whole page: **the volume call was right**, and every error is in the spread.
+
+Per bag it is a clean ladder — Aveline +10%, Bastide 0%, Calanque −10%,
+Doriane −30%, Estérel +30%. The two worst forecasts sit on the two smallest
+bags and the biggest seller is not the one that runs hot; put +30% on the
+leader instead and one whole row of the matrix carries the answer.
+
+Per boutique it is ±50% with **no one in the middle** — Paris and New York
+halve, Tokyo and Shanghai run 50% over, London 45% over, and Tokyo overtakes
+Paris. That width is not decoration. With a mild boutique error the warehouse
+covers every gap and the launch push is worth nothing until it reaches 100%;
+at ±50% it is worth 123 000 €, and the optimum narrows from twenty-one
+squares to three.
 
 ## 3. Why there is no artificial limit on central stock
 
@@ -63,10 +75,11 @@ is more useful than a rigged optimum:
 
 - The matrix says outright that centralising wins on **allocation**.
 - The closing slide shows what it cannot fix: with 650 made against 650
-  demanded and every bag shipped on demand, **38 customers are still turned
-  away and 38 bags still go unsold** — 38 000 € of turnover that no logistics
+  demanded and every bag shipped on demand, **34 customers are still turned
+  away and 34 bags still go unsold** — 34 000 € of turnover that no logistics
   can reach. The slide opens on that figure and ends on the question it
-  raises, and nothing follows it.
+  raises, and nothing follows it. Every figure on it is computed from the two
+  tables, so retuning the demand retunes the slide.
 
 Matrix squares are drawn in three tiers rather than a gradient — the best,
 everything within 5% of it, and the rest — because what a room needs from

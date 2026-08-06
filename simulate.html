@@ -131,7 +131,10 @@
   td.hit-away{ background:#fdf1ec; box-shadow:inset 0 0 0 2px var(--bad); }
   .sdgrid{ display:grid; grid-template-columns:1fr; gap:0 22px; align-items:start; }
   @media (min-width:1180px){
-    .sdgrid{ grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr); }
+    /* the table takes the width it needs — a fractional column squeezed the
+       season total off the right-hand edge — and the example takes the rest */
+    .sdgrid{ grid-template-columns:minmax(0,max-content) minmax(290px,1fr); }
+    .sdgrid #demand-table{ overflow-x:auto; }
     .sdgrid #demand-focus{ margin-top:18px; }
     .sdgrid .focusbox{ grid-template-columns:1fr; }
     .sdgrid #demand-focus h3{ margin-top:0 !important; }
@@ -453,13 +456,25 @@ const FORECAST = [
 ];
 /* What actually sold. The TOTAL is right — 650 forecast, 650 sold-able — so
    nothing here is a volume story at company level. Every error is in the
-   spread: which bag, and which boutique. */
+   spread: which bag, and which boutique.
+
+   Per bag, a clean ladder:  Aveline +10  Bastide 0  Calanque −10
+                             Doriane −30  Estérel +30
+   The worst two forecasts are on the two smallest bags, and the biggest
+   seller is not the one that runs hot — otherwise a single row of the matrix
+   carries the whole answer.
+
+   Per boutique, ±50 and no one in the middle, because that is how a season
+   actually lands: Paris and New York halve, Tokyo and Shanghai run 50% over,
+   London 45% over. Tokyo overtakes Paris. This is what gives the launch push
+   a price — with a mild boutique error the warehouse covers every gap and the
+   push decision is worth nothing until it reaches 100%. */
 const DEMAND = [
-  [ 54, 73, 73, 43, 27],
-  [ 68, 29, 38, 31, 14],
-  [ 30, 23, 21, 21, 15],
-  [ 30, 14,  8,  6,  4],
-  [  8, 10,  5,  3,  2]
+  [ 40, 101, 27, 61, 39],
+  [ 30,  74, 19, 44, 28],
+  [ 13,  33,  9, 20, 13],
+  [  9,  21,  6, 13,  8],
+  [  6,  16,  4, 10,  6]
 ];
 
 const ECON = { price:1000, cost:200, fixedPct:0.45 };
@@ -468,8 +483,11 @@ const F_BAG  = FORECAST.map(rowSum);
 const D_BAG  = DEMAND.map(rowSum);
 const F_TOTAL = rowSum(F_BAG);
 ECON.fixed = Math.round(ECON.fixedPct * F_TOTAL * ECON.price);
-const BOUTIQUE_SHARE = BOUTIQUES.map(function(c, j){
-  return FORECAST.reduce(function(a, r){ return a + r[j]; }, 0) / F_TOTAL;
+/* Each bag is pushed out on its OWN forecast row, not on one network-wide
+   share applied to the whole collection: a bag that is expected to sell
+   differently across the network is placed that way. */
+const BAG_SHARE = FORECAST.map(function(row, i){
+  return row.map(function(v){ return v / F_BAG[i]; });
 });
 
 const ST_LEVELS = [60, 70, 80, 90, 100];
@@ -518,7 +536,7 @@ function split(total, shares){
 function runBag(i, stPct, spPct, unitCost){
   const production = Math.round(F_BAG[i] / (stPct / 100));
   const pushTotal  = Math.min(production, Math.round(production * spPct / 100));
-  const push       = split(pushTotal, BOUTIQUE_SHARE);
+  const push       = split(pushTotal, BAG_SHARE[i]);
   const central    = production - pushTotal;
   const sold = [], short = [];
   for(let j = 0; j < BOUTIQUES.length; j++){
