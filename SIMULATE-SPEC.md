@@ -1,8 +1,14 @@
 # `simulate.html` — the fast-forward page
 
 Third standalone file, same constraints as the other two: one HTML file, no
-network, system fonts, runs from a double-clicked `file://`. Six slides, a
+network, system fonts, runs from a double-clicked `file://`. Seven slides, a
 sticky stage pill and one big **Next**; ← → and Enter also move.
+
+The order is the game's: **the strategy is set before its consequences are
+shown**. Slide 2 is the two sliders and nothing else. Slide 3 then plays that
+strategy out in two presses — first what the launch push alone can serve,
+which is where the gaps appear, then *Use the warehouse stock*, which fills
+every gap the bag's own central pile can reach.
 
 ---
 
@@ -15,10 +21,12 @@ Everything below is a deliberate change, and each one is stated on the page:
    during the season — the two setup numbers decide everything.
 2. **The warehouse replenishes instantly and perfectly.** A boutique that runs
    out is resupplied the moment it does, always from the right pile, with no
-   lead time and no guessing. In reality that is one to three days against a
-   bag that sells once a fortnight, so it is close to true. The consequence is
-   that this page is the **upper bound** of what central stock can ever be
-   worth.
+   lead time and no guessing. When two boutiques are short of the same bag and
+   the central pile cannot cover both, it is split in proportion to what each
+   is short of — which decides where the sale happens, not how many there
+   are. In reality that is one to three days against a bag that sells once a
+   fortnight, so it is close to true. The consequence is that this page is the
+   **upper bound** of what central stock can ever be worth.
 3. **Five cities, not two** — Paris, Tokyo, New York, Shanghai, London — and
    each carries its own forecast. The launch push follows those forecasts
    instead of being split equally, so the naive-equal-split error of the main

@@ -129,6 +129,13 @@
   /* the two cells the worked example is about, marked in the table itself */
   td.hit-left{ background:#eef1f4; box-shadow:inset 0 0 0 2px #8b96a1; }
   td.hit-away{ background:#fdf1ec; box-shadow:inset 0 0 0 2px var(--bad); }
+  .sdgrid{ display:grid; grid-template-columns:1fr; gap:0 22px; align-items:start; }
+  @media (min-width:1180px){
+    .sdgrid{ grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr); }
+    .sdgrid #demand-focus{ margin-top:18px; }
+    .sdgrid .focusbox{ grid-template-columns:1fr; }
+    .sdgrid #demand-focus h3{ margin-top:0 !important; }
+  }
   .focusbox{ display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
              gap:18px; margin-top:16px; }
   .focuscard{ border:2px solid var(--line-soft); border-radius:var(--radius); padding:16px 18px; }
@@ -207,7 +214,7 @@
   <div class="card">
     <h1>Fast forward — one season, five boutiques</h1>
     <div class="note" style="margin:14px 0 0;">
-      <b>One difference in the simulation:</b> the warehouse resupplies a store
+      <b>One difference in the simulation:</b> the warehouse resupplies a boutique
       instantaneously when it runs out of stock.
     </div>
   </div>
@@ -221,23 +228,10 @@
   </div>
 </section>
 
-<!-- =========================================================== 2 DEMAND -->
-<section id="sd" class="hidden">
-  <div class="card">
-    <h2 style="margin-bottom:12px;">What the season actually asked for</h2>
-    <button class="btn-primary" id="btn-reveal">Reveal the real demand</button>
-    <div id="demand-table" style="margin-top:18px;"></div>
-    <div id="demand-step2" class="hidden" style="margin-top:16px;">
-      <button class="btn-primary" id="btn-consequence">And what does that cost?</button>
-    </div>
-    <div id="demand-focus" class="hidden"></div>
-  </div>
-</section>
-
-<!-- ============================================================ 3 TRIAL -->
+<!-- ======================================================== 2 STRATEGY -->
 <section id="s1" class="hidden">
   <div class="card">
-    <h2>Pick a combination and see the season out</h2>
+    <h2>Set the strategy</h2>
     <div class="picks" style="margin-top:14px;">
       <div class="pick">
         <label>Target sell-through</label>
@@ -260,7 +254,21 @@
     </div>
     <div id="trial-say" class="small muted"></div>
     <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
-      <button class="btn-primary" id="btn-test" style="max-width:340px;">Run this season</button>
+      <button class="btn-primary" id="btn-test" style="max-width:340px;">Run the season</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== 3 CONSEQUENCES -->
+<section id="sd" class="hidden">
+  <div class="card">
+    <h2 style="margin-bottom:12px;">What the season actually asked for</h2>
+    <button class="btn-primary" id="btn-reveal">Reveal the real demand</button>
+    <!-- the table and the worked example it points at, side by side on a wide
+         screen: stacked, the slide ran a third past the bottom of a laptop -->
+    <div class="sdgrid">
+      <div id="demand-table" style="margin-top:18px;"></div>
+      <div id="demand-focus" class="hidden"></div>
     </div>
   </div>
   <div class="card hidden" id="trial-out"></div>
@@ -520,10 +528,29 @@ function runBag(i, stPct, spPct, unitCost){
   }
   const shortTot = rowSum(short);
   const served   = Math.min(shortTot, central);
+  /* Which boutique gets the resupply. The warehouse serves every demand it
+     can; when several boutiques are short of the same bag and the central
+     pile cannot cover them all, it is split in proportion to what each is
+     short of. The total is min(shortfall, central) either way — the split
+     only decides where the sale happens, not how many there are. */
+  const servedBy = split(served, short.map(function(s){ return shortTot ? s / shortTot : 0; }));
+  /* the largest-remainder pass rounds on fractions alone, so hand back
+     anything it gave a boutique beyond what that boutique was short of */
+  let spare = 0;
+  for(let j = 0; j < servedBy.length; j++){
+    if(servedBy[j] > short[j]){ spare += servedBy[j] - short[j]; servedBy[j] = short[j]; }
+  }
+  for(let j = 0; j < servedBy.length && spare > 0; j++){
+    const room = short[j] - servedBy[j];
+    const give = Math.min(room, spare);
+    servedBy[j] += give; spare -= give;
+  }
+  const lostBy = short.map(function(s, j){ return s - servedBy[j]; });
   const total    = rowSum(sold) + served;
   return { production:production, push:push, pushTotal:pushTotal, central:central,
            sold:sold, soldAtLaunch:rowSum(sold), short:short, shortTot:shortTot,
-           served:served, total:total, lost:shortTot - served,
+           served:served, servedBy:servedBy, lostBy:lostBy,
+           total:total, lost:shortTot - served,
            left:production - total,
            margin: total * ECON.price - production * unitCost };
 }
@@ -654,7 +681,7 @@ function renderBoard(){
    is chosen from the tables rather than written down — the bag whose worst
    over-shoot and worst under-shoot are furthest apart in opposite directions,
    which is the clearest case of the same bag being in the wrong boutique. */
-let demandShown = false, focusOn = false;
+let demandShown = false, whUsed = false;
 
 function worstPair(){
   let best = null;
@@ -673,7 +700,7 @@ function worstPair(){
 }
 
 function renderDemand(){
-  const w = focusOn ? worstPair() : null;
+  const w = demandShown ? worstPair() : null;
   let h = '<table class="grid"><thead><tr><th>Bag</th>'
         + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
         + '<th>Season</th></tr></thead><tbody>';
@@ -702,34 +729,40 @@ function renderDemand(){
          return '<td>' + (demandShown ? f + ' → ' + d : f) + '</td>'; }).join('')
      + '<td>' + (demandShown ? fmt(rowSum(D_BAG)) : fmt(F_TOTAL)) + '</td></tr></tbody></table>';
   el('demand-table').innerHTML = h;
-  el('demand-step2').classList.toggle('hidden', !demandShown);
   el('btn-reveal').classList.toggle('hidden', demandShown);
+  if(demandShown) renderConsequence();
 }
 
 function renderConsequence(){
   const w = worstPair();
-  if(!w) return;
+  const box = el('demand-focus');
+  if(!w){ box.classList.add('hidden'); testCombo(); return; }
   const b = BAGS[w.i];
+  /* what the boutique was actually given, not what the plan said: the push is
+     spPick% of production spread by forecast share, which is close to the
+     forecast but not equal to it */
+  const x = runBag(w.i, stPick, spPick);
   const shopLo = BOUTIQUES[w.lo.j], shopHi = BOUTIQUES[w.hi.j];
-  const fLo = FORECAST[w.i][w.lo.j], dLo = DEMAND[w.i][w.lo.j];
-  const fHi = FORECAST[w.i][w.hi.j], dHi = DEMAND[w.i][w.hi.j];
-  const left = fLo - dLo, away = dHi - fHi;
-  el('demand-focus').innerHTML =
-      '<h3 style="margin-top:18px;">' + esc(b.name) + ', placed exactly to the plan</h3>'
+  const gLo = x.push[w.lo.j], dLo = DEMAND[w.i][w.lo.j];
+  const gHi = x.push[w.hi.j], dHi = DEMAND[w.i][w.hi.j];
+  const left = Math.max(0, gLo - dLo), away = Math.max(0, dHi - gHi);
+  box.innerHTML =
+      '<h3 style="margin-top:18px;">' + esc(b.name) + ', placed to the plan</h3>'
     + '<div class="focusbox">'
-    +   '<div class="focuscard left"><h4>' + esc(shopLo) + ' · given ' + fLo
+    +   '<div class="focuscard left"><h4>' + esc(shopLo) + ' · given ' + gLo
     +     ', asked for ' + dLo + '</h4>'
     +     '<div class="big">' + left + ' left over</div>'
     +     '<p>' + fmtE(left * ECON.cost) + ' of stock</p></div>'
-    +   '<div class="focuscard away"><h4>' + esc(shopHi) + ' · given ' + fHi
+    +   '<div class="focuscard away"><h4>' + esc(shopHi) + ' · given ' + gHi
     +     ', asked for ' + dHi + '</h4>'
     +     '<div class="big">' + away + ' turned away</div>'
     +     '<p>' + fmtE(away * ECON.price) + ' of turnover</p></div>'
     + '</div>';
-  el('demand-focus').classList.remove('hidden');
-  el('btn-consequence').classList.add('hidden');
-  focusOn = true;
-  renderDemand();
+  box.classList.remove('hidden');
+  /* The demand is only half the story: what the boutiques could actually
+     serve out of the launch push is the other half, and it is the step the
+     warehouse then answers. */
+  testCombo();
 }
 
 /* =========================================================================
@@ -770,49 +803,78 @@ function sayTrial(){
     + '</b> central.';
 }
 
+/* The season in two passes. First what the launch push alone can serve —
+   stock is where it was placed, and the gaps are the gaps. Then the warehouse
+   is opened and fills what it can. Two presses, because the second only means
+   something once the first has been read. */
 function testCombo(){
   const r = run(stPick, spPick);
   tested = { st:stPick, sp:spPick };
   everTested = true;
-  matrixCache[key(stPick, spPick)] = r.t;
+  if(whUsed) matrixCache[key(stPick, spPick)] = r.t;
+  const t = r.t;
   const maxProd = Math.max.apply(null, r.bags.map(function(x){ return x.production; }));
-  let h = '<h3>' + stPick + '% sell-through · ' + spPick + '% in the boutiques</h3>'
-        + '<table class="grid" style="margin-top:12px;"><thead><tr><th>Bag</th>'
-        + '<th>Made</th><th>To boutiques</th><th>Central</th><th>Demand</th>'
-        + '<th>Sold on the shelf</th><th>Sent on demand</th><th>Sold</th>'
-        + '<th>Turned away</th><th>Left</th></tr></thead><tbody>';
+
+  let h = '<h3>' + stPick + '% sell-through · ' + spPick + '% in the boutiques</h3>';
+
+  h += '<table class="grid" style="margin-top:12px;"><thead><tr><th>Bag</th>'
+     + '<th>Made</th><th>To boutiques</th><th>Central</th><th>Demand</th>'
+     + '<th>Sold on the shelf</th>'
+     + (whUsed ? '<th>Sent on demand</th><th>Sold</th>' : '')
+     + '<th>Turned away</th><th>Left</th></tr></thead><tbody>';
   BAGS.forEach(function(b, i){
     const x = r.bags[i];
+    const away = whUsed ? x.lost : x.shortTot;
+    const left = whUsed ? x.left : x.production - x.soldAtLaunch;
     h += '<tr><td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>'
        + '<td>' + cell(x.production, maxProd, '#9aa7b3') + '</td>'
        + '<td>' + cell(x.pushTotal, maxProd, b.color) + '</td>'
        + '<td>' + cell(x.central, maxProd, '#9aa7b3') + '</td>'
        + '<td>' + cell(D_BAG[i], maxProd, '#4d5560') + '</td>'
        + '<td>' + cell(x.soldAtLaunch, maxProd, b.color) + '</td>'
-       + '<td>' + cell(x.served, maxProd, '#0f6b45') + '</td>'
-       + '<td><b class="num">' + fmt(x.total) + '</b></td>'
-       + '<td>' + (x.lost ? '<span class="down">' + fmt(x.lost) + '</span>' : '—') + '</td>'
-       + '<td>' + (x.left ? fmt(x.left) : '—') + '</td></tr>';
+       + (whUsed ? '<td>' + cell(x.served, maxProd, '#0f6b45') + '</td>'
+                 + '<td><b class="num">' + fmt(x.total) + '</b></td>' : '')
+       + '<td>' + (away ? '<span class="down">' + fmt(away) + '</span>' : '—') + '</td>'
+       + '<td>' + (left ? fmt(left) : '—') + '</td></tr>';
   });
-  const t = r.t;
+  const awayTot = whUsed ? t.lost : rowSum(r.bags.map(function(x){ return x.shortTot; }));
+  const leftTot = whUsed ? t.left : t.production - t.soldAtLaunch;
   h += '<tr class="tot"><td>All five</td><td>' + fmt(t.production) + '</td><td>' + fmt(t.pushTotal)
-     + '</td><td>' + fmt(t.central) + '</td><td>' + fmt(rowSum(D_BAG)) + '</td><td>' + fmt(t.soldAtLaunch)
-     + '</td><td>' + fmt(t.served) + '</td><td>' + fmt(t.sold) + '</td><td>'
-     + (t.lost ? '<span class="down">' + fmt(t.lost) + '</span>' : '—') + '</td><td>'
-     + (t.left ? fmt(t.left) : '—') + '</td></tr></tbody></table>';
-  h += '<div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:12px;">'
-     + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Turnover</div>'
-     + '<div style="font-size:26px;font-weight:800;">' + fmtE(t.turnover) + '</div></div>'
-     + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Margin</div>'
-     + '<div style="font-size:26px;font-weight:800;color:' + (t.margin > 0 ? 'var(--good)' : 'var(--bad)')
-     + '">' + fmtE(t.margin) + '</div></div>'
-     + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Sell-through reached</div>'
-     + '<div style="font-size:26px;font-weight:800;">' + t.sellThrough.toFixed(0) + '%</div></div>'
-     + '</div>';
+     + '</td><td>' + fmt(t.central) + '</td><td>' + fmt(rowSum(D_BAG)) + '</td><td>'
+     + fmt(t.soldAtLaunch) + '</td>'
+     + (whUsed ? '<td>' + fmt(t.served) + '</td><td>' + fmt(t.sold) + '</td>' : '')
+     + '<td>' + (awayTot ? '<span class="down">' + fmt(awayTot) + '</span>' : '—') + '</td><td>'
+     + (leftTot ? fmt(leftTot) : '—') + '</td></tr></tbody></table>';
+
+  if(!whUsed){
+    h += '<div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;align-items:center;">'
+       + '<button class="btn-primary" id="btn-warehouse">Use the warehouse stock</button>'
+       + '<span class="small muted">' + fmt(t.central) + ' central against '
+       + fmt(awayTot) + ' turned away</span></div>';
+  }else{
+    h += '<div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:12px;">'
+       + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Turnover</div>'
+       + '<div style="font-size:26px;font-weight:800;">' + fmtE(t.turnover) + '</div></div>'
+       + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Margin</div>'
+       + '<div style="font-size:26px;font-weight:800;color:' + (t.margin < 0 ? 'var(--bad)' : 'var(--good)')
+       + '">' + fmtE(t.margin) + '</div></div>'
+       + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Sell-through reached</div>'
+       + '<div style="font-size:26px;font-weight:800;">' + t.sellThrough.toFixed(0) + '%</div></div>'
+       + '</div>';
+  }
+
   el('trial-out').innerHTML = h;
   el('trial-out').classList.remove('hidden');
+  const bw = el('btn-warehouse');
+  if(bw) bw.addEventListener('click', useWarehouse);
   fitBars('trial-out');
-  renderMatrices();
+  if(whUsed) renderMatrices();
+}
+
+function useWarehouse(){
+  if(whUsed) return;
+  whUsed = true;
+  testCombo();
 }
 
 /* =========================================================================
@@ -1196,10 +1258,12 @@ function renderLimit(){
    ========================================================================= */
 /* each stage carries its own draw call, so inserting one never shifts an
    index that something else was relying on */
+/* The strategy is set before its consequences are shown, the same order the
+   game itself uses: you commit, then you find out. */
 const STAGES = [
   { id:'s0', title:'The board' },
+  { id:'s1', title:'Your combination', on:sayTrial },
   { id:'sd', title:'What the season asked for', on:renderDemand },
-  { id:'s1', title:'One combination' },
   { id:'s2', title:'Every combination', on:renderMatrices },
   { id:'s3', title:'Any network, any collection', on:mcHints },
   { id:'s4', title:'What the bag costs', on:renderCost },
@@ -1211,11 +1275,11 @@ let stage = 0;
    they move on. */
 function stepWithin(){
   const id = STAGES[stage].id;
+  /* the strategy slide has nothing to reveal — its button is the way on */
   if(id === 'sd'){
     if(!demandShown){ demandShown = true; renderDemand(); return true; }
-    if(!focusOn){ renderConsequence(); return true; }
+    if(!whUsed){ useWarehouse(); return true; }
   }
-  if(id === 's1' && el('trial-out').classList.contains('hidden')){ testCombo(); return true; }
   if(id === 's3'){
     /* twenty seconds of simulation is not a reason to skip the slide: while
        it runs, Enter does nothing rather than jumping to the next one */
@@ -1258,18 +1322,31 @@ function init(){
   padForBar();
   window.addEventListener('resize', function(){ padForBar(); refitVisible(); });
   renderBoard();
+  /* moving a slider changes the strategy, so the season played out under the
+     old one is no longer the answer: the warehouse step replays */
+  const repick = function(){
+    buildSegs(); sayTrial();
+    if(!whUsed) return;
+    whUsed = false;
+    /* redraw now if the consequences are on screen; otherwise arriving at
+       that slide rebuilds them anyway */
+    if(STAGES[stage].id === 'sd' && demandShown) testCombo();
+  };
   ['', '2'].forEach(function(n){
     el('sl' + n + '-st').addEventListener('input', function(){
-      stPick = Number(this.value); buildSegs(); sayTrial(); });
+      stPick = Number(this.value); repick(); });
     el('sl' + n + '-sp').addEventListener('input', function(){
-      spPick = Number(this.value); buildSegs(); sayTrial(); });
+      spPick = Number(this.value); repick(); });
   });
   buildSegs();
   sayTrial();
   el('btn-reveal').addEventListener('click', function(){ demandShown = true; renderDemand(); });
-  el('btn-consequence').addEventListener('click', renderConsequence);
-  el('btn-test').addEventListener('click', testCombo);
-  el('btn-test2').addEventListener('click', testCombo);
+  /* the strategy is set here and played out on the next slide */
+  el('btn-test').addEventListener('click', function(){
+    stage = STAGES.findIndex(function(x){ return x.id === 'sd'; });
+    renderStage();
+  });
+  el('btn-test2').addEventListener('click', function(){ whUsed = true; testCombo(); });
   el('btn-fill').addEventListener('click', fillAll);
   el('btn-mc').addEventListener('click', mcStart);
   el('btn-mc-stop').addEventListener('click', function(){ mcAbort = true; });
@@ -1292,7 +1369,12 @@ function init(){
   });
 
   document.addEventListener('keydown', function(e){
-    if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    /* A slider keeps the focus after it is dragged, and a range input does
+       nothing with Enter — so Enter still moves the page on. Arrows and Space
+       belong to the slider and are left alone. */
+    const range = e.target.tagName === 'INPUT' && e.target.type === 'range';
+    if(range && e.key !== 'Enter') return;
+    if(!range && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
     /* Enter and Space belong to whatever is focused when that is a control:
        pressing Space on Stop or Back used to advance the slide instead */
     if((e.key === 'Enter' || e.key === ' ')
