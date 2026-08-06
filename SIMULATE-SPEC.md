@@ -56,11 +56,13 @@ is more useful than a rigged optimum:
 - The matrix says outright that centralising wins on **allocation**.
 - The closing slide shows what it cannot fix: with 650 made against 650
   demanded and every bag shipped on demand, **38 customers are still turned
-  away and 38 bags still go unsold**. A warehouse pools one bag across five
-  cities; it does not pool one bag against another.
-- Lead time, an empty shelf in a boutique that lives on walk-in, and
-  production flexibility are named in one sentence as the things that would
-  change this — and deliberately not simulated.
+  away and 38 bags still go unsold** — 38 000 € of turnover that no logistics
+  can reach. The slide opens on that figure and ends on the question it
+  raises, and nothing follows it.
+
+Matrix squares are drawn in three tiers rather than a gradient — the best,
+everything within 5% of it, and the rest — because what a room needs from
+that table is where the good region is, not a reading of every square.
 
 ## 4. The Monte Carlo
 

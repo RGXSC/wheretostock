@@ -21,7 +21,7 @@
         -webkit-font-smoothing:antialiased; }
   .wrap{ max-width:1240px; margin:0 auto; padding:0 20px; }
   h1{ font-size:29px; } h2{ font-size:22px; } h3{ font-size:17px; }
-  p{ max-width:74ch; }
+  p{ max-width:none; }
   .muted{ color:var(--ink-soft); }
   .small{ font-size:14px; }
   b.num{ font-variant-numeric:tabular-nums; }
@@ -145,19 +145,21 @@
           background:var(--surface); display:flex; flex-direction:column;
           justify-content:center; align-items:center; gap:3px; position:relative; }
   .mcell .v{ font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
-  /* the bar sits in a dark well so a white fill is visible against any square
-     colour — at 6px on a light square it was invisible */
-  .mcell .b{ width:78%; height:9px; border-radius:5px; overflow:hidden;
-             background:rgba(0,0,0,.30); }
-  .mcell .b i{ display:block; height:100%; }
-  .mcell.on{ color:#fff; border-color:transparent; }
-  .mcell.tested{ outline:3px solid var(--ink); outline-offset:1px; }
-  /* the optimum has to be findable across the room, and visibly jump when the
-     cost moves it — a small glyph did not do that */
-  .mcell.best{ outline:4px solid var(--ink); outline-offset:2px;
-               box-shadow:inset 0 0 0 3px rgba(255,255,255,.9); }
-  .mcell .star{ position:absolute; top:1px; right:4px; font-size:15px;
-                text-shadow:0 1px 2px rgba(0,0,0,.4); }
+  /* three tiers, not a gradient: the best square, everything within 5% of it,
+     and the rest. What a room needs from this table is where the good region
+     is, not a reading of every square. */
+  /* no ring: several squares often tie for best, and touching rings merge
+     into a blob. The fill already separates the three tiers. */
+  .mcell.best{ background:#0f6b45; color:#fff; border-color:#0f6b45; }
+  .mcell.near{ background:#cfe6d6; color:var(--ink); border-color:#8fc2a2; }
+  .mcell.rest{ background:var(--surface); color:var(--ink-soft); }
+  .mcell.rest.neg, .mcell.near.neg{ color:var(--bad); }
+  .mcell.tested{ box-shadow:inset 0 0 0 3px var(--ink); }
+  .mcell .star{ position:absolute; top:1px; right:4px; font-size:15px; }
+  .mlegend{ display:flex; gap:20px; flex-wrap:wrap; margin-top:12px;
+            font-size:13px; font-weight:700; color:var(--ink-soft); }
+  .mlegend i{ display:inline-block; width:14px; height:14px; border-radius:4px;
+              margin-right:7px; vertical-align:-2px; border:2px solid var(--line-soft); }
   .axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-size:12px;
            font-weight:800; color:var(--ink-soft); text-transform:uppercase;
            letter-spacing:.06em; }
@@ -295,6 +297,7 @@
       <div><h3 style="margin-bottom:8px;">Turnover</h3><div class="mwrap" id="mx-t"></div></div>
       <div><h3 style="margin-bottom:8px;">Margin</h3><div class="mwrap" id="mx-m"></div></div>
     </div>
+    <div class="mlegend"><span><i style="background:#0f6b45;border-color:#0f6b45"></i>the best</span><span><i style="background:#cfe6d6;border-color:#8fc2a2"></i>within 5% of it</span><span><i style="background:#fff"></i>the rest</span></div>
     <div id="matrix-read" class="hidden" style="margin-top:18px;"></div>
   </div>
 </section>
@@ -359,6 +362,7 @@
         <div><h3 style="margin-bottom:8px;">Average turnover</h3><div class="mwrap" id="mx-mt"></div></div>
         <div><h3 style="margin-bottom:8px;">Average margin</h3><div class="mwrap" id="mx-mm"></div></div>
       </div>
+      <div class="mlegend"><span><i style="background:#0f6b45;border-color:#0f6b45"></i>the best</span><span><i style="background:#cfe6d6;border-color:#8fc2a2"></i>within 5% of it</span><span><i style="background:#fff"></i>the rest</span></div>
       <div id="mc-read" style="margin-top:16px;"></div>
     </div>
     <p class="small muted" id="mc-foot" style="margin-top:20px;font-size:12.5px;"></p>
@@ -382,6 +386,7 @@
       <div><h3 style="margin-bottom:8px;">Turnover</h3><div class="mwrap" id="mx-ct"></div></div>
       <div><h3 style="margin-bottom:8px;">Margin</h3><div class="mwrap" id="mx-cm"></div></div>
     </div>
+    <div class="mlegend"><span><i style="background:#0f6b45;border-color:#0f6b45"></i>the best</span><span><i style="background:#cfe6d6;border-color:#8fc2a2"></i>within 5% of it</span><span><i style="background:#fff"></i>the rest</span></div>
     <div id="cost-curve" style="margin-top:18px;"></div>
     <div id="cost-read2" style="margin-top:16px;"></div>
   </div>
@@ -391,10 +396,7 @@
 <section id="s5" class="hidden">
   <div class="card">
     <h2>What central stock cannot do</h2>
-    <p class="small muted" style="margin:4px 0 14px;">
-      Hold everything centrally and ship on demand, and every bag reaches
-      whichever boutique wanted it. Here is the same season played that way.
-    </p>
+    <p class="muted" id="limit-lead" style="margin:6px 0 16px;"></p>
     <div id="limit-body"></div>
   </div>
 </section>
@@ -574,8 +576,8 @@ function matrix(host, get, fmtFn, marks){
   SP_LEVELS.forEach(function(sp){ ST_LEVELS.forEach(function(st){
     const v = get(st, sp); if(v !== null && v !== undefined) vals.push(v);
   }); });
-  const lo = vals.length ? Math.min.apply(null, vals) : 0;
   const hi = vals.length ? Math.max.apply(null, vals) : 1;
+  const band = hi - Math.abs(hi) * 0.05;      /* within 5% of the best */
 
   let h = '<table class="matrix"><thead><tr><th></th><th></th>'
         + '<th colspan="' + ST_LEVELS.length + '">Target sell-through</th></tr>'
@@ -588,17 +590,13 @@ function matrix(host, get, fmtFn, marks){
     ST_LEVELS.forEach(function(st){
       const v = get(st, sp);
       if(v === null || v === undefined){ h += '<td><div class="mcell"></div></td>'; return; }
-      const span = hi - lo;
-      const pct = 45 + (span === 0 ? 55 : (v - lo) / span * 55);
-      const c = heat(v, lo, hi);
+      const tier = v === hi ? 'best' : (v >= band ? 'near' : 'rest');
       const mk = marks ? marks(st, sp, v) : '';
-      h += '<td><div class="mcell on' + (mk.indexOf('tested') >= 0 ? ' tested' : '')
-         + (mk.indexOf('R') >= 0 ? ' best' : '')
-         + '" style="background:' + c + '">'
+      h += '<td><div class="mcell ' + tier + (v < 0 ? ' neg' : '')
+         + (mk.indexOf('tested') >= 0 ? ' tested' : '') + '">'
          + (mk.indexOf('T') >= 0 ? '<span class="star">★</span>' : '')
          + (mk.indexOf('M') >= 0 ? '<span class="star" style="left:5px;right:auto">◆</span>' : '')
          + '<span class="v">' + fmtFn(v) + '</span>'
-         + '<span class="b"><i style="width:' + pct.toFixed(0) + '%;background:rgba(255,255,255,.85)"></i></span>'
          + '</div></td>';
     });
     h += '</tr>';
@@ -1162,9 +1160,7 @@ function renderCost(){
     + (same ? 'At this cost the two agree.'
             : 'Chasing the turnover square instead would leave '
               + fmtE(bm.v - cache[key(bt.st, bt.sp)].margin) + ' of margin on the table.')
-    + '</div>'
-    + '<div class="note q">Drag the cost. Watch what the best square is worth, and where '
-    + 'it crosses zero. Where in your own collection does that line fall?</div>';
+    + '</div>';
   drawCostCurve(c);
 }
 
@@ -1242,22 +1238,12 @@ function renderLimit(){
      + '</td><td><span class="down">' + fmt(lost) + '</span></td><td>' + fmt(left)
      + '</td></tr></tbody></table>';
   h += '<div class="note" style="margin-top:18px;">'
-     + 'Nothing was placed in a boutique in advance, every bag went out on demand, '
-     + 'and the season still turned <b>' + fmt(lost) + '</b> customers away while '
-     + '<b>' + fmt(left) + '</b> bags went unsold. The company made exactly the right '
-     + 'number in total — ' + fmt(F_TOTAL) + ' against ' + fmt(rowSum(D_BAG)) + ' — and '
-     + 'still lost ' + fmtE(lost * ECON.price) + ' of turnover.'
-     + '</div>'
-     + '<div class="note q">'
-     + 'A warehouse pools one bag across five boutiques. It does not pool one bag '
-     + 'against another. Which of the two errors did this season actually make, '
-     + 'and which one did the warehouse fix?'
-     + '</div>'
-     + '<p class="small muted" style="margin-top:14px;">'
-     + 'And this was the generous version: replenishment instant, always in the right '
-     + 'direction, never a day late. Put the lead time back, ask what an empty shelf '
-     + 'costs a boutique that lives on walk-in, and let the factory change its mind '
-     + 'mid-season — each of those is a further page.</p>';
+     + fmt(F_TOTAL) + ' made against ' + fmt(rowSum(D_BAG)) + ' asked for, everything '
+     + 'shipped on demand — and still <b>' + fmt(lost) + '</b> turned away and <b>'
+     + fmt(left) + '</b> left unsold.</div>';
+  el('limit-lead').innerHTML =
+      'Still, variability across the bags costs <b>' + fmtE(lost * ECON.price)
+    + '</b>, whatever your logistics. How could we do better, without impact on the margin?';
   el('limit-body').innerHTML = h;
   fitBars('limit-body');
 }
