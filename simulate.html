@@ -407,8 +407,15 @@
         </div>
         <div class="mcfield">
           <div class="sub">On one boutique</div>
+          <!-- 44% and not 21%: the deterministic board two slides back misses a
+               boutique by 0.50 / 1.51 / 0.50 / 1.51 / 1.47, a spread of 44%,
+               against 20% on the bag axis. Starting both axes at 21% left this
+               one at half the error the room had just been shown, and the push
+               decision is worth roughly the square of how wrong the placement
+               is — it read 1.33 M€ here against 4.09 M€ on the board's own
+               numbers. Same claim either way; the magnitudes now match. -->
           <label>Typically wrong by <span id="mc-fspread-r"></span></label>
-          <input class="slider" type="range" id="mc-fspread" min="2" max="60" value="21">
+          <input class="slider" type="range" id="mc-fspread" min="2" max="60" value="44">
           <label style="margin-top:12px;">Spikiness <span id="mc-fspike-r"></span></label>
           <input class="slider" type="range" id="mc-fspike" min="0" max="100" value="0">
           <div class="shape" id="mc-f-s"></div>

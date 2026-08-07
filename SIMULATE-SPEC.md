@@ -164,7 +164,32 @@ nine times in ten, `k` times wider the tenth.
 
 The ordinary width is re-solved by bisection on each change so the overall
 spread stays exactly where the first slider put it — move spikiness and only
-the shape changes. Defaults 21% / 0 on both axes, which is a pure lognormal.
+the shape changes. Spikiness starts at 0 on both axes, a pure lognormal.
+
+**The two spreads are not the same, and that is the point.** They are set to
+what the deterministic board two slides back actually does, so the room is not
+handed two different worlds. Measured on that board, demand as a multiple of
+forecast:
+
+| | multipliers | spread |
+|---|---|---|
+| per bag | 1.10 · 1.00 · 0.90 · 0.70 · 1.31 | **20%** |
+| per boutique | 0.50 · 1.51 · 0.50 · 1.51 · 1.47 | **44%** |
+
+So the defaults are **21% on the bag axis and 44% on the boutique axis**. Both
+axes used to start at 21%, which left the placement error at half what the
+room had just been shown. That matters more than it sounds: the push decision
+is worth roughly the *square* of how wrong the placement is, so the axis read
+1.33 M€ at 21% against 4.09 M€ at the board's own 44%. The best square is
+90%/30% at every spread from 21% to 55%, so nothing else on the page moves —
+only the size of the number the slide is making its case with.
+
+One gap remains, deliberately. The board's boutique error is **polarised** —
+0.50, 1.51, 0.50, 1.51, no one in the middle — and a lognormal is unimodal, so
+it cannot reproduce that. At matched spread the polarised version costs about
+35% more (7.7 M€ against 5.4 M€ on a ±50% test). The Monte Carlo is therefore
+the conservative reading of the push decision, which is the safe direction for
+a claim the page is trying to defend.
 
 The curve is drawn live under each pair, on a **fixed** 0 to 2.6× axis: a range
 that rescaled itself would make every setting look identical, and the point is
