@@ -350,7 +350,7 @@
 <!-- ====================================================== 4 MONTE CARLO -->
 <section id="s3" class="hidden">
   <div class="card">
-    <h2 style="margin-bottom:14px;">Any network, any collection</h2>
+    <h2 style="margin-bottom:14px;">Now: large network and large collection</h2>
     <div class="mcform">
       <div class="mcfield">
         <label>Bags in the collection</label>
@@ -409,24 +409,6 @@
   </div>
 </section>
 
-<!-- ============================================================= 5 COST -->
-<section id="s4" class="hidden">
-  <div class="card">
-    <h2>What the bag costs to make</h2>
-    <div class="mcfield" style="max-width:520px;margin-top:10px;">
-      <label>Cost of one bag &nbsp;<span id="cost-read"></span></label>
-      <input class="slider" type="range" id="cost-slider" min="100" max="500" step="10" value="200">
-    </div>
-    <div style="margin-top:14px;max-width:640px;">
-      <div>
-        <h3 style="margin-bottom:6px;">Margin &nbsp;<span class="small muted" style="font-weight:600;">◆ best margin · ★ best turnover</span></h3>
-        <div class="mwrap" id="mx-cm"></div>
-        <div class="mlegend"><span><i style="background:#0f6b45;border-color:#0f6b45"></i>the best</span><span><i style="background:#cfe6d6;border-color:#8fc2a2"></i>within 5% of it</span><span><i style="background:#fff"></i>the rest</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- ============================================================ 6 LIMIT -->
 <section id="s5" class="hidden">
   <div class="card">
@@ -461,9 +443,14 @@
         bound of what central stock can ever be worth.
      3. Five boutiques, each with its own forecast, and the launch push follows
         those forecasts instead of being split equally.
-     4. Because of 2, nothing can end up stranded in the wrong boutique. That
-        failure mode — the whole subject of the game's team panel — cannot
-        happen here by construction.
+     4. Stock CAN still be stranded, and that is the point of the second
+        decision. The warehouse refills a boutique that runs out, but it
+        cannot take back what was already pushed: a bag placed in a boutique
+        the season does not want is stuck there while another boutique turns
+        customers away. Measured on this board, at the margin optimum,
+        pushing 30% instead of 100% is worth 122 sales — 122 000 € — and that
+        is the whole slope of the push axis. What 2 removes is the LEAD TIME,
+        not the placement error.
    Production, price, unit cost and the fixed cost are set exactly as in the
    game: production is the forecast divided by the sell-through targeted, and
    the fixed cost is 45% of forecast sales.                                  */
@@ -734,12 +721,55 @@ function renderBoard(){
 let demandShown = false, whUsed = false;
 
 /* One bag and two boutiques are followed from the moment the stock is placed
-   to the moment the warehouse refills it. Fixed, not computed: the room has
-   to recognise the same two cases on three slides running, and Aveline in
-   Paris and Tokyo is the sharpest pair on this board — the plan sends them
-   nearly the same quantity and the season asks for less than half in one and
-   more than double in the other. */
-const FOLLOW = { i:0, a:0, b:1 };
+   to the moment the warehouse refills it. Chosen from the setup rather than
+   fixed, because the interesting pair moves with the sliders: at a light push
+   nothing is short after the warehouse and the second card would read "0
+   turned away, 0 € still lost", which teaches nothing.
+
+   What we want, for one bag: a boutique that was given too much and is
+   sitting on it, and a boutique that is STILL missing sales once the
+   warehouse has done all it can. If no bag offers both — at a light push the
+   warehouse covers everything — the over-push case is what matters, so keep
+   that and take the largest remaining shortfall beside it. */
+let FOLLOW = { i:0, a:0, b:1 };
+
+function pickFollow(){
+  /* Condition one is the over-push, and it is the one that always holds:
+     a boutique sitting on stock the season did not want. Condition two is a
+     boutique that is STILL missing sales after the warehouse has done all it
+     can — that one only exists once the push is heavy enough, so it is a
+     preference, not a requirement. */
+  let best = null;
+  BAGS.forEach(function(b, i){
+    const x = runBag(i, stPick, spPick);
+    const over = [], under = [];
+    BOUTIQUES.forEach(function(c, j){
+      const left = x.push[j] - x.sold[j];
+      if(left > 0) over.push({ j:j, v:left });
+      if(x.short[j] > 0) under.push({ j:j, v:x.short[j], real:x.lostBy[j] > 0 });
+    });
+    over.sort(function(p, q){ return q.v - p.v; });
+    under.sort(function(p, q){ return (q.real - p.real) || (q.v - p.v); });
+    const pairs = [];
+    if(over.length && under.length && over[0].j !== under[0].j)
+      pairs.push({ a:over[0].j, b:under[0].j, over:over[0].v,
+                   real:under[0].real ? 1 : 0, both:1 });
+    else if(over.length)                       /* nothing short: still show the over-push */
+      pairs.push({ a:over[0].j, b:(over[0].j + 1) % BOUTIQUES.length,
+                   over:over[0].v, real:0, both:0 });
+    pairs.forEach(function(c){
+      const cand = { i:i, a:c.a, b:c.b, both:c.both, real:c.real, over:c.over };
+      if(!best) { best = cand; return; }
+      /* a real remaining loss first, then a genuine pair, then the biggest
+         over-push — never a bag with nothing sitting in the wrong boutique */
+      const better = (cand.real  - best.real)
+                  || (cand.both  - best.both)
+                  || (cand.over  - best.over);
+      if(better > 0) best = cand;
+    });
+  });
+  if(best) FOLLOW = { i:best.i, a:best.a, b:best.b };
+}
 
 function worstPair(){
   let best = null;
@@ -758,6 +788,7 @@ function worstPair(){
 }
 
 function renderDemand(){
+  pickFollow();
   const w = demandShown ? worstPair() : null;
   /* one cell format everywhere — inside the matrix, down the season column
      and along the bottom row — so the eye reads the same three parts each
@@ -804,28 +835,46 @@ function renderDemand(){
    sent and what that leaves. */
 function followCards(after){
   const i = FOLLOW.i, x = runBag(i, stPick, spPick);
-  const one = function(j, kind){
-    const given = x.push[j], want = DEMAND[i][j];
+  /* Every state gets a sentence that is true in it. At a light push nothing
+     is stranded and the warehouse covers every gap, and BOTH cards then read
+     as successes — which is exactly the lesson, not an empty slot. */
+  const card = function(j, kind){
+    const given = x.push[j], want = DEMAND[i][j], shelf = x.sold[j];
     const sent = after ? x.servedBy[j] : 0;
-    const away = after ? x.lostBy[j] : Math.max(0, want - given);
-    const left = Math.max(0, given - want);
-    let body;
+    const away = after ? x.lostBy[j] : x.short[j];
+    const left = given - shelf;
+    let tone, big, note;
     if(kind === 'left'){
-      body = '<div class="big">' + left + ' left over</div>'
-           + '<p>' + fmtE(left * ECON.cost) + ' of stock'
-           + (after ? ' — the warehouse cannot take it back' : '') + '</p>';
+      if(left > 0){
+        tone = 'left'; big = fmt(left) + ' left over';
+        note = fmtE(left * ECON.cost) + ' of stock'
+             + (after ? ' — the warehouse cannot take it back' : '');
+      }else{
+        tone = 'good'; big = 'nothing stranded';
+        note = 'all ' + fmt(given) + ' sold where they were placed';
+      }
     }else{
-      body = '<div class="big">' + away + ' turned away</div>'
-           + '<p>' + (after
-               ? (sent ? fmt(sent) + ' sent from the warehouse, ' : '')
-                 + fmtE(away * ECON.price) + ' still lost'
-               : fmtE(away * ECON.price) + ' of turnover') + '</p>';
+      if(away > 0){
+        tone = 'away'; big = fmt(away) + ' turned away';
+        note = (sent ? fmt(sent) + ' sent from the warehouse, ' : '')
+             + fmtE(away * ECON.price) + ' still lost';
+      }else if(sent > 0){
+        tone = 'good'; big = 'nothing lost';
+        note = 'all ' + fmt(sent) + ' shipped from the warehouse as it ran out';
+      }else if(x.short[j] > 0){
+        tone = 'away'; big = fmt(x.short[j]) + ' short on the shelf';
+        note = fmtE(x.short[j] * ECON.price) + ' waiting on the warehouse';
+      }else{
+        tone = 'good'; big = 'never ran out';
+        note = 'the shelf covered all ' + fmt(want) + ' on its own';
+      }
     }
-    return '<div class="focuscard ' + (kind === 'left' ? 'left' : (away ? 'away' : 'good')) + '">'
-         + '<h4>' + esc(BOUTIQUES[j]) + ' · given ' + given + ', asked for ' + want + '</h4>'
-         + body + '</div>';
+    return '<div class="focuscard ' + tone + '">'
+         + '<h4>' + esc(BOUTIQUES[j]) + ' · given ' + fmt(given)
+         + ', asked for ' + fmt(want) + '</h4>'
+         + '<div class="big">' + big + '</div><p>' + note + '</p></div>';
   };
-  return '<div class="focusbox">' + one(FOLLOW.a, 'left') + one(FOLLOW.b, 'away') + '</div>';
+  return '<div class="focusbox">' + card(FOLLOW.a, 'left') + card(FOLLOW.b, 'away') + '</div>';
 }
 
 function renderConsequence(){
@@ -843,6 +892,7 @@ function renderConsequence(){
    boutique table, with the row that says how much each one still needs — and
    the button then fills what the central pile can reach. */
 function renderWarehouse(){
+  pickFollow();
   const bags = BAGS.map(function(b, i){ return runBag(i, stPick, spPick); });
   const away = rowSum(bags.map(function(x){ return x.shortTot; }));
   const central = rowSum(bags.map(function(x){ return x.central; }));
@@ -906,6 +956,7 @@ function sayTrial(){
    forecast share of it — the point is easier to see in the table than to
    take on trust. The followed pair is marked here and stays marked. */
 function renderPlacement(){
+  pickFollow();
   const rows = BAGS.map(function(b, i){ return runBag(i, stPick, spPick); });
   const maxCell = Math.max.apply(null, rows.map(function(x){
     return Math.max.apply(null, x.push.concat([x.central])); }));
@@ -1387,33 +1438,35 @@ function renderMC(){
    =========================================================================
    Only the margin optimum can move. Turnover does not contain the cost, so
    its best square is fixed — which is exactly the point worth making. */
-function renderCost(){
-  const c = Number(el('cost-slider').value);
-  el('cost-read').textContent = fmtE(c) + ' — ' + (c / ECON.price * 100).toFixed(0) + '% of the price';
-  const cache = {};
-  ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
-    cache[key(st, sp)] = run(st, sp, c).t; }); });
-  const gT = function(st, sp){ return cache[key(st, sp)].turnover; };
-  const gM = function(st, sp){ return cache[key(st, sp)].margin; };
-  const bt = best(gT), bm = best(gM);
-  matrix('mx-cm', gM, fmtK, function(st, sp){
-    return ((st === bm.st && sp === bm.sp) ? 'MR' : '') + ((st === bt.st && sp === bt.sp) ? 'T' : ''); });
-}
 
 /* =========================================================================
    9. STAGE 6 — what central stock cannot do
    ========================================================================= */
 function renderLimit(){
-  let h = '<table class="grid"><thead><tr><th>Bag</th><th>Forecast</th><th>Made at 100%</th>'
+  /* Measured at the sell-through the matrix actually picked, not at 100%.
+     Making exactly the forecast is a target the room has just been shown is
+     beaten, and quoting the irreducible loss there overstated it more than
+     fivefold. Found rather than hard-coded, so it follows the board. */
+  let target = ST_LEVELS[0], bestM = -Infinity;
+  ST_LEVELS.forEach(function(st){
+    SP_LEVELS.forEach(function(sp){
+      const m = run(st, sp).t.margin;
+      if(m > bestM){ bestM = m; target = st; }
+    });
+  });
+  const prodOf = function(i){ return Math.round(F_BAG[i] / (target / 100)); };
+
+  let h = '<table class="grid"><thead><tr><th>Bag</th><th>Forecast</th>'
+        + '<th>Made at ' + target + '%</th>'
         + '<th>Real demand</th><th>Sold</th><th>Turned away</th><th>Left over</th>'
         + '</tr></thead><tbody>';
-  let lost = 0, left = 0;
-  const maxV = Math.max.apply(null, D_BAG.concat(F_BAG));
+  let lost = 0, left = 0, made = 0;
+  const maxV = Math.max.apply(null, D_BAG.concat(BAGS.map(function(b, i){ return prodOf(i); })));
   BAGS.forEach(function(b, i){
-    const prod = F_BAG[i];                       /* 100% sell-through target */
+    const prod = prodOf(i);
     const sold = Math.min(prod, D_BAG[i]);
     const l = D_BAG[i] - sold, o = prod - sold;
-    lost += l; left += o;
+    lost += l; left += o; made += prod;
     h += '<tr><td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>'
        + '<td>' + cell(F_BAG[i], maxV, '#9aa7b3') + '</td>'
        + '<td>' + fmt(prod) + '</td>'
@@ -1422,17 +1475,19 @@ function renderLimit(){
        + '<td>' + (l ? '<span class="down">' + fmt(l) + '</span>' : '—') + '</td>'
        + '<td>' + (o ? fmt(o) : '—') + '</td></tr>';
   });
-  h += '<tr class="tot"><td>All five</td><td>' + fmt(F_TOTAL) + '</td><td>' + fmt(F_TOTAL)
+  h += '<tr class="tot"><td>All five</td><td>' + fmt(F_TOTAL) + '</td><td>' + fmt(made)
      + '</td><td>' + fmt(rowSum(D_BAG)) + '</td><td>' + fmt(rowSum(D_BAG) - lost)
      + '</td><td><span class="down">' + fmt(lost) + '</span></td><td>' + fmt(left)
      + '</td></tr></tbody></table>';
   h += '<div class="note" style="margin-top:18px;">'
-     + fmt(F_TOTAL) + ' made against ' + fmt(rowSum(D_BAG)) + ' asked for, everything '
-     + 'shipped on demand — and still <b>' + fmt(lost) + '</b> turned away and <b>'
-     + fmt(left) + '</b> left unsold.</div>';
+     + fmt(made) + ' made against ' + fmt(rowSum(D_BAG)) + ' asked for, every bag '
+     + 'placed exactly where the season wanted it — and still <b>' + fmt(lost)
+     + '</b> turned away and <b>' + fmt(left) + '</b> left unsold.</div>';
   el('limit-lead').innerHTML =
-      'Still, variability across the bags costs <b>' + fmtE(lost * ECON.price)
-    + '</b>, whatever your logistics. How could we do better, without impact on the margin?';
+      'At the ' + target + '% the matrix picked, and with every bag placed exactly where '
+    + 'the season wanted it, variability across the bags still costs <b>'
+    + fmtE(lost * ECON.price) + '</b> of sales and leaves <b>' + fmtE(left * ECON.cost)
+    + '</b> of stock unsold. How could we do better, without impact on the margin?';
   el('limit-body').innerHTML = h;
   fitBars('limit-body');
 }
@@ -1450,8 +1505,7 @@ const STAGES = [
   { id:'sd', title:'What the season asked for', on:renderDemand },
   { id:'sw', title:'And the warehouse', on:renderWarehouse },
   { id:'s2', title:'Every combination', on:renderMatrices },
-  { id:'s3', title:'Any network, any collection', on:mcHints },
-  { id:'s4', title:'What the bag costs', on:renderCost },
+  { id:'s3', title:'Now: large network and large collection', on:mcHints },
   { id:'s5', title:'What central stock cannot do', on:renderLimit }
 ];
 let stage = 0;
@@ -1542,7 +1596,6 @@ function init(){
   ['mc-sku','mc-store','mc-askew','mc-bskew'].forEach(function(id){
     el(id).addEventListener('input', mcHints);
   });
-  el('cost-slider').addEventListener('input', renderCost);
   el('mc-cost').addEventListener('input', renderMC);
   el('btn-next').addEventListener('click', function(){
     if(stepWithin()) return;

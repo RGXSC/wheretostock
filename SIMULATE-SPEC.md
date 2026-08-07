@@ -26,9 +26,16 @@ demand matrix uses one cell format throughout, inside the squares and down the
 season column and along the bottom row, with a legend naming its three parts:
 the forecast, the actual demand, the gap.
 
-**One bag and two boutiques are followed across all three.** Aveline in Paris
-and Tokyo, fixed rather than computed: the plan sends them almost the same
-quantity — 65 and 54 — and the season asks Paris for 40 and Tokyo for 101.
+**One bag and two boutiques are followed across all three**, and they are
+chosen from the setup rather than fixed, because the interesting pair moves
+with the sliders. What is wanted is one boutique sitting on stock the season
+did not want and one still missing sales after the warehouse has done all it
+can; the over-push is the requirement, the remaining shortfall a preference.
+At a light push neither exists — nothing is stranded and the warehouse covers
+every gap — and both cards then read as successes, which is the lesson rather
+than an empty slot. At 90/80 it lands on Aveline in Paris and Tokyo: given 65
+and 54, asked for 40 and 101.
+
 Every table on those slides keeps the boutique axis, because summing it away
 is exactly where the thread the room is holding breaks.
 
@@ -54,9 +61,13 @@ Everything below is a deliberate change, and each one is stated on the page:
    forecast row**, not one network-wide share applied to the whole collection,
    so the naive-equal-split error of the main game is removed and only the
    demand error is left.
-4. **Nothing can be stranded in the wrong boutique.** That failure mode — the
-   whole subject of the debrief's team panel — cannot happen here by
-   construction, because of 2.
+4. **Stock can still be stranded — that is what the second decision buys.**
+   Instant replenishment removes the *lead time*, not the placement error: the
+   warehouse refills a boutique that runs out, but it cannot take back what
+   was already pushed. A bag sitting in a boutique the season does not want is
+   stuck there while another turns customers away. At the margin optimum,
+   pushing 30% rather than 100% is worth **122 sales — 122 000 €**, and that
+   is the entire slope of the push axis.
 
 Unchanged: the five bags, thirteen weeks of forecast, production = forecast ÷
 target sell-through, 1 000 € price, 200 € unit cost, fixed cost 45% of
@@ -89,9 +100,10 @@ squares to three.
 
 ## 3. Why there is no artificial limit on central stock
 
-With instant replenishment, holding everything centrally is never beaten on
-sales — 0% push gives exactly `min(demand, production)` per bag, the
-theoretical maximum. The reference file hid this by never offering less than
+With instant replenishment, holding stock back is never beaten on sales — the
+axis floor of 30% push already returns exactly `min(demand, production)` per
+bag, the theoretical maximum, because what is left central can go wherever the
+season asks. The reference file hid this by never offering less than
 50% push. This page does the opposite and shows it, because the honest finding
 is more useful than a rigged optimum:
 
@@ -146,16 +158,16 @@ the slide.
 
 ## 5. Cost of the bag
 
-On both boards, because the question applies to both.
+One slider, on the Monte Carlo panel. It had a slide of its own; that slide is
+gone, because the same lesson is already one drag away on a board the room is
+looking at anyway.
 
 Only the **margin** optimum can move: turnover does not contain the cost, so
-its best square is fixed — which is the point worth making, and the page says
-so. ★ marks the turnover optimum, ◆ the margin optimum, and ★ is drawn on the
-margin matrix too so the gap between them is visible.
+its best square is fixed — which is the point worth making.
 
-On the Monte Carlo board the slider costs nothing: average production per
-combination is kept alongside average turnover, so margin at any other cost is
-arithmetic on results already in hand. No re-run.
+The slider costs nothing to move: average production per combination is kept
+alongside average turnover, so margin at any other cost is arithmetic on
+results already in hand. No re-run.
 
 ## 6. Deliberately absent
 
