@@ -107,6 +107,37 @@ covers every gap and the launch push is worth nothing until it reaches 100%;
 at ±50% it is worth 123 000 €, and the optimum narrows from twenty-one
 squares to three.
 
+**"Three" is this draw, not this design.** The matrix is one hard-coded
+season, and that season is tighter than almost any other of the same
+construction. Redrawn 4 000 times at the error the board itself carries — 21%
+per bag, 44% per boutique — the count of squares within 5% of the best runs:
+
+| | squares within 5% |
+|---|---|
+| the shipped board | **3** |
+| a typical season | **10** (median) |
+| 10th–90th percentile | 5 – 16 |
+
+So the shipped season is tighter than nine seasons in ten. Quote the three as
+what this board does, not as how sharply the setup discriminates.
+
+**Which half of the answer to lean on.** Over the same 4 000 redraws, the two
+axes are not equally solid:
+
+| | per-season winner |
+|---|---|
+| best margin | 90/30 **48%** · 80/30 24% · 100/30 9% · 90/40 6% · 70/30 3% |
+| best turnover | 60/30 **59%** · 60/40 10% · 60/50 5% |
+
+The **push** half is robust: some `x/30` square wins in **84%** of seasons and
+`x/40` in a further 6%, so *hold stock central* survives essentially every
+draw — which is the claim this page exists to make. The **sell-through** half
+is a coin-flip between neighbours: 90% is the modal answer but wins only about
+half the time, with 80% behind it a quarter of the time. The board's 90/30 and
+60/30 are the modal winners and agree with the Monte Carlo, so nothing on
+screen is wrong; but a room should be told the push is the finding and the
+sell-through is the weaker half.
+
 ## 3. Why there is no artificial limit on central stock
 
 With instant replenishment, holding stock back is never beaten on sales — the
