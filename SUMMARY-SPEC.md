@@ -199,9 +199,25 @@ Opened from the **Zoom on margin** button beside the team chips, under
    (kept central, released), grey gone by week 4 with red piling up after
    (committed early, then stranded), or no grey at all and a stack that never
    melts (over-produced and over-committed).
-4. **Why those sales were lost** — the bar and its key, no caption. In the
-   debrief the bar's full width is the worst team in the session, so stepping
-   between teams compares counts and not only proportions.
+4. **The punch line** — one bag named in red: the bag that lost most sales to
+   stock stranded in the other shop. It reads the **attributed** figure, the
+   same number the bar below credits, and *not* the raw
+   `min(endB, missA) + min(endA, missB)` cap. That cap only asks whether the
+   unsold stock and the missed sale sat on opposite shelves, so it stays
+   positive even where the waterfall has already charged those misses to
+   central stock — reading it here made the line claim placement had cost
+   sales that the bar directly underneath credited as zero. Ranked on the
+   attributed figure the line is the largest single-bag slice of the bar's
+   stranded segment: never more than the bar shows, and absent exactly when
+   the bar shows nothing.
+5. **Why those sales were lost** — the bar, its key, and a caption giving the
+   scope: all five bags together, and the season's total lost sales. The
+   punch line above counts **one bag** while this bar totals **all five**, and
+   the two sit close enough on screen to be read as a single figure
+   disagreeing with itself, so each states its own scope — the punch line
+   carries the all-bag total, the bar carries the caption. In the debrief the
+   bar's full width is the worst team in the session, so stepping between
+   teams compares counts and not only proportions.
 
 ### The three causes, and why they are bounded
 

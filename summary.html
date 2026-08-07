@@ -1524,11 +1524,18 @@ function teamStats(g){
   for(let i = 0; i < weekly.length; i++){ if(weekly[i].wh === 0){ emptyAt = i + 1; break; } }
 
   /* the sharpest single fact on the screen: stock that finished the season
-     unsold in one boutique while the other boutique was turning customers away */
+     unsold in one boutique while the other boutique was turning customers away.
+     Ranked on the ATTRIBUTED figure and not on the raw cap
+     min(endB,missA)+min(endA,missB): the cap only asks whether the stock and
+     the missed sale sat on opposite shelves, so it stays positive even when
+     the waterfall has already charged those misses to central stock. Reading
+     it here made the line claim placement had cost sales that the bar right
+     underneath credited as zero. Ranking on p.wrong makes this the largest
+     single-bag slice of that bar's red segment: never more than the bar
+     shows, and silent exactly when the bar shows nothing. */
   let worst = null;
   bags.forEach(function(b){
-    const p = per[b];
-    const n = Math.min(p.endB, p.missA) + Math.min(p.endA, p.missB);
+    const n = per[b].wrong;
     if(n > 0 && (!worst || n > worst.n)) worst = { bag:b, n:n };
   });
 
@@ -1626,9 +1633,16 @@ function drawTeamZoom(){
           + boardPanel(g, st, sc)
           + '<h3 class="zh3">All five bags, week by week — and how much was still central</h3>'
           + teamStockChart(st)
+          /* the tail is not decoration: the count in front is ONE bag while the
+             bar under the next heading totals every bag, so without it the two
+             figures read as the same claim disagreeing with itself */
           + (st.worst
               ? '<p class="punch">' + st.worst.n + ' ' + esc(st.worst.bag) + ' finished the season '
-                + 'unsold in one boutique while the other boutique was turning customers away.</p>'
+                + 'unsold in one boutique while the other boutique was turning customers away'
+                + (st.worst.n === st.wrong
+                    ? ' — the only bag where it cost a sale.</p>'
+                    : ' — the worst single bag; ' + st.wrong
+                      + ' sales were lost that way across all of them.</p>')
               : '')
           + '<h3 class="zh3">Why those sales were lost</h3>'
           + causesPanel(st, g.missed || 0, sc)
@@ -1752,7 +1766,10 @@ function causesPanel(st, missed, sc){
     + parts.filter(function(p){ return p.v > 0; })
            .map(function(p){ return '<span><i style="background:' + p.c + '"></i>' + p.lab + '</span>'; })
            .join('') + '</div>';
-  return html;
+  /* the punch line above names a single bag; this bar is the whole team, and
+     the two are close enough on screen to be read as one figure */
+  return html + '<p class="muted small" style="margin-top:6px;">All bags together — '
+    + missed + ' sales lost in all.</p>';
 }
 
 /* =========================================================================
