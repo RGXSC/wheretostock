@@ -47,7 +47,7 @@ Each game is checked and badged, never silently dropped:
   it reached, and **excluded from the ranking stages by default** (toggle to
   include). A room that crashed still has data worth looking at, but it must
   not be ranked against rooms that finished.
-- Row identities re-checked: `opening + received − sold = closing` on store
+- Row identities re-checked: `opening + received − sold = closing` on boutique
   rows, `sold + missed = demand`. A failure means a hand-edited file; badge it
   loudly.
 - **Demand fingerprint.** Hash the `Demand` column across all
@@ -79,7 +79,7 @@ sorts are the drama, because rows visibly overtake one another.
 | Stage | What appears |
 |---|---|
 | **0 — Teams** | One row per team-game, alphabetical. Names only. Nothing else. |
-| **1 — Setup** | Two columns fill in: target sell-through, % in store. *"Here is what each team committed to."* |
+| **1 — Setup** | Two columns fill in: target sell-through, % in boutique. *"Here is what each team committed to."* |
 | **2 — Turnover** | Turnover column fills in. **Still alphabetical** — deliberately, so nobody can read the ranking yet. |
 | **3 — Sort by turnover** | Rows animate into turnover order. Rank badges appear. |
 | **4 — Margin** | Margin and margin % fill in, **order unchanged**. This is the moment the contradiction lands: the top row on turnover is often not the top row on margin. |
@@ -100,9 +100,9 @@ stages so it can be tracked through both sorts.
 
 ## 3. The map — two stages
 
-Target sell-through **across** (60→100%), % in store **down the side**
+Target sell-through **across** (60→100%), % in boutique **down the side**
 (30% at the top → 90% at the bottom), so reading downwards is "committing
-more and more to the shops".
+more and more to the boutiques".
 
 Shown twice: **turnover first, then the same squares switched to margin.**
 Teams keep their square between the two, so nothing moves — the bars animate
@@ -148,7 +148,7 @@ reason on hover.
 Five charts, one per bag:
 
 - **Stacked bars** = stock left at the end of each week, split into
-  warehouse / Store A / Store B.
+  warehouse / Paris / Tokyo.
 - **A strip underneath** = that week's demand, split into what was served
   (dark) and what was missed (red).
 
@@ -163,15 +163,16 @@ warehouse-grey while the red strip grows was sitting on stock it never
 shipped; a room with no grey at all committed everything at launch and had
 nothing left to move.
 
-### Zoom — one bag, big, split by shop
+### Zoom — one bag, big, split by boutique
 
 Any card opens on click (or Enter when focused) into a full-width panel:
 
 - the whole-bag stack across the top, at roughly three times the card size;
-- **Store A and Store B side by side underneath, on one shared pair of
-  scales** — a shop selling half as much must *look* half as tall, which is
-  the whole point of the 2:1 skew in the demand table. Each shop shows its
-  own stock and its own demand strip, so "we shipped to the wrong shop" is
+- **Paris and Tokyo side by side underneath, on one shared pair of
+  scales** — a boutique selling half as much must *look* half as tall, which
+  is the whole point of the 2:1 skew in the demand table. Each boutique shows
+  its own stock and its own demand strip, so "we shipped to the wrong
+  boutique" is
   visible rather than inferred.
 - ‹ › step through the five bags without closing; Esc or a click outside
   closes. The zoom's keys are captured, so stepping between bags never
@@ -190,8 +191,8 @@ Opened from the **Zoom on margin** button beside the team chips, under
    two leaks stated as facts: *sales it could not serve* and *bags nobody
    bought*. This is what separates two teams on the same margin: one lost
    sales, the other drowned in stock.
-2. **Which bag, which shop.** The game board as a grid — five bags by Store A
-   / Store B / warehouse, one unit scale shared across every team loaded, so
+2. **Which bag, which boutique.** The game board as a grid — five bags by
+   Paris / Tokyo / warehouse, one unit scale shared across every team loaded, so
    stepping ‹ › between teams compares like with like.
 3. **All five bags, week by week**, with the week the warehouse ran out
    marked. From that point nothing could be redirected, and the three
@@ -200,7 +201,7 @@ Opened from the **Zoom on margin** button beside the team chips, under
    (committed early, then stranded), or no grey at all and a stack that never
    melts (over-produced and over-committed).
 4. **The punch line** — one bag named in red: the bag that lost most sales to
-   stock stranded in the other shop. It reads the **attributed** figure, the
+   stock stranded in the other boutique. It reads the **attributed** figure, the
    same number the bar below credits, and *not* the raw
    `min(endB, missA) + min(endA, missB)` cap. That cap only asks whether the
    unsold stock and the missed sale sat on opposite shelves, so it stays
@@ -228,11 +229,11 @@ each bucket bounded by bags that really existed. Per bag, with
 | Cause | Count |
 |---|---|
 | never made — the bag sold out everywhere | `max(0, missed − left)` |
-| still central, not in the shop yet | of the rest, as many as ended in the warehouse or in transit |
-| stranded in the other shop | the remainder, capped by what the **other** shop finished with unsold |
+| the bag existed — not on this shelf in time | of the rest, as many as ended in the warehouse or in transit |
+| stranded in the other boutique | the remainder, capped by what the **other** boutique finished with unsold |
 
 Two things this fixes. A week-by-week version charged a miss to "the other
-shop" whenever that shop happened to hold stock that week, which counted the
+boutique" whenever that boutique happened to hold stock that week, which counted the
 same seven physical bags seventeen times — the headline was 43% too high.
 And `left` is `made − sold`, **not** the sum of the closing columns: a
 shipment sent in the last week leaves the warehouse and never arrives, so the
@@ -248,8 +249,8 @@ one.
   split" — that needs the demand replayed under an assumed shipping policy,
   and inventing one is not the tool's place. The screen says where the stock
   was and where the customers were; the facilitator draws the conclusion.
-- **It cannot teach "hoard everything".** *Still central, not in the shop
-  yet* is one of the three causes, so a team that sat on stock sees its own
+- **It cannot teach "hoard everything".** *The bag existed — not on this
+  shelf in time* is one of the three causes, so a team that sat on stock sees its own
   error named. Under-production is named separately too, so a team that was
   simply short is not told it was a placement problem.
 - Per-bag margin excludes the fixed cost, and the column header says so —
@@ -270,10 +271,23 @@ so what a team reads in the game and what the facilitator reads in the
 debrief cannot disagree. A cross-check asserts exactly that.
 
 **The game says Margin, never Profit**, including the summary export column,
-and the two shops are **Paris** and **Tokyo** — in the game, in the export and
+and the two boutiques are **Paris** and **Tokyo** — in the game, in the export and
 in the debrief. Every row is normalised to a slot on the way in, and a
 Location the tool does not recognise is called out as an issue rather than
-read as a shop that sold nothing.
+read as a boutique that sold nothing.
+
+**One place keeps the old word on purpose: the CSV column
+`StorePctAtSetup`.** The game writes it, the debrief reads it by name, and
+they agree — nothing is broken, it is simply the word from before the rename
+surviving in the export contract. Renaming it would invalidate every file a
+room has already exported, to fix a string no participant ever sees.
+`index.html` still carries `LEGACY_LOC = { 'Store A':'A', 'Store B':'B' }` to
+accept location values from before that same rename, which is what paying
+this cost once already looked like. Leave both alone.
+
+Everywhere else the word is **boutique**, in all three files and in both
+specs — *shop* and *store* should not appear in user-facing text or in the
+documentation of it.
 
 ## 5. Housekeeping
 
