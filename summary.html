@@ -832,10 +832,32 @@ function renderImport(){
     : 'Start the debrief — ' + rankable + ' team' + (rankable > 1 ? 's' : '');
 }
 
-function sortedForDisplay(){
-  return games.slice().sort(function(a, b){
-    return (a.team + a.game).localeCompare(b.team + b.game, undefined, { numeric:true });
-  });
+function byName(a, b){
+  return (a.team + a.game).localeCompare(b.team + b.game, undefined, { numeric:true });
+}
+function sortedForDisplay(){ return games.slice().sort(byName); }
+
+/* One comparator for both rankings: the metric on screen, then the OTHER
+   metric, then the name.
+
+   Two teams can land on the same figure — in the test corpus two of the five
+   finish on exactly 52 000 € of margin by opposite routes, one having
+   over-produced and sold well, the other under-produced and sold badly. The
+   order between them used to fall out of sort stability, which meant it was
+   really the order the files happened to be dropped in.
+
+   So: a team that took more margin on the same turnover is ahead of one that
+   did not, and a team level on BOTH is settled by the alphabet. The order is
+   total, and the same line-up always ranks the same way. */
+function rankBy(metric){
+  return function(a, b){
+    const byM = margin(b) - margin(a), byT = b.turnover - a.turnover;
+    const first = metric === 'margin' ? byM : byT;
+    if(first) return first;
+    const second = metric === 'margin' ? byT : byM;
+    if(second) return second;
+    return byName(a, b);
+  };
 }
 function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
   return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
@@ -863,9 +885,7 @@ const PALETTE = ['#12395e','#2f6ea8','#6ba3cd','#8d99a6','#464f59','#0f6b45','#8
                  '#7d5ba6','#00798c','#6a8532','#b07d62','#4f6d7a','#7a4419'];
 
 function startReveal(){
-  ranked = games.filter(isComplete).sort(function(a, b){
-    return (a.team + a.game).localeCompare(b.team + b.game, undefined, { numeric:true });
-  });
+  ranked = games.filter(isComplete).sort(byName);
   ranked.forEach(function(g, i){ g.colour = PALETTE[i % PALETTE.length]; });
   stage = 0;
   el('screen-import').classList.add('hidden');
@@ -991,8 +1011,8 @@ function renderStage(){
   const sortM = STAGES.findIndex(function(x){ return x.key === 'sortM'; });
   const sortT = STAGES.findIndex(function(x){ return x.key === 'sortT'; });
   let want = ranked;
-  if(stage >= sortM)      want = ranked.slice().sort(function(a, b){ return margin(b) - margin(a); });
-  else if(stage >= sortT) want = ranked.slice().sort(function(a, b){ return b.turnover - a.turnover; });
+  if(stage >= sortM)      want = ranked.slice().sort(rankBy('margin'));
+  else if(stage >= sortT) want = ranked.slice().sort(rankBy('turnover'));
   reorder(want);
   setTimeout(setRanks, 40);
   if(onMap){

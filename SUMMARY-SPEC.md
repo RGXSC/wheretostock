@@ -87,6 +87,22 @@ sorts are the drama, because rows visibly overtake one another.
 | **6 — Map, turnover** | §3. |
 | **7 — Map, margin** | The same squares; bars animate from turnover to margin. |
 
+**Ties.** Both rankings use one comparator: the metric on screen, then the
+**other** metric, then the team name.
+
+- Level on turnover → the one with **more margin** is ahead.
+- Level on margin → the one with **more turnover** is ahead.
+- Level on **both** → alphabetical.
+
+The order is total, so the same line-up always ranks the same way and the
+order files were dropped in cannot change the podium. Both cases are live in
+the five-room test corpus, not hypothetical: Team 3 and Team 2 both turn over
+255 000 €, and Team 1 and Team 4 both finish on 52 000 € of margin by
+opposite routes — one over-produced and sold well, the other under-produced
+and sold badly. Before the rule was written down these fell out of sort
+stability, which put Team 2 above Team 3 on turnover despite 9 000 € less
+margin.
+
 **Animation:** FLIP — measure each row's position before and after the sort,
 apply the inverse transform, then transition it to zero. 1400 ms with a 50 ms
 stagger, slow enough to follow one team overtaking another from across a
