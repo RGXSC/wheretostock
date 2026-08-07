@@ -148,12 +148,23 @@ season asks. The reference file hid this by never offering less than
 is more useful than a rigged optimum:
 
 - The matrix says outright that centralising wins on **allocation**.
-- The closing slide shows what it cannot fix: with 650 made against 650
-  demanded and every bag shipped on demand, **34 customers are still turned
-  away and 34 bags still go unsold** — 34 000 € of turnover that no logistics
-  can reach. The slide opens on that figure and ends on the question it
-  raises, and nothing follows it. Every figure on it is computed from the two
-  tables, so retuning the demand retunes the slide.
+- The closing slide shows what it cannot fix. It is measured **where the
+  margin actually peaks** — the argmax of the matrix on both axes, found
+  rather than assumed — and says so in as many words: *"the margin peaked at
+  90% sell-through and 30% push."* Even there, with every bag placed exactly
+  where the season wanted it, **6 customers are turned away and 79 bags go
+  unsold**.
+
+  Both conversions are **written out** rather than left to the reader:
+  *6 × 1 000 € = 6 000 € of sales never made* and *79 × 200 € = 15 800 €
+  already spent*. The heading talks money and the table underneath counts
+  bags, so a slide that prints only the two ends makes the room do the
+  arithmetic in its head — at which point it has stopped making its point and
+  started setting a puzzle.
+
+  The slide ends on the question it raises, and nothing follows it. Every
+  figure is computed from the two tables, so retuning the demand retunes the
+  slide — the numbers above are what the shipped board currently gives.
 
 Matrix squares are drawn in three tiers rather than a gradient — the best,
 everything within 5% of it, and the rest — because what a room needs from

@@ -392,7 +392,7 @@
       </div>
     </div>
     <details class="fold" id="mc-err">
-      <summary>Forecast error — how wrong the plan turns out to be</summary>
+      <summary>Forecast error setup</summary>
       <div class="mcform">
         <div class="mcfield">
           <div class="sub">On one bag</div>
@@ -1664,11 +1664,11 @@ function renderLimit(){
      Making exactly the forecast is a target the room has just been shown is
      beaten, and quoting the irreducible loss there overstated it more than
      fivefold. Found rather than hard-coded, so it follows the board. */
-  let target = ST_LEVELS[0], bestM = -Infinity;
+  let target = ST_LEVELS[0], push = SP_LEVELS[0], bestM = -Infinity;
   ST_LEVELS.forEach(function(st){
     SP_LEVELS.forEach(function(sp){
       const m = run(st, sp).t.margin;
-      if(m > bestM){ bestM = m; target = st; }
+      if(m > bestM){ bestM = m; target = st; push = sp; }
     });
   });
   const prodOf = function(i){ return Math.round(F_BAG[i] / (target / 100)); };
@@ -1700,11 +1700,20 @@ function renderLimit(){
      + fmt(made) + ' made against ' + fmt(rowSum(D_BAG)) + ' asked for, every bag '
      + 'placed exactly where the season wanted it — and still <b>' + fmt(lost)
      + '</b> turned away and <b>' + fmt(left) + '</b> left unsold.</div>';
+  /* Both multiplications are written out. The heading above talks about
+     money and the table below counts bags, and a reader who is given only
+     the two ends has to do the arithmetic in their head to join them — at
+     which point the slide has stopped making its point and started setting
+     a puzzle. */
   el('limit-lead').innerHTML =
-      'At the ' + target + '% the matrix picked, and with every bag placed exactly where '
-    + 'the season wanted it, variability across the bags still costs <b>'
-    + fmtE(lost * ECON.price) + '</b> of sales and leaves <b>' + fmtE(left * ECON.cost)
-    + '</b> of stock unsold. How could we do better, without impact on the margin?';
+      'The margin peaked at <b>' + target + '% sell-through</b> and <b>' + push
+    + '% push</b>. Even there, with every bag placed exactly where the season wanted '
+    + 'it, <b>' + fmt(lost) + ' customer' + (lost === 1 ? ' was' : 's were')
+    + '</b> turned away — ' + fmt(lost) + ' × ' + fmtE(ECON.price) + ' = <b>'
+    + fmtE(lost * ECON.price) + '</b> of sales never made — and <b>' + fmt(left)
+    + ' bag' + (left === 1 ? '' : 's') + '</b> went unsold — ' + fmt(left) + ' × '
+    + fmtE(ECON.cost) + ' = <b>' + fmtE(left * ECON.cost) + '</b> already spent. '
+    + 'How could we do better, without impact on the margin?';
   el('limit-body').innerHTML = h;
   fitBars('limit-body');
 }
