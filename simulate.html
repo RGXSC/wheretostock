@@ -1219,7 +1219,7 @@ function readMatrix(){
    (i+1)^-a, boutique j likewise, both normalised, with the season total held at two
    pieces per boutique per bag per week.
 
-   A season draws one flat error per bag and one per boutique, multiplies them,
+   A season draws one lognormal error per bag and one per boutique, multiplies them,
    and then rescales every line so the season total lands exactly on the forecast
    — the volume call is right and only its spread is wrong.
 
@@ -1530,7 +1530,7 @@ function mcStart(){
       SB += B[j];
     }
     const scale = TOTAL / (SA * SB);
-    /* what the typed range actually became once the season was recentred */
+    /* what the chosen spread actually became once the season was recentred */
     for(let i = 0; i < n; i++){
       const e = A[i] * SB * scale / F[i] - 1;
       if(e < minErr) minErr = e;
