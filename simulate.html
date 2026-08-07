@@ -781,9 +781,9 @@ function renderBoard(){
    =========================================================================
    Two clicks, because the point is the surprise: first what actually sold,
    then what it costs when the stock was placed against the plan. The example
-   is chosen from the tables rather than written down — the bag whose worst
-   over-shoot and worst under-shoot are furthest apart in opposite directions,
-   which is the clearest case of the same bag being in the wrong boutique. */
+   is chosen rather than written down, and there is exactly ONE choice on this
+   slide — the pair picked from the setup, marked in the table at the top and
+   followed through the section underneath. See pickFollow. */
 let demandShown = false, whUsed = false;
 
 /* One bag and two boutiques are followed from the moment the stock is placed
@@ -837,25 +837,15 @@ function pickFollow(){
   if(best) FOLLOW = { i:best.i, a:best.a, b:best.b };
 }
 
-function worstPair(){
-  let best = null;
-  BAGS.forEach(function(b, i){
-    let lo = null, hi = null;
-    BOUTIQUES.forEach(function(c, j){
-      const d = DEMAND[i][j] - FORECAST[i][j];
-      if(lo === null || d < lo.d) lo = { j:j, d:d };
-      if(hi === null || d > hi.d) hi = { j:j, d:d };
-    });
-    if(lo.d >= 0 || hi.d <= 0) return;
-    const score = Math.min(-lo.d, hi.d);
-    if(!best || score > best.score) best = { i:i, lo:lo, hi:hi, score:score };
-  });
-  return best;
-}
-
 function renderDemand(){
   pickFollow();
-  const w = demandShown ? worstPair() : null;
+  /* the SAME pair the section below follows, not a second one chosen by a
+     different rule. The top table used to outline the bag whose over- and
+     under-shoot were furthest apart, computed from the demand table alone,
+     while the section underneath followed the pair picked from the setup —
+     two selectors that disagreed on 16 of the 40 slider combinations, so
+     the outline and the heading below it named different bags. */
+  const w = demandShown ? { i:FOLLOW.i, lo:{ j:FOLLOW.a }, hi:{ j:FOLLOW.b } } : null;
   /* one cell format everywhere — inside the matrix, down the season column
      and along the bottom row — so the eye reads the same three parts each
      time: what was forecast, what the season asked for, and the gap */
