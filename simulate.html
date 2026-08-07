@@ -699,13 +699,19 @@ function renderBoard(){
      + BOUTIQUES.map(function(c, j){
          return '<td>' + fmt(FORECAST.reduce(function(a, r){ return a + r[j]; }, 0)) + '</td>'; }).join('')
      + '<td>' + fmt(F_TOTAL) + '</td></tr></tbody></table>';
-  /* one line, and no 74ch cap on it: the slide has to fit a laptop screen
-     without the page ending up a hair taller than the window */
-  h += '<p class="small muted" style="margin-top:12px;max-width:none;white-space:nowrap;'
-     + 'overflow-x:auto;">'
+  /* no 74ch cap on it, so it uses the full slide width and stays short. It
+     used to be pinned to one line with white-space:nowrap; adding the salvage
+     sentence pushed it past the 1152px container, and a nowrap line that wide
+     hides its own tail behind a scrollbar. Wrapping costs one 21px row, which
+     the slide has room for at any viewport it already fits. */
+  h += '<p class="small muted" style="margin-top:12px;max-width:none;">'
      + 'One bag sells for ' + fmtE(ECON.price) + ', costs ' + fmtE(ECON.cost)
      + ' to make whether it sells or not, and the season carries a fixed cost of '
-     + fmtE(ECON.fixed) + ' — 45% of forecast sales.</p>';
+     + fmtE(ECON.fixed) + ' — 45% of forecast sales. '
+     /* the margin writes leftover off in full; said here because "costs X to
+        make whether it sells or not" only states that the cost is incurred,
+        which leaves room to read the stock as still carrying value */
+     + 'Anything unsold at the end is worth nothing.</p>';
   el('board-table').innerHTML = h;
   fitBars('board-table');
 }

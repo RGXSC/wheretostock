@@ -18,6 +18,9 @@
         reveal demand -> sell -> allocate from warehouse -> next week.
     Stock shipped in week N arrives at the start of week N+1.
     P&L = (1000 x sold) - (200 x produced) - 117 000 fixed, revealed at the end.
+    Leftover stock is worth nothing: it is paid for and never recovered. Zero
+    salvage is what makes over-producing expensive, so the briefing says it
+    outright rather than leaving it to be inferred from the P&L.
 
   WHERE TO CHANGE THINGS
     ECONOMICS  - the ECON block below (price, cost, fixed cost)
@@ -2466,6 +2469,12 @@ function renderBriefing(){
     'Every bag sells for <b>' + fmtE(ECON.price) + '</b> and costs <b>' + fmtE(ECON.cost)
       + '</b> to produce.',
     'You pay the ' + fmtE(ECON.cost) + ' for <b>everything produced</b> — whether it sells or not.',
+    /* the P&L writes leftover stock off in full and never says so anywhere else:
+       "you pay whether it sells or not" states that the cost is incurred, which
+       leaves room to assume the stock still carries value into a next season.
+       It does not, and that assumption is what makes over-producing look free */
+    'Anything still <b>unsold when the season ends is worth nothing</b> — there is no '
+      + 'second season and no outlet.',
     'A <b>fixed cost of ' + fmtE(ECON.fixed) + '</b> (' + Math.round(ECON.fixedPct * 100)
       + '% of forecasted sales) is charged at the end.',
     'Missed sales are <b>lost for good</b>. There are no back-orders.'

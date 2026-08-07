@@ -73,6 +73,15 @@ Unchanged: the five bags, thirteen weeks of forecast, production = forecast ÷
 target sell-through, 1 000 € price, 200 € unit cost, fixed cost 45% of
 forecast sales.
 
+Leftover stock is worth **nothing** — the margin writes it off at full cost
+with no recovery, and the board says so in as many words. It is not a detail:
+zero salvage is what makes over-producing expensive and puts the optimum
+where it is. Stating only that the unit cost is paid "whether it sells or
+not" leaves room to read the stock as still carrying value, and a team that
+reads it that way over-produces on purpose. The assumption holds the answer
+until salvage passes roughly **178 € of the 200 €** — under that, the
+optimum does not move at all.
+
 ## 2. The board
 
 Forecast **650** = 2 per city per bag per week × 13 × 5 × 5. Split across the
