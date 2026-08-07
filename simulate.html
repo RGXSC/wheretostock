@@ -85,8 +85,6 @@
   .cb.out b{ right:auto; left:calc(var(--w) + 5px); color:var(--ink); text-shadow:none; }
   .cb.zero{ background:none; }
   .cb.zero b{ right:auto; left:0; color:var(--ink-soft); text-shadow:none; }
-  .swatch{ display:inline-block; width:12px; height:12px; border-radius:3px;
-           margin-right:8px; vertical-align:-1px; }
   .up{ color:var(--good); font-weight:800; } .down{ color:var(--bad); font-weight:800; }
 
   /* -------------------------------------------------------------- picks */
@@ -504,6 +502,25 @@ const BAGS = [
   { name:'Doriane',  color:'#8d99a6' },
   { name:'Estérel',  color:'#464f59' }
 ];
+/* The same five silhouettes the game uses, so a room that has just played it
+   recognises a bag by its shape rather than re-reading the name in every
+   table. Inline paths, no external assets — one distinct outline per bag, so
+   they stay tellable apart without relying on colour. */
+const BAG_SHAPES = [
+  'M4 9h16l-1.6 11H5.6L4 9Zm4 0V7a4 4 0 0 1 8 0v2',                    /* tote          */
+  'M4 10h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Zm0 0 2-5h12l2 5H4Z',    /* flap shoulder */
+  'M5 9h14l-1 10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 9Zm2 0a5 5 0 0 1 10 0',/* bucket       */
+  'M3 8h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Zm0 0 9 5 9-5',            /* clutch        */
+  'M4 10h16v9H4v-9Zm5 0V8a3 3 0 0 1 6 0v2'                             /* top handle    */
+];
+function bagIcon(i, size){
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" aria-hidden="true" '
+       + 'style="vertical-align:-3px;flex:none;">'
+       + '<path d="' + BAG_SHAPES[i % BAG_SHAPES.length] + '" fill="none" stroke="'
+       + BAGS[i].color + '" stroke-width="1.9" stroke-linejoin="round" '
+       + 'stroke-linecap="round"/></svg>';
+}
+
 const BOUTIQUES = ['Paris', 'Tokyo', 'New York', 'Shanghai', 'London'];
 const WEEKS = 13;
 
@@ -734,7 +751,7 @@ function renderBoard(){
         + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
         + '<th>Season</th></tr></thead><tbody>';
   BAGS.forEach(function(b, i){
-    h += '<tr><td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>'
+    h += '<tr><td>' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
        + FORECAST[i].map(function(v){ return '<td>' + cell(v, maxCell, b.color) + '</td>'; }).join('')
        + '<td><b class="num">' + fmt(F_BAG[i]) + '</b></td></tr>';
   });
@@ -860,7 +877,7 @@ function renderDemand(){
      + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
      + '<th>Season</th></tr></thead><tbody>';
   BAGS.forEach(function(b, i){
-    h += '<tr><td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>';
+    h += '<tr><td>' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>';
     BOUTIQUES.forEach(function(c, j){
       const hit = w && w.i === i ? (w.lo.j === j ? ' class="hit-left"'
                                   : w.hi.j === j ? ' class="hit-away"' : '') : '';
@@ -1003,26 +1020,30 @@ function sayTrial(){
 /* Where every piece actually goes. The launch push is spread on each bag's
    own forecast row, so the quantity a boutique opens with is that bag's
    forecast share of it — the point is easier to see in the table than to
-   take on trust. The followed pair is marked here and stays marked. */
+   take on trust.
+
+   NOTHING is marked on this table. It used to carry the followed pair, but
+   the pair is chosen from the setup, so every nudge of either slider moved
+   the outline to a different cell while the reader was still deciding — and
+   the next slide marks a pair chosen from the demand table instead, which
+   does not move at all, so the outline appeared to jump to another bag on the
+   way through. The thread starts on the slide that reveals the season; here
+   the table is just where the stock went. */
 function renderPlacement(){
   pickFollow();
   const rows = BAGS.map(function(b, i){ return runBag(i, stPick, spPick); });
   const maxCell = Math.max.apply(null, rows.map(function(x){
     return Math.max.apply(null, x.push.concat([x.central])); }));
   let h = '<table class="grid"><thead><tr><th>Bag</th><th>Made</th>'
-        + BOUTIQUES.map(function(c, j){
-            return '<th' + (j === FOLLOW.a || j === FOLLOW.b ? ' class="foll"' : '') + '>'
-                 + c + '</th>'; }).join('')
+        + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
         + '<th>Warehouse</th></tr></thead><tbody>';
   BAGS.forEach(function(b, i){
     const x = rows[i];
-    h += '<tr' + (i === FOLLOW.i ? ' class="follrow"' : '') + '>'
-       + '<td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>'
+    h += '<tr>'
+       + '<td>' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
        + '<td><b class="num">' + fmt(x.production) + '</b></td>'
-       + x.push.map(function(v, j){
-           const mark = (i === FOLLOW.i && (j === FOLLOW.a || j === FOLLOW.b))
-             ? (j === FOLLOW.a ? ' class="hit-left"' : ' class="hit-away"') : '';
-           return '<td' + mark + '>' + cell(v, maxCell, b.color) + '</td>'; }).join('')
+       + x.push.map(function(v){
+           return '<td>' + cell(v, maxCell, b.color) + '</td>'; }).join('')
        + '<td>' + cell(x.central, maxCell, '#9aa7b3') + '</td></tr>';
   });
   const t = rows.reduce(function(a, x){
@@ -1122,7 +1143,7 @@ function testCombo(){
     const x = r.bags[i];
     const away = whUsed ? x.lost : x.shortTot;
     const left = whUsed ? x.left : x.production - x.soldAtLaunch;
-    h += '<tr><td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>'
+    h += '<tr><td>' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
        + '<td>' + cell(x.production, maxProd, '#9aa7b3') + '</td>'
        + '<td>' + cell(x.pushTotal, maxProd, b.color) + '</td>'
        + '<td>' + cell(x.central, maxProd, '#9aa7b3') + '</td>'
@@ -1673,7 +1694,7 @@ function renderLimit(){
     const sold = Math.min(prod, D_BAG[i]);
     const l = D_BAG[i] - sold, o = prod - sold;
     lost += l; left += o; made += prod;
-    h += '<tr><td><span class="swatch" style="background:' + b.color + '"></span><b>' + b.name + '</b></td>'
+    h += '<tr><td>' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
        + '<td>' + cell(F_BAG[i], maxV, '#9aa7b3') + '</td>'
        + '<td>' + fmt(prod) + '</td>'
        + '<td>' + cell(D_BAG[i], maxV, b.color) + '</td>'
