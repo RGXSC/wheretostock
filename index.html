@@ -2147,10 +2147,17 @@ function teamDetail(){
   let emptyAt = 0;
   for(let i = 0; i < weekly.length; i++){ if(weekly[i].wh === 0){ emptyAt = i + 1; break; } }
 
+  /* Ranked on the ATTRIBUTED figure and not on the raw cap
+     min(endB,missA)+min(endA,missB): the cap only asks whether the unsold
+     stock and the missed sale sat on opposite shelves, so it stays positive
+     even where the waterfall has already charged those misses to central
+     stock. Reading it here made the line claim placement had cost sales that
+     the bar right underneath credited as zero. Ranking on p.wrong makes this
+     the largest single-bag slice of that bar's red segment: never more than
+     the bar shows, and silent exactly when the bar shows nothing. */
   let worst = null;
   names.forEach(function(n){
-    const p = per[n];
-    const c = Math.min(p.endB, p.missA) + Math.min(p.endA, p.missB);
+    const c = per[n].wrong;
     if(c > 0 && (!worst || c > worst.n)) worst = { bag:n, n:c };
   });
 
@@ -2190,9 +2197,16 @@ function openTeamDetail(){
       + panelBoard(d, unit, s.perBag)
       + '<h3 class="ph3">All five bags, week by week — and how much was still central</h3>'
       + panelStock(d)
+      /* the tail is not decoration: the count in front is ONE bag while the
+         bar under the next heading totals every bag, so without it the two
+         figures read as the same claim disagreeing with itself */
       + (d.worst ? '<p class="punch">' + d.worst.n + ' ' + esc(d.worst.bag)
           + ' finished the season unsold in one boutique while the other boutique was turning '
-          + 'customers away.</p>' : '')
+          + 'customers away'
+          + (d.worst.n === d.wrong
+              ? ' — the only bag where it cost a sale.</p>'
+              : ' — the worst single bag; ' + d.wrong
+                + ' sales were lost that way across all of them.</p>') : '')
       + '<h3 class="ph3">Why those sales were lost</h3>'
       + panelCauses(d, t.missed)
       + '<div class="row-buttons" style="margin-top:22px;">'
@@ -2344,10 +2358,14 @@ function panelCauses(d, missed){
     html += '<div class="cseg" style="width:' + (p.v / missed * 100).toFixed(1) + '%;background:'
       + p.c + '"><b>' + p.v + '</b></div>';
   });
+  /* the punch line above names a single bag; this bar is the whole team, and
+     the two are close enough on screen to be read as one figure */
   return html + '</div><div class="clabs">'
     + parts.filter(function(p){ return p.v > 0; })
            .map(function(p){ return '<span><i style="background:' + p.c + '"></i>' + p.lab + '</span>'; })
-           .join('') + '</div>';
+           .join('') + '</div>'
+    + '<p class="muted small" style="margin-top:6px;">All bags together — '
+    + missed + ' sales lost in all.</p>';
 }
 
 /* =========================================================================
