@@ -138,11 +138,50 @@ the curve is steep — one item towers and the rest is a flat line — so it is
 how fast the cumulative curve reaches the ceiling that shows the
 concentration. Above sixty items the bars are pooled and the caption says so.
 
-**The error.** One flat draw per bag and one per city, multiplied. The typed
-range cannot be honoured exactly *and* leave the season total on the forecast
-unless it is symmetric — a flat −25/+100 has a mean of +37.5%. The page keeps
-the total exact, rescaling each season, and reports the range that actually
-resulted (−25/+60 typed comes back as about −46/+67). Stated on the slide.
+**The error.** One draw per bag and one per city, multiplied, and **lognormal**
+— a forecast is missed by a multiplier, not a subtraction: a bag can sell three
+times what was planned and can never sell less than none.
+
+It used to be a flat draw over a typed min/max. That was not neutral. Holding
+the mean and the spread fixed and swapping the flat draw for a lognormal moves
+the **margin optimum a full step, 80%/30% to 90%/30%** — fat tails make deep
+production a worse bet, because the extreme over-shoots are too big to cover
+with stock anyway while the ordinary seasons cluster tighter. What does *not*
+move under any shape tested: the push optimum stays at 30%, which is the claim
+this page exists to make, and the turnover optimum stays at 60%/30%.
+
+**Two knobs per axis, and they have to be independent or neither means
+anything.** A plain lognormal cannot give both: pin its mean — which we must,
+since the season is recentred to the same total and only relative error
+survives — and one parameter is left, whose width and skew move together. So
+the log-error is normal with a width that is itself drawn: the ordinary one
+nine times in ten, `k` times wider the tenth.
+
+| knob | what it sets |
+|---|---|
+| *typically wrong by* | the overall spread, as a coefficient of variation |
+| *spikiness* | `k`. At 0 every bag is a little off; turned up, most land close and a few miss enormously |
+
+The ordinary width is re-solved by bisection on each change so the overall
+spread stays exactly where the first slider put it — move spikiness and only
+the shape changes. Defaults 21% / 0 on both axes, which is a pure lognormal.
+
+The curve is drawn live under each pair, on a **fixed** 0 to 2.6× axis: a range
+that rescaled itself would make every setting look identical, and the point is
+watching the shape move against a still axis. Its caption reads percentiles
+rather than a standard deviation — *half the bags land between −15% and +13%
+of forecast · one in a hundred is over +59%*. The far end is the 99th and not
+the 95th: with the wide draw firing one time in ten, the 95th still sits inside
+the ordinary lump and so *falls* as spikiness rises, which is the opposite of
+what the slider does.
+
+The whole block sits behind a `<details>` shut by default. Closed, the panel
+reads as two board sizes and two concentrations, which is the teaching moment;
+open, the error model is all there for whoever asks how the seasons are drawn.
+
+The season total is still kept exactly on the forecast by rescaling, and the
+range that actually resulted is reported on the slide along with the shape
+(−69% to +216% per bag at the defaults).
 
 **Speed.** The error model is separable — `d(i,j) = A(i)·B(j)` — and that
 collapses the arithmetic. A boutique runs out of bag *i* exactly when its own

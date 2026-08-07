@@ -220,6 +220,24 @@
   .mcfield input[type=range]{ width:100%; height:34px; }
   .mcfield .hint{ font-size:13px; color:var(--ink-soft); margin-top:3px; }
   .shape svg{ width:100%; height:62px; display:block; }
+  /* The forecast-error controls live behind this. Shut, the run reads as two
+     board sizes and two concentrations, which is the teaching moment; open,
+     the error model is all there for whoever asks how the seasons are drawn.
+     A <details> rather than scripted folding: it opens with no JS, prints
+     open, and the keyboard already knows how to work it. */
+  .fold{ margin-top:18px; border:2px solid var(--line); border-radius:10px;
+         padding:0 16px; }
+  .fold[open]{ padding-bottom:16px; }
+  .fold > summary{ cursor:pointer; padding:13px 0; font-size:13px; font-weight:800;
+        color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em;
+        list-style:none; display:flex; align-items:center; gap:9px; }
+  .fold > summary::-webkit-details-marker{ display:none; }
+  .fold > summary::before{ content:'▸'; font-size:15px; color:var(--accent);
+        transition:transform .12s ease; }
+  .fold[open] > summary::before{ transform:rotate(90deg); }
+  .fold > summary:focus-visible{ outline:3px solid var(--accent); outline-offset:3px; }
+  .fold .sub{ font-size:12px; font-weight:800; color:var(--ink-soft);
+              text-transform:uppercase; letter-spacing:.05em; margin:12px 0 5px; }
   .bar{ height:14px; border-radius:7px; background:var(--line-soft); overflow:hidden; margin-top:12px; }
   .bar i{ display:block; height:100%; background:var(--accent); width:0; transition:width .1s linear; }
   .runline{ font-size:15px; font-weight:700; color:var(--ink-soft); margin-top:8px;
@@ -374,19 +392,37 @@
         <div class="shape" id="mc-bskew-s"></div>
         <div class="hint" id="mc-bskew-h"></div>
       </div>
-      <div class="mcfield">
-        <label>Error on the forecast of a bag &nbsp;(min / max %)</label>
-        <input type="number" id="mc-emin" min="-25" max="100" value="-25" style="width:88px">
-        <input type="number" id="mc-emax" min="-25" max="100" value="60" style="width:88px">
-        <div class="hint">flat distribution</div>
-      </div>
-      <div class="mcfield">
-        <label>Error on the forecast of a boutique &nbsp;(min / max %)</label>
-        <input type="number" id="mc-fmin" min="-25" max="100" value="-25" style="width:88px">
-        <input type="number" id="mc-fmax" min="-25" max="100" value="60" style="width:88px">
-        <div class="hint">flat distribution</div>
-      </div>
     </div>
+    <details class="fold" id="mc-err">
+      <summary>Forecast error — how wrong the plan turns out to be</summary>
+      <div class="mcform">
+        <div class="mcfield">
+          <div class="sub">On one bag</div>
+          <label>Typically wrong by <span id="mc-espread-r"></span></label>
+          <input class="slider" type="range" id="mc-espread" min="2" max="60" value="21">
+          <label style="margin-top:12px;">Spikiness <span id="mc-espike-r"></span></label>
+          <input class="slider" type="range" id="mc-espike" min="0" max="100" value="0">
+          <div class="shape" id="mc-e-s"></div>
+          <div class="hint" id="mc-e-h"></div>
+        </div>
+        <div class="mcfield">
+          <div class="sub">On one boutique</div>
+          <label>Typically wrong by <span id="mc-fspread-r"></span></label>
+          <input class="slider" type="range" id="mc-fspread" min="2" max="60" value="21">
+          <label style="margin-top:12px;">Spikiness <span id="mc-fspike-r"></span></label>
+          <input class="slider" type="range" id="mc-fspike" min="0" max="100" value="0">
+          <div class="shape" id="mc-f-s"></div>
+          <div class="hint" id="mc-f-h"></div>
+        </div>
+      </div>
+      <p class="small muted" style="margin-top:12px;font-size:12.5px;">
+        A forecast is missed by a <b>multiplier</b>, never by a subtraction: a bag can sell
+        three times what was planned, it can never sell less than none. <b>Typically wrong
+        by</b> sets how far off a forecast usually lands. <b>Spikiness</b> shares that same
+        error out differently — at the left every bag is a little off, to the right most
+        land close and a few miss enormously. The overall error stays where the first
+        slider put it, so only the shape moves.</p>
+    </details>
     <div style="display:flex;gap:12px;margin-top:18px;flex-wrap:wrap;">
       <button class="btn-primary btn-xl" id="btn-mc" style="max-width:300px;">Run</button>
       <button class="btn-ghost" id="btn-mc-stop" disabled>Stop</button>
@@ -1251,6 +1287,142 @@ function shapeSVG(w){
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img">' + g + '</svg>';
 }
 
+/* -------------------------------------------------------- forecast error
+   A forecast is missed by a MULTIPLIER, not by a subtraction: a bag can sell
+   three times what was planned and can never sell less than none. That makes
+   the error lognormal — bounded below at zero, open above — which is also
+   what a season actually looks like.
+
+   Two knobs, and they have to be independent or neither means anything:
+
+     spread  how far off a forecast usually lands.
+     spike   how that same error is shared out. At 0 every bag is a little
+             off; turned up, most land close to the forecast and a few miss
+             enormously.
+
+   A plain lognormal cannot give both. Pin its mean — which we must, since the
+   season is recentred to the same total and only relative error survives —
+   and it has ONE parameter left, whose width and skew move together. So the
+   log-error here is normal with a width that is itself drawn: the ordinary
+   one nine times in ten, k times wider the tenth. `spike` sets k, and the
+   ordinary width is re-solved so the OVERALL spread stays exactly where
+   `spread` put it. Move `spike` and the curve changes shape without changing
+   how wrong the forecast is.
+
+   The width is found by bisection: the mixture's coefficient of variation has
+   a closed form nobody would want to read, and this runs once per slider
+   move, not once per season. */
+function errParams(spreadPct, spikePct){
+  const cv = Math.max(0.001, spreadPct / 100);
+  const t  = Math.max(0, Math.min(1, spikePct / 100));
+  const w  = 0.10, k = 1 + 5 * t;
+  const cvOf = function(s){
+    const m1 = (1 - w) * Math.exp(s * s / 2) + w * Math.exp(k * k * s * s / 2);
+    const m2 = (1 - w) * Math.exp(2 * s * s) + w * Math.exp(2 * k * k * s * s);
+    return Math.sqrt(Math.max(0, m2 / (m1 * m1) - 1));
+  };
+  let lo = 1e-4, hi = 3;
+  for(let i = 0; i < 60; i++){ const mid = (lo + hi) / 2; if(cvOf(mid) < cv) lo = mid; else hi = mid; }
+  const s = (lo + hi) / 2;
+  /* centred so the average forecast is neither optimistic nor pessimistic.
+     The season is recentred anyway, but a curve drawn off-centre would read
+     as a claim about bias that the model does not make. */
+  const mean = (1 - w) * Math.exp(s * s / 2) + w * Math.exp(k * k * s * s / 2);
+  return { s:s, k:k, w:w, mu:-Math.log(mean) };
+}
+
+/* one standard normal per call; Box-Muller hands back two, so the spare is
+   kept rather than thrown away and half the logs and cosines never happen */
+let gSpare = null;
+function gauss(){
+  if(gSpare !== null){ const v = gSpare; gSpare = null; return v; }
+  let u1 = 0; while(u1 === 0) u1 = Math.random();
+  const r = Math.sqrt(-2 * Math.log(u1)), th = 2 * Math.PI * Math.random();
+  gSpare = r * Math.sin(th);
+  return r * Math.cos(th);
+}
+function errDraw(p){
+  return Math.exp(p.mu + (Math.random() < p.w ? p.k : 1) * p.s * gauss());
+}
+
+/* Abramowitz & Stegun 7.1.26 — six digits, which is five more than a slider
+   caption needs */
+function normCdf(z){
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989422804014327 * Math.exp(-z * z / 2);
+  const pr = d * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937
+           + t * (-1.821255978 + t * 1.330274429))));
+  return z > 0 ? 1 - pr : pr;
+}
+function errQuantile(p, q){
+  const cdf = function(x){
+    const z = (Math.log(x) - p.mu) / p.s;
+    return (1 - p.w) * normCdf(z) + p.w * normCdf(z / p.k);
+  };
+  let lo = 1e-6, hi = 500;
+  for(let i = 0; i < 90; i++){
+    const mid = Math.sqrt(lo * hi);
+    if(cdf(mid) < q) lo = mid; else hi = mid;
+  }
+  return Math.sqrt(lo * hi);
+}
+function errDensity(p, x){
+  if(x <= 0) return 0;
+  const L = Math.log(x) - p.mu;
+  const f = function(sg){
+    return Math.exp(-L * L / (2 * sg * sg)) / (x * sg * 2.5066282746310002);
+  };
+  return (1 - p.w) * f(p.s) + p.w * f(p.k * p.s);
+}
+
+/* The curve the two sliders are shaping. The x range is FIXED at 0..2.6x the
+   forecast: a range that rescaled itself would make every setting look
+   identical, and the whole point is watching the shape move against a still
+   axis. The tail past +160% is clipped rather than squashed — the caption
+   carries the part that runs off the edge. */
+function errShapeSVG(p){
+  const W = 260, H = 54, base = H - 11, HI = 2.6, N = 150;
+  let peak = 0;
+  const ys = [];
+  for(let i = 0; i <= N; i++){
+    const v = errDensity(p, HI * i / N);
+    ys.push(v); if(v > peak) peak = v;
+  }
+  const pts = [];
+  for(let i = 0; i <= N; i++){
+    pts.push((i / N * W).toFixed(2) + ','
+      + (base - (peak ? ys[i] / peak : 0) * (base - 4)).toFixed(2));
+  }
+  const x1 = W / HI;                       /* where the forecast was exactly right */
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img">'
+    + '<polygon points="0,' + base + ' ' + pts.join(' ') + ' ' + W + ',' + base
+    +   '" fill="#dce7f0"/>'
+    + '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#12557f" stroke-width="2"/>'
+    + '<line x1="' + x1.toFixed(1) + '" y1="0" x2="' + x1.toFixed(1) + '" y2="' + base
+    +   '" stroke="#8a3115" stroke-width="1" stroke-dasharray="3 3" opacity=".65"/>'
+    + '<line x1="0" y1="' + base + '" x2="' + W + '" y2="' + base + '" stroke="#c6ced7"/>'
+    + '<text x="0" y="' + (H - 1) + '" font-size="9" fill="#7b8794">sold nothing</text>'
+    + '<text x="' + x1.toFixed(1) + '" y="' + (H - 1) + '" font-size="9" fill="#8a3115" '
+    +   'text-anchor="middle">on forecast</text>'
+    + '<text x="' + W + '" y="' + (H - 1) + '" font-size="9" fill="#7b8794" '
+    +   'text-anchor="end">+160%</text></svg>';
+}
+
+/* the curve says "skewed"; the sentence says what that costs. Percentiles
+   rather than a standard deviation, because half of them land between A and
+   B is a fact anyone can picture. */
+function errHint(p, what){
+  const pc = function(x){ const v = (x - 1) * 100;
+    return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(0) + '%'; };
+  /* the far end is read at the 99th and not the 95th: with the wide draw
+     firing one time in ten, the 95th still sits inside the ordinary lump, so
+     it FALLS as `spike` rises — which is the opposite of what the slider
+     does. The 99th is out where the wide draw actually lives. */
+  return 'half the ' + what + ' land between ' + pc(errQuantile(p, 0.25)) + ' and '
+    + pc(errQuantile(p, 0.75)) + ' of forecast · one in a hundred is over '
+    + pc(errQuantile(p, 0.99));
+}
+
 function mcHints(){
   /* the same clamp the run uses: typing 900 bags used to draw a preview of a
      900-item board that the simulation would never run */
@@ -1270,22 +1442,38 @@ function mcHints(){
     ? 'the largest of the ' + m + ' boutique' + (m > 1 ? 's' : '') + ' carries '
       + (b[0] * 100).toFixed(0) + '% of the forecast'
     : 'the top 20% of boutiques carry ' + (topShare(b, 0.2) * 100).toFixed(0) + '% of the forecast';
+
+  const eS = Number(el('mc-espread').value), eK = Number(el('mc-espike').value);
+  const fS = Number(el('mc-fspread').value), fK = Number(el('mc-fspike').value);
+  const pe = errParams(eS, eK), pf = errParams(fS, fK);
+  el('mc-espread-r').textContent = eS + '%';
+  el('mc-fspread-r').textContent = fS + '%';
+  /* a bare 0-100 reads as a percentage of something; it is not, so it is
+     named in words the curve above it actually shows */
+  const spikeWord = function(v){
+    return v < 12 ? '— everything a little off'
+         : v < 45 ? '— some miss more than others'
+         : v < 80 ? '— a few miss badly'
+                  : '— most exact, a few enormous';
+  };
+  el('mc-espike-r').textContent = spikeWord(eK);
+  el('mc-fspike-r').textContent = spikeWord(fK);
+  el('mc-e-s').innerHTML = errShapeSVG(pe);
+  el('mc-f-s').innerHTML = errShapeSVG(pf);
+  el('mc-e-h').textContent = errHint(pe, 'bags');
+  el('mc-f-h').textContent = errHint(pf, 'boutiques');
 }
 
 function readMC(){
   const clamp = function(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); };
   const n = clamp(Math.round(Number(el('mc-sku').value) || 1), 1, 500);
   const m = clamp(Math.round(Number(el('mc-store').value) || 1), 1, 500);
-  let e0 = clamp(Number(el('mc-emin').value), -25, 100);
-  let e1 = clamp(Number(el('mc-emax').value), -25, 100);
-  let f0 = clamp(Number(el('mc-fmin').value), -25, 100);
-  let f1 = clamp(Number(el('mc-fmax').value), -25, 100);
-  if(e1 < e0){ const t = e0; e0 = e1; e1 = t; }
-  if(f1 < f0){ const t = f0; f0 = f1; f1 = t; }
   el('mc-sku').value = n; el('mc-store').value = m;
-  el('mc-emin').value = e0; el('mc-emax').value = e1;
-  el('mc-fmin').value = f0; el('mc-fmax').value = f1;
-  return { n:n, m:m, e0:e0 / 100, e1:e1 / 100, f0:f0 / 100, f1:f1 / 100,
+  return { n:n, m:m,
+           eErr:errParams(Number(el('mc-espread').value), Number(el('mc-espike').value)),
+           fErr:errParams(Number(el('mc-fspread').value), Number(el('mc-fspike').value)),
+           eSpread:Number(el('mc-espread').value), eSpike:Number(el('mc-espike').value),
+           fSpread:Number(el('mc-fspread').value), fSpike:Number(el('mc-fspike').value),
            aSkew:Number(el('mc-askew').value), bSkew:Number(el('mc-bskew').value) };
 }
 
@@ -1326,11 +1514,11 @@ function mcStart(){
   function season(){
     let SA = 0, SB = 0;
     for(let i = 0; i < n; i++){
-      A[i] = F[i] * (1 + cfg.e0 + Math.random() * (cfg.e1 - cfg.e0));
+      A[i] = F[i] * errDraw(cfg.eErr);
       SA += A[i];
     }
     for(let j = 0; j < m; j++){
-      u[j] = 1 + cfg.f0 + Math.random() * (cfg.f1 - cfg.f0);
+      u[j] = errDraw(cfg.fErr);
       B[j] = g[j] * u[j];
       SB += B[j];
     }
@@ -1406,7 +1594,9 @@ function mcStart(){
       win[key(c.st, c.sp)] = wins[i] / seasons;
     });
     mcResult = { avgT:avgT, avgP:avgP, win:win, seasons:seasons, combos:combos.length,
-                 n:n, m:m, minErr:minErr, maxErr:maxErr, total:TOTAL, fixed:fixed };
+                 n:n, m:m, minErr:minErr, maxErr:maxErr, total:TOTAL, fixed:fixed,
+                 eSpread:cfg.eSpread, eSpike:cfg.eSpike,
+                 fSpread:cfg.fSpread, fSpike:cfg.fSpike };
     renderMC();
   }
   requestAnimationFrame(chunk);
@@ -1435,8 +1625,11 @@ function renderMC(){
      be printed as "-0% to +0%" */
   const pc = function(v){ const x = v * 100;
     return (Math.abs(x) < 0.5 ? '' : (x > 0 ? '+' : '−')) + Math.abs(x).toFixed(0) + '%'; };
+  /* the shape is named, not just the range: a reader who knows forecast error
+     is lopsided can tell at a glance whether this run assumed that or not */
   el('mc-foot').textContent = 'Errors of ' + pc(r.minErr) + ' to ' + pc(r.maxErr)
-    + ' per bag once recentred · continuous quantities.';
+    + ' per bag once recentred · lognormal, typically ' + r.eSpread + '%/' + r.fSpread
+    + '% off' + (r.eSpike || r.fSpike ? ', spiky' : '') + ' · continuous quantities.';
 }
 
 /* =========================================================================
@@ -1599,7 +1792,8 @@ function init(){
   el('btn-fill').addEventListener('click', fillAll);
   el('btn-mc').addEventListener('click', mcStart);
   el('btn-mc-stop').addEventListener('click', function(){ mcAbort = true; });
-  ['mc-sku','mc-store','mc-askew','mc-bskew'].forEach(function(id){
+  ['mc-sku','mc-store','mc-askew','mc-bskew',
+   'mc-espread','mc-espike','mc-fspread','mc-fspike'].forEach(function(id){
     el(id).addEventListener('input', mcHints);
   });
   el('mc-cost').addEventListener('input', renderMC);
