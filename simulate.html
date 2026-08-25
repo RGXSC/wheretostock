@@ -415,6 +415,13 @@
         <div class="shape" id="mc-bskew-s"></div>
         <div class="hint" id="mc-bskew-h"></div>
       </div>
+      <!-- always on show: the premium is the whole argument about flexible
+           capacity, and hiding it behind a fold would make it look settled -->
+      <div class="mcfield">
+        <label>Flexible capacity costs <span id="mc-flex-r"></span></label>
+        <input class="slider" type="range" id="mc-flexcost" min="0" max="30" step="5" value="10">
+        <div class="hint" id="mc-flex-h"></div>
+      </div>
     </div>
     <details class="fold" id="mc-err">
       <summary>Forecast error setup</summary>
@@ -1672,6 +1679,12 @@ function mcHints(){
   };
   el('mc-espike-r').textContent = spikeWord(eK);
   el('mc-fspike-r').textContent = spikeWord(fK);
+  const fc = Number(el('mc-flexcost').value);
+  el('mc-flex-r').textContent = fc ? '+' + fc + '%' : 'the same as planned stock';
+  el('mc-flex-h').textContent = fc
+    ? 'a piece made late costs ' + fmtE(Math.round(ECON.cost * (1 + fc / 100)))
+      + ' instead of ' + fmtE(ECON.cost)
+    : 'a piece made late costs no more than one planned a season ahead';
   el('mc-e-s').innerHTML = errShapeSVG(pe);
   el('mc-f-s').innerHTML = errShapeSVG(pf);
   el('mc-e-h').textContent = errHint(pe, 'bags');
@@ -1684,6 +1697,7 @@ function readMC(){
   const m = clamp(Math.round(Number(el('mc-store').value) || 1), 1, 500);
   el('mc-sku').value = n; el('mc-store').value = m;
   return { n:n, m:m,
+           flexCost:Number(el('mc-flexcost').value) / 100,
            eErr:errParams(Number(el('mc-espread').value), Number(el('mc-espike').value)),
            fErr:errParams(Number(el('mc-fspread').value), Number(el('mc-fspike').value)),
            eSpread:Number(el('mc-espread').value), eSpike:Number(el('mc-espike').value),
@@ -1717,6 +1731,22 @@ function mcStart(){
      turnover − production x cost − fixed, with nothing to re-run. The margin
      itself is never accumulated — it would freeze the cost the run used. */
   const sumP = new Float64Array(combos.length);
+  /* With flexible capacity the season no longer has ONE production figure:
+     what was committed up front is paid at the plain unit cost, and only the
+     flex actually drawn carries the premium. Keeping the two apart means the
+     cost slider AND the premium slider both stay free — margin at any pair of
+     values is arithmetic on numbers already accumulated, with nothing to
+     re-run. sumR is the same season played rigidly, so the page can say what
+     flexibility was worth rather than only what it produced.
+
+     The premium changes the COST of flex, never the decision to draw it: a
+     unit drawn serves demand worth 1 000 €, against at most 260 € at the top
+     of the slider, so it is always worth drawing. The allocation is therefore
+     premium-independent and these accumulators stay valid as it moves. */
+  const sumC = new Float64Array(combos.length);   /* committed: pushed + own reserve */
+  const sumX = new Float64Array(combos.length);   /* flex actually drawn */
+  const sumR = new Float64Array(combos.length);   /* the rigid season's turnover */
+  const sumRP = new Float64Array(combos.length);  /* and its production */
   const wins = new Float64Array(combos.length);
 
   const A = new Float64Array(n), u = new Float64Array(m), B = new Float64Array(m);
@@ -1752,27 +1782,51 @@ function mcStart(){
     let bestM = -Infinity, bestK = 0;
     for(let c = 0; c < combos.length; c++){
       const p = combos[c].p, s = combos[c].s;
-      let sold = 0, prodAll = 0;
+      /* rigid: every bag keeps its whole central pool to itself.
+         flexible: half that pool stays its own, half joins one pool shared by
+         the entire collection. The shared half needs no second pass over the
+         bags — only the TOTAL sold matters, so what is still short after each
+         bag has drawn on its own reserve, and the size of the shared pool,
+         both fold into scalars and meet after the loop. */
+      let soldR = 0, prodR = 0;
+      let soldF = 0, committed = 0, capAll = 0, stillShort = 0;
       for(let i = 0; i < n; i++){
         const prod = F[i] / s;
-        prodAll += prod;
+        prodR += prod;
         const dScale = A[i] * scale;           /* d(i,j) = dScale * B[j] */
+        let onShelf, shortfall;
         if(p === 0){
-          const dTot = dScale * Ball;
-          sold += Math.min(dTot, prod);
-          continue;
+          onShelf = 0;
+          shortfall = dScale * Ball;
+        } else {
+          const theta = prod * p / dScale;     /* a boutique runs out iff u >= theta */
+          let lo = 0, hi = m;                  /* first index with su >= theta */
+          while(lo < hi){ const mid = (lo + hi) >> 1; if(su[mid] < theta) lo = mid + 1; else hi = mid; }
+          const gHigh = Gall - Pg[lo], bLow = PB[lo], bHigh = Ball - PB[lo];
+          onShelf = prod * p * gHigh + dScale * bLow;
+          shortfall = Math.max(0, dScale * bHigh - prod * p * gHigh);
         }
-        const theta = prod * p / dScale;       /* a boutique runs out iff u >= theta */
-        let lo = 0, hi = m;                    /* first index with su >= theta */
-        while(lo < hi){ const mid = (lo + hi) >> 1; if(su[mid] < theta) lo = mid + 1; else hi = mid; }
-        const gHigh = Gall - Pg[lo], bLow = PB[lo], bHigh = Ball - PB[lo];
-        const onShelf = prod * p * gHigh + dScale * bLow;
-        const shortfall = Math.max(0, dScale * bHigh - prod * p * gHigh);
-        sold += onShelf + Math.min(shortfall, prod * (1 - p));
+        const pool = prod * (1 - p);
+        soldR += onShelf + Math.min(shortfall, pool);
+        const own = pool / 2;
+        const fromOwn = Math.min(shortfall, own);
+        soldF += onShelf + fromOwn;
+        stillShort += shortfall - fromOwn;
+        committed += prod * p + own;
+        capAll += pool - own;
       }
-      const turnover = sold * ECON.price;
-      const margin = turnover - prodAll * ECON.cost - fixed;
-      sumT[c] += turnover; sumP[c] += prodAll;
+      /* the shared pool is blind to which bag calls on it, and what nobody
+         calls on is never manufactured and never paid for */
+      const drawn = Math.min(stillShort, capAll);
+      const soldFlex = soldF + drawn;
+      sumT[c] += soldFlex * ECON.price;
+      sumP[c] += committed + drawn;
+      sumC[c] += committed; sumX[c] += drawn;
+      sumR[c] += soldR * ECON.price; sumRP[c] += prodR;
+      /* the winner of a single season is judged on the flexible reading, which
+         is the one the matrices draw */
+      const margin = soldFlex * ECON.price
+                   - (committed + drawn * (1 + cfg.flexCost)) * ECON.cost - fixed;
       if(margin > bestM){ bestM = margin; bestK = c; }
     }
     wins[bestK]++;
@@ -1801,13 +1855,21 @@ function mcStart(){
     /* a run that was stopped early keeps the bar where it actually got to:
        snapping to 100% claimed the full twenty seconds had been spent */
     if(!mcAbort) el('mc-bar').style.width = '100%';
-    const avgT = {}, avgP = {}, win = {};
+    const avgT = {}, avgP = {}, win = {}, avgC = {}, avgX = {}, avgR = {}, avgRP = {};
     combos.forEach(function(c, i){
-      avgT[key(c.st, c.sp)] = sumT[i] / seasons;
-      avgP[key(c.st, c.sp)] = sumP[i] / seasons;
-      win[key(c.st, c.sp)] = wins[i] / seasons;
+      const k = key(c.st, c.sp);
+      avgT[k] = sumT[i] / seasons;
+      avgP[k] = sumP[i] / seasons;
+      /* committed and drawn kept apart so both the unit cost and the premium
+         stay adjustable after the run */
+      avgC[k] = sumC[i] / seasons;
+      avgX[k] = sumX[i] / seasons;
+      avgR[k] = sumR[i] / seasons;      /* the same seasons played rigidly */
+      avgRP[k] = sumRP[i] / seasons;
+      win[k] = wins[i] / seasons;
     });
     mcResult = { avgT:avgT, avgP:avgP, win:win, seasons:seasons, combos:combos.length,
+                 avgC:avgC, avgX:avgX, avgR:avgR, avgRP:avgRP, flexCost:cfg.flexCost,
                  n:n, m:m, minErr:minErr, maxErr:maxErr, total:TOTAL, fixed:fixed,
                  eSpread:cfg.eSpread, eSpike:cfg.eSpike,
                  fSpread:cfg.fSpread, fSpike:cfg.fSpike };
@@ -1822,9 +1884,20 @@ function renderMC(){
   const r = mcResult;
   const cost = Number(el('mc-cost').value);
   el('mc-cost-read').textContent = fmtE(cost) + ' — ' + (cost / ECON.price * 100).toFixed(0) + '% of the price';
+  /* the premium is read here, not baked in at run time, so dragging it
+     recomputes the whole board without touching the simulation */
+  const prem = Number(el('mc-flexcost').value) / 100;
   const gT = function(st, sp){ return r.avgT[key(st, sp)]; };
-  const gM = function(st, sp){ return r.avgT[key(st, sp)] - r.avgP[key(st, sp)] * cost - r.fixed; };
-  const bt = best(gT), bm = best(gM);
+  const cogs = function(st, sp){
+    const k = key(st, sp);
+    return r.avgC[k] * cost + r.avgX[k] * cost * (1 + prem);
+  };
+  const gM = function(st, sp){ return r.avgT[key(st, sp)] - cogs(st, sp) - r.fixed; };
+  /* the same seasons with every bag keeping its pool to itself, so the page
+     can say what the flexibility was worth instead of only what it produced */
+  const gR = function(st, sp){
+    return r.avgR[key(st, sp)] - r.avgRP[key(st, sp)] * cost - r.fixed; };
+  const bt = best(gT), bm = best(gM), br = best(gR);
   matrix('mx-mt', gT, fmtK, function(st, sp){ return (st === bt.st && sp === bt.sp) ? 'TR' : ''; });
   matrix('mx-mm', gM, fmtK, function(st, sp){
     return ((st === bm.st && sp === bm.sp) ? 'MR' : '') + ((st === bt.st && sp === bt.sp) ? 'T' : ''); });
@@ -1832,9 +1905,19 @@ function renderMC(){
   el('mc-line').textContent = fmt(r.seasons) + ' seasons · '
     + fmt(r.seasons * r.combos) + ' combinations tested · '
     + fmt(r.n) + ' bags × ' + fmt(r.m) + ' boutiques';
+  const gain = bm.v - br.v;
+  const drawn = r.avgX[key(bm.st, bm.sp)], held = r.avgC[key(bm.st, bm.sp)];
   el('mc-read').innerHTML =
       '<div class="note"><b>★ Best average turnover</b> ' + bt.st + '% / ' + bt.sp + '%. &nbsp; '
-    + '<b>◆ Best average margin</b> ' + bm.st + '% / ' + bm.sp + '%.</div>';
+    + '<b>◆ Best average margin</b> ' + bm.st + '% / ' + bm.sp + '%.</div>'
+    + '<p class="small muted" style="margin-top:8px;">'
+    + 'With every bag keeping its central pool to itself, the best margin would be <b>'
+    + fmtE(Math.round(br.v)) + '</b> at ' + br.st + '% / ' + br.sp + '%. Sharing half of it '
+    + 'across the collection is worth <b class="' + (gain >= 0 ? 'up' : 'down') + '">'
+    + (gain >= 0 ? '+' : '−') + fmtE(Math.abs(Math.round(gain))) + '</b> at a '
+    + (prem ? '+' + (prem * 100).toFixed(0) + '% premium' : 'premium of nothing')
+    + ' — ' + fmt(Math.round(drawn)) + ' of the ' + fmt(Math.round(held + drawn))
+    + ' pieces made are drawn late.</p>';
   /* signs are taken from the numbers, not assumed: a range of ±0.4% used to
      be printed as "-0% to +0%" */
   const pc = function(v){ const x = v * 100;
@@ -2083,10 +2166,12 @@ function init(){
   el('btn-mc').addEventListener('click', mcStart);
   el('btn-mc-stop').addEventListener('click', function(){ mcAbort = true; });
   ['mc-sku','mc-store','mc-askew','mc-bskew',
-   'mc-espread','mc-espike','mc-fspread','mc-fspike'].forEach(function(id){
+   'mc-espread','mc-espike','mc-fspread','mc-fspike','mc-flexcost'].forEach(function(id){
     el(id).addEventListener('input', mcHints);
   });
   el('mc-cost').addEventListener('input', renderMC);
+  /* both are post-processing on the accumulated sums, so neither re-runs */
+  el('mc-flexcost').addEventListener('input', function(){ mcHints(); renderMC(); });
   el('btn-next').addEventListener('click', function(){
     if(stepWithin()) return;
     if(stage < STAGES.length - 1){ stage++; renderStage(); } });

@@ -363,6 +363,59 @@ them, one table per bag (made · to the boutiques · its own reserve · into the
 shared pool · real demand · still short) and two boxes side by side, rigid
 against flexible, carrying the same four numbers each.
 
+## 4c. Flexible capacity in the Monte Carlo
+
+Slide 6 puts flexibility on the deterministic board. Slide 8 now carries the
+same idea at scale, on any board up to 500 × 500.
+
+The Monte Carlo has its **own** season loop — nothing to do with `computeFlex`
+— so the pool logic is folded into it rather than called. Per bag the central
+pool splits in half: the bag's own reserve, and a share of one pool held by the
+whole collection.
+
+**It needs no second pass over the bags.** Only the TOTAL sold matters, so what
+is still short after each bag has drawn on its own reserve, and the size of the
+shared pool, both fold into scalars and meet once after the loop:
+
+    drawn      = min(still short after own reserves, the shared pool)
+    sold       = shelf + own reserves + drawn
+    production = pushed + own reserves + drawn
+
+So the run costs no more than it did before flexibility existed.
+
+**The premium is a visible slider, 0 to 30% of unit cost in steps of 5,
+defaulting to +10%.** It is never hidden behind a fold: what flexibility costs
+is the whole argument, and tucking it away would make it look settled.
+
+Four sums are accumulated per square rather than two — committed, drawn, and
+the same seasons played rigidly with their production. That keeps **both** the
+unit-cost slider and the premium slider free: margin at any pair of values is
+arithmetic on numbers already in hand, with nothing to re-run. The premium
+changes the *cost* of flex and never the decision to draw it — a drawn unit
+serves demand worth 1 000 € against at most 260 € at the top of the slider — so
+the allocation is premium-independent and the accumulators stay valid as it
+moves.
+
+Measured on the default 40 × 40 board, from a single run re-read at each stop:
+
+| premium | best square | margin | flexibility is worth | drawn late |
+|---|---|---|---|---|
+| +0% | 90/30 | 14.53M | +2.46M | 28% of production |
+| **+10%** | **90/30** | **14.29M** | **+2.22M** | **28%** |
+| **+15%** | **80/30** | 14.19M | +2.12M | 20% |
+| +30% | 80/30 | 13.94M | +1.87M | 20% |
+
+Two things the table is for. **The best square moves at +15%**, from 90/30 to
+80/30: as late capacity gets dearer you commit more up front instead of relying
+on it. The default sits one step below that switch, so a single nudge changes
+the answer rather than merely changing a number. And flexibility never stops
+paying inside the range — at +30% a late piece costs 260 € against 1 000 € of
+revenue — which is honest rather than convenient, and worth saying if a room
+asks where the break-even is.
+
+Alongside the two matrices the slide states what the same seasons would have
+earned rigidly, so the gain is a comparison and not an assertion.
+
 ## 5. Cost of the bag
 
 One slider, on the Monte Carlo panel. It had a slide of its own; that slide is
