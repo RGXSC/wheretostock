@@ -1,7 +1,7 @@
 # `simulate.html` — the fast-forward page
 
 Third standalone file, same constraints as the other two: one HTML file, no
-network, system fonts, runs from a double-clicked `file://`. Seven slides, a
+network, system fonts, runs from a double-clicked `file://`. Eight slides, a
 sticky stage pill and one big **Next**; ← → and Enter also move.
 
 The order is the game's: **the strategy is set before its consequences are
