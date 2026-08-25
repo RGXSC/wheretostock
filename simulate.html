@@ -208,6 +208,19 @@
            letter-spacing:.06em; }
   .matrices{ display:grid; grid-template-columns:repeat(auto-fit,minmax(520px,1fr)); gap:20px; }
 
+  /* the two worlds side by side, same three numbers in each */
+  .vs{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+  .vsbox{ border:2px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .vsbox.win{ border-color:var(--good); background:#f2f8f4; }
+  .vsbox h4{ margin:0 0 10px; font-size:12px; text-transform:uppercase;
+             letter-spacing:.05em; color:var(--ink-soft); }
+  .vsline{ display:flex; justify-content:space-between; gap:12px; padding:3px 0;
+           font-variant-numeric:tabular-nums; }
+  .vsline b{ font-weight:800; }
+  .vsbig{ font-size:26px; font-weight:800; letter-spacing:-.02em; margin-bottom:6px; }
+  .vsbox.win .vsbig{ color:var(--good); }
+  .vsgain{ margin-top:10px; font-weight:800; color:var(--good); }
+
   /* --------------------------------------------------------- monte carlo */
   .mcform{ display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px 26px; }
   .mcfield label{ display:block; font-size:12px; font-weight:800; color:var(--ink-soft);
@@ -450,6 +463,36 @@
   </div>
 </section>
 
+<!-- ====================================================== 5b FLEXIBILITY -->
+<section id="sf" class="hidden">
+  <div class="card">
+    <h2>What flexible capacity can</h2>
+    <p class="small muted" style="margin-top:0;" id="flex-lead"></p>
+    <div class="picks" style="margin-top:14px;">
+      <div class="pick">
+        <label>Target sell-through</label>
+        <div class="sliderbox">
+          <div class="slidernow" id="val3-st">90%</div>
+          <input class="slider" type="range" id="sl3-st" min="60" max="100" step="10" value="90"
+                 aria-label="Target sell-through">
+          <div class="ticks" id="ticks3-st"></div>
+        </div>
+      </div>
+      <div class="pick">
+        <label>In the boutiques at launch</label>
+        <div class="sliderbox">
+          <div class="slidernow" id="val3-sp">80%</div>
+          <input class="slider" type="range" id="sl3-sp" min="30" max="100" step="10" value="80"
+                 aria-label="Share of production placed in the boutiques at launch">
+          <div class="ticks" id="ticks3-sp"></div>
+        </div>
+      </div>
+    </div>
+    <div id="flex-table" style="margin-top:14px;"></div>
+    <div id="flex-vs" style="margin-top:18px;"></div>
+  </div>
+</section>
+
 <!-- ============================================================ 6 LIMIT -->
 <section id="s5" class="hidden">
   <div class="card">
@@ -667,6 +710,70 @@ function run(stPct, spPct, unitCost){
   t.margin   = t.turnover - t.cogs - ECON.fixed;
   t.sellThrough = t.production ? t.sold / t.production * 100 : 0;
   return { bags:bags, t:t };
+}
+
+/* -------------------------------------------------- FLEXIBLE CAPACITY
+   The same engine as the original push/pull simulator this work came from,
+   ported to this board.
+
+   Everything held back from the launch splits in two. Half stays as that
+   bag's OWN central reserve, dedicated to it. The other half joins a single
+   pool shared by all five bags — not assigned to anything in advance.
+
+   Sales resolve in three waves: what is on the shelf, then the bag's own
+   reserve, then the shared pool, which will serve whichever bag turns out to
+   need it.
+
+   The rule that makes it matter: production = pushed + own reserve + the flex
+   ACTUALLY drawn. Capacity that is reserved and never called on is never
+   manufactured, so it is never paid for. Reserving costs nothing; only using
+   it does, and at the same 200 € as everything else — there is no premium.
+   That is the original's model, and it is why the gain is as large as it is. */
+function computeFlex(stPct, spPct){
+  const m = BOUTIQUES.length, rows = [];
+  let pushTot = 0, centTot = 0, capTot = 0, shelfTot = 0, resTot = 0, shortTot = 0;
+  BAGS.forEach(function(b, i){
+    const production = Math.round(F_BAG[i] / (stPct / 100));
+    let target = Math.round(F_BAG[i] * (spPct / 100) / (stPct / 100));
+    if(target > production) target = production;
+    /* The original splits the launch FLAT across its stores, because it has
+       no store-level forecast to split by — equal placement against unequal
+       demand is its lesson. This board does have one, and the concentration
+       sliders, the matrix and the Monte Carlo are all built on it, so the
+       launch is placed on each boutique's forecast share exactly as the rigid
+       engine does. What is imported from the original is the pool, not the
+       placement. */
+    const shelfQty = split(target, BAG_SHARE[i]);
+    const pushed = rowSum(shelfQty);
+    const pool = production - pushed;
+    const central = Math.ceil(pool / 2);      /* this bag's own reserve */
+    const cap     = pool - central;           /* joins the shared pool  */
+    let shelf = 0, missed = 0;
+    for(let j = 0; j < m; j++){
+      const got = Math.min(shelfQty[j], DEMAND[i][j]);
+      shelf += got; missed += DEMAND[i][j] - got;
+    }
+    const fromOwn = Math.min(missed, central), short = missed - fromOwn;
+    rows.push({ name:b.name, colour:b.color, production:production,
+                pushed:pushed, central:central, cap:cap, shelf:shelf,
+                fromOwn:fromOwn, short:short, demand:D_BAG[i] });
+    pushTot += pushed; centTot += central; capTot += cap;
+    shelfTot += shelf; resTot += fromOwn; shortTot += short;
+  });
+  /* the pool is blind to which bag calls on it — that is the whole point */
+  const used = Math.min(shortTot, capTot);
+  const made = pushTot + centTot + used;
+  const sold = shelfTot + resTot + used;
+  return { rows:rows, pushTot:pushTot, centTot:centTot, capTot:capTot,
+           used:used, made:made, sold:sold, away:shortTot - used,
+           unsold:made - sold, margin:sold * ECON.price - made * ECON.cost - ECON.fixed };
+}
+
+/* the same season with today's rules, for the side-by-side */
+function rigidTotals(stPct, spPct){
+  const t = run(stPct, spPct).t;
+  return { made:t.production, sold:t.sold, away:t.lost,
+           unsold:t.production - t.sold, margin:t.margin };
 }
 
 /* =========================================================================
@@ -984,7 +1091,7 @@ function buildTicks(host, levels, current){
 /* the same pair of sliders appears on two slides; both copies always show
    the one pick, so moving between slides never loses the combination */
 function buildSegs(){
-  ['', '2'].forEach(function(n){
+  ['', '2', '3'].forEach(function(n){
     el('val' + n + '-st').textContent = stPick + '%';
     el('val' + n + '-sp').textContent = spPick + '%';
     el('sl' + n + '-st').value = stPick;
@@ -1706,7 +1813,10 @@ function renderLimit(){
      which point the slide has stopped making its point and started setting
      a puzzle. */
   el('limit-lead').innerHTML =
-      'The margin peaked at <b>' + target + '% sell-through</b> and <b>' + push
+      /* this slide now runs BEFORE the matrix, so it cannot say the matrix
+         picked anything — the combination is stated as the best there is and
+         the matrix proves it two slides later */
+      'The best this board allows is <b>' + target + '% sell-through</b> and <b>' + push
     + '% push</b>. Even there, with every bag placed exactly where the season wanted '
     + 'it, <b>' + fmt(lost) + ' customer' + (lost === 1 ? ' was' : 's were')
     + '</b> turned away — ' + fmt(lost) + ' × ' + fmtE(ECON.price) + ' = <b>'
@@ -1716,6 +1826,65 @@ function renderLimit(){
     + 'How could we do better, without impact on the margin?';
   el('limit-body').innerHTML = h;
   fitBars('limit-body');
+}
+
+/* =========================================================================
+   9b. FLEXIBLE CAPACITY
+   ========================================================================= */
+function renderFlex(){
+  const f = computeFlex(stPick, spPick), r = rigidTotals(stPick, spPick);
+  el('flex-lead').innerHTML =
+      'Everything you hold back splits in two: half stays as that bag\'s own central '
+    + 'reserve, half joins <b>one pool shared by all five</b>, assigned to nothing in '
+    + 'advance. Reserved capacity is only made — and only paid for — if a shortage '
+    + 'actually calls on it.';
+
+  const unit = Math.max(1, Math.max.apply(null, f.rows.map(function(x){
+    return Math.max(x.production, x.demand); })));
+  let h = '<table class="grid"><thead><tr><th>Bag</th><th>Made</th>'
+        + '<th>To the boutiques</th><th>Its own reserve</th><th>Into the shared pool</th>'
+        + '<th>Real demand</th><th>Still short</th></tr></thead><tbody>';
+  f.rows.forEach(function(x, i){
+    h += '<tr><td>' + bagIcon(i, 16) + ' <b>' + esc(x.name) + '</b></td>'
+       + '<td><b class="num">' + fmt(x.production) + '</b></td>'
+       + '<td>' + cell(x.pushed, unit, x.colour) + '</td>'
+       + '<td>' + cell(x.central, unit, '#9aa7b3') + '</td>'
+       + '<td>' + cell(x.cap, unit, '#0f6b45') + '</td>'
+       + '<td>' + cell(x.demand, unit, x.colour) + '</td>'
+       + '<td>' + (x.short ? '<span class="down">' + fmt(x.short) + '</span>' : '—') + '</td></tr>';
+  });
+  h += '<tr class="tot"><td>All five</td><td>' + fmt(f.pushTot + f.centTot + f.capTot) + '</td>'
+     + '<td>' + fmt(f.pushTot) + '</td><td>' + fmt(f.centTot) + '</td>'
+     + '<td>' + fmt(f.capTot) + '</td><td>' + fmt(rowSum(D_BAG)) + '</td>'
+     + '<td>' + fmt(f.away + f.used) + '</td></tr></tbody></table>';
+  el('flex-table').innerHTML = h;
+  fitBars('flex-table');
+
+  /* the pool is drawn on after the table, because the number that matters is
+     how much of it was never made rather than how much was set aside */
+  const spare = f.capTot - f.used;
+  const box = function(title, t, win){
+    return '<div class="vsbox' + (win ? ' win' : '') + '"><h4>' + title + '</h4>'
+      + '<div class="vsbig">' + fmtE(t.margin) + '</div>'
+      + '<div class="vsline"><span>made</span><b>' + fmt(t.made) + '</b></div>'
+      + '<div class="vsline"><span>sold</span><b>' + fmt(t.sold) + '</b></div>'
+      + '<div class="vsline"><span>customers turned away</span><b>' + fmt(Math.round(t.away)) + '</b></div>'
+      + '<div class="vsline"><span>left unsold</span><b>' + fmt(Math.round(t.unsold)) + '</b></div>'
+      + '</div>';
+  };
+  const gain = f.margin - r.margin;
+  el('flex-vs').innerHTML = '<div class="vs">'
+    + box('Rigid capacity — today', r, false)
+    + box('With flexible capacity', f, gain > 0)
+    + '</div>'
+    + '<p class="small muted" style="margin-top:10px;">'
+    + (f.capTot
+        ? '<b>' + fmt(f.capTot) + '</b> pieces were left unassigned; <b>' + fmt(f.used)
+          + '</b> were called on and made, <b>' + fmt(spare) + '</b> never existed and cost nothing. '
+        : 'Everything went to the boutiques at launch, so there was nothing left to keep flexible. ')
+    + (gain > 0 ? '<b class="up">' + fmtE(gain) + ' better</b> than committing the same production up front.'
+                : 'No better than committing it up front here.')
+    + '</p>';
 }
 
 /* =========================================================================
@@ -1730,9 +1899,13 @@ const STAGES = [
   { id:'s1', title:'Your combination', on:sayTrial },
   { id:'sd', title:'What the season asked for', on:renderDemand },
   { id:'sw', title:'And the warehouse', on:renderWarehouse },
+  /* the limit slide answers the warehouse slide, so it now follows it, and
+     flexibility answers the limit slide and follows that. Scale comes after
+     the argument is finished, not in the middle of it. */
+  { id:'s5', title:'What central stock cannot do', on:renderLimit },
+  { id:'sf', title:'What flexible capacity can', on:renderFlex },
   { id:'s2', title:'Every combination', on:renderMatrices },
-  { id:'s3', title:'Now: large network and large collection', on:mcHints },
-  { id:'s5', title:'What central stock cannot do', on:renderLimit }
+  { id:'s3', title:'Now: large network and large collection', on:mcHints }
 ];
 let stage = 0;
 
@@ -1799,8 +1972,9 @@ function init(){
     const id = STAGES[stage].id;
     if(id === 'sd' && demandShown) testCombo();
     if(id === 'sw') renderWarehouse();
+    if(id === 'sf') renderFlex();
   };
-  ['', '2'].forEach(function(n){
+  ['', '2', '3'].forEach(function(n){
     el('sl' + n + '-st').addEventListener('input', function(){
       stPick = Number(this.value); repick(); });
     el('sl' + n + '-sp').addEventListener('input', function(){

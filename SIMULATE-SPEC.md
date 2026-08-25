@@ -271,6 +271,73 @@ Quantities are continuous in this mode rather than whole bags — over 250 000
 lines the rounding changes nothing and costs a great deal of time. Stated on
 the slide.
 
+## 4b. Flexible capacity
+
+The engine is the one from the original push/pull simulator this work grew
+out of, ported to this board.
+
+Per bag, everything held back from the launch splits in two:
+
+    pool    = production − pushed to the boutiques
+    central = ceil(pool / 2)     this bag's OWN reserve
+    flex    = pool − central     joins ONE pool shared by all five
+
+Sales resolve in three waves: shelf stock, then the bag's own reserve, then
+the shared pool — which serves whichever bag turns out to need it, because it
+was never assigned to one.
+
+The rule that makes it matter:
+
+    production = pushed + own reserves + flex ACTUALLY drawn
+
+Capacity reserved and never called on is **never manufactured, so never
+paid for**. Reserving costs nothing; only using it does, at the same 200 € as
+everything else. There is **no premium**. That is the original's model, and it
+is why the gain is as large as it is — worth saying out loud rather than
+leaving someone to find it.
+
+**One thing deliberately not copied.** The original splits the launch *flat*
+across its five stores, because it has no store-level forecast to split by:
+equal placement against unequal demand is its lesson. This board does have
+one, and the concentration sliders, the matrix and the Monte Carlo are all
+built on it, so the launch is placed on each boutique's forecast share exactly
+as the rigid engine does. What is imported is the pool, not the placement.
+Copying the flat split would have made the boutique forecast meaningless and
+moved every number in the deck.
+
+What it is worth, at each engine's own best combination:
+
+| | best | made | sold | turned away | unsold | margin |
+|---|---|---|---|---|---|---|
+| rigid | 90 / 30 | 723 | 644 | 6 | 79 | 207k |
+| **flexible** | **100 / 30** | **650** | **650** | **0** | **0** | **228k** |
+
+**+21k, and production lands exactly on the forecast.** Rigid capacity forces
+you to over-produce as insurance; flexible capacity lets you produce the plan
+and flex the difference. It is the answer to the question the slide before it
+ends on.
+
+**Order.** The limit slide used to close the deck. It answers the warehouse
+slide, so it now follows it, and flexibility answers the limit slide and
+follows that; the matrix and the Monte Carlo come after, scaling an argument
+that is already finished rather than interrupting it:
+
+    the board · your combination · what the season asked for · and the
+    warehouse · what central stock cannot do · what flexible capacity can ·
+    every combination · large network
+
+Moving the limit slide ahead of the matrix cost it one line of copy: it used
+to say the margin *"peaked at 90% / 30%"*, crediting a matrix nobody had seen
+yet. It now states the best the board allows, and the matrix proves it two
+slides later.
+
+**UI.** One slide, no new control. The engine needs none — the existing push
+slider already sets the pool — so the deck's sell-through and push sliders
+simply appear a third time and stay in step with the other two copies. Under
+them, one table per bag (made · to the boutiques · its own reserve · into the
+shared pool · real demand · still short) and two boxes side by side, rigid
+against flexible, carrying the same four numbers each.
+
 ## 5. Cost of the bag
 
 One slider, on the Monte Carlo panel. It had a slide of its own; that slide is
@@ -286,7 +353,7 @@ results already in hand. No re-run.
 
 ## 6. Deliberately absent
 
-- **Production flexibility.** Teased in one sentence, never simulated.
+- ~~**Production flexibility.**~~ Now simulated — see §4b.
 - **Any export or persistence.** This page is a demonstration, not a game with
   results to collect; the other two files own that.
 - **Any counterfactual.** Every square is a season actually played out under
