@@ -291,6 +291,17 @@
   .bar i{ display:block; height:100%; background:var(--accent); width:0; transition:width .1s linear; }
   .runline{ font-size:15px; font-weight:700; color:var(--ink-soft); margin-top:8px;
             font-variant-numeric:tabular-nums; }
+
+  /* ---------------------------------------------------------- the prices */
+  /* The only two knobs on this page that change nothing about the seasons:
+     both re-read sums already in hand. Side by side, in their own box, so
+     that is legible without having to be explained. */
+  .costs{ display:grid; grid-template-columns:1fr 1fr; gap:14px 26px;
+          margin-top:18px; padding:16px 20px; background:var(--accent-soft);
+          border-radius:var(--radius); }
+  .costs .mcfield{ min-width:0; }
+  .costnote{ grid-column:1 / -1; margin:0; font-size:13px; color:var(--ink-soft); }
+  @media (max-width:760px){ .costs{ grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -335,11 +346,6 @@
         <div class="shape" id="mc-bskew-s"></div>
         <div class="hint" id="mc-bskew-h"></div>
       </div>
-      <div class="mcfield">
-        <label>Flexible capacity costs <span id="mc-flex-r"></span></label>
-        <input class="slider" type="range" id="mc-flexcost" min="0" max="30" step="5" value="10">
-        <div class="hint" id="mc-flex-h"></div>
-      </div>
     </div>
     <details class="fold" id="mc-err">
       <summary>Forecast error setup</summary>
@@ -377,11 +383,28 @@
     </div>
     <div class="bar"><i id="mc-bar"></i></div>
     <div class="runline" id="mc-line">Not run yet.</div>
-    <div id="mc-out" class="hidden" style="margin-top:20px;">
-      <div class="mcfield" style="max-width:520px;margin-bottom:16px;">
-        <label>Cost of one bag &nbsp;<span id="mc-cost-read"></span></label>
+
+    <!-- The two prices, together and always on show. They used to sit at
+         opposite ends of the card, which made the premium look like a world
+         setting - something chosen before running - when neither price
+         touches the simulation: both are arithmetic on sums already
+         accumulated, so the matrices answer while you drag. -->
+    <div class="costs">
+      <div class="mcfield">
+        <label>Cost of one bag <span id="mc-cost-read"></span></label>
         <input class="slider" type="range" id="mc-cost" min="100" max="500" step="10" value="200">
+        <div class="hint">planned a season ahead</div>
       </div>
+      <div class="mcfield">
+        <label>Flexible capacity costs <span id="mc-flex-r"></span></label>
+        <input class="slider" type="range" id="mc-flexcost" min="0" max="30" step="5" value="10">
+        <div class="hint" id="mc-flex-h"></div>
+      </div>
+      <p class="costnote">Neither price re-runs anything — both read back the
+        seasons already played, so the answer moves as you drag.</p>
+    </div>
+
+    <div id="mc-out" class="hidden" style="margin-top:20px;">
       <div class="matrices">
         <div><h3 style="margin-bottom:8px;">Average turnover</h3><div class="mwrap" id="mx-mt"></div></div>
         <div><h3 style="margin-bottom:8px;">Average margin</h3><div class="mwrap" id="mx-mm"></div></div>
@@ -689,11 +712,19 @@ function mcHints(){
   };
   el('mc-espike-r').textContent = spikeWord(eK);
   el('mc-fspike-r').textContent = spikeWord(fK);
+  /* both prices are read out here rather than in renderMC, so they say
+     something before the first run and not only after it */
+  const bagCost = Number(el('mc-cost').value);
+  el('mc-cost-read').textContent = fmtE(bagCost) + ' — '
+    + (bagCost / ECON.price * 100).toFixed(0) + '% of the price';
   const fc = Number(el('mc-flexcost').value);
   el('mc-flex-r').textContent = fc ? '+' + fc + '%' : 'the same as planned stock';
+  /* against the bag cost actually set, not the default: the two sliders now
+     sit together, and a premium quoted off 200 next to a slider reading 380
+     is simply wrong */
   el('mc-flex-h').textContent = fc
-    ? 'a piece made late costs ' + fmtE(Math.round(ECON.cost * (1 + fc / 100)))
-      + ' instead of ' + fmtE(ECON.cost)
+    ? 'a piece made late costs ' + fmtE(Math.round(bagCost * (1 + fc / 100)))
+      + ' instead of ' + fmtE(bagCost)
     : 'a piece made late costs no more than one planned a season ahead';
   el('mc-e-s').innerHTML = errShapeSVG(pe);
   el('mc-f-s').innerHTML = errShapeSVG(pf);
@@ -892,7 +923,6 @@ function renderMC(){
   if(!mcResult) return;
   const r = mcResult;
   const cost = Number(el('mc-cost').value);
-  el('mc-cost-read').textContent = fmtE(cost) + ' — ' + (cost / ECON.price * 100).toFixed(0) + '% of the price';
   /* the premium is read here, not baked in at run time, so dragging it
      recomputes the whole board without touching the simulation */
   const prem = Number(el('mc-flexcost').value) / 100;
@@ -942,7 +972,7 @@ function renderMC(){
 /* --------------------------------------------------------------- wiring */
 function init(){
   ['mc-sku','mc-store','mc-askew','mc-bskew',
-   'mc-espread','mc-espike','mc-fspread','mc-fspike','mc-flexcost'].forEach(function(id){
+   'mc-espread','mc-espike','mc-fspread','mc-fspike','mc-flexcost','mc-cost'].forEach(function(id){
     el(id).addEventListener('input', mcHints);
   });
   el('mc-cost').addEventListener('input', renderMC);

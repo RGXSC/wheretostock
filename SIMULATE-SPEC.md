@@ -387,6 +387,20 @@ So the run costs no more than it did before flexibility existed.
 defaulting to +10%.** It is never hidden behind a fold: what flexibility costs
 is the whole argument, and tucking it away would make it look settled.
 
+It sits **next to the cost of a bag, in a box of its own above the matrices**,
+and not among the controls at the top. The two belong together and neither one
+belongs with the rest: every other knob on the page describes the world and
+changes what has to be simulated, while these two are read back off seasons
+already played. Apart, the premium looked like a world setting — something you
+choose before pressing Run — and the fact that it costs nothing to drag was
+invisible. The box says so in one line.
+
+Both read out **before the first run**, so the prices are legible while the
+page is still being explained, and the premium is quoted **off the cost the
+slider is actually set to**: at 380 € a bag, +10% is 418 € against 380 €, not
+220 € against 200 €. That error was harmless while the two sliders were at
+opposite ends of the card and is not once they are side by side.
+
 Four sums are accumulated per square rather than two — committed, drawn, and
 the same seasons played rigidly with their production. That keeps **both** the
 unit-cost slider and the premium slider free: margin at any pair of values is
@@ -426,9 +440,10 @@ two copies disagree.
 
 ## 5. Cost of the bag
 
-One slider, on the Monte Carlo panel. It had a slide of its own; that slide is
-gone, because the same lesson is already one drag away on a board the room is
-looking at anyway.
+One slider, on the Monte Carlo panel, paired with the flexibility premium in
+the prices box above the matrices (§4c). It had a slide of its own; that slide
+is gone, because the same lesson is already one drag away on a board the room
+is looking at anyway.
 
 Only the **margin** optimum can move: turnover does not contain the cost, so
 its best square is fixed — which is the point worth making.

@@ -29,24 +29,29 @@ One card, one screen, no slides. Top to bottom:
 
 1. **A sentence** saying what the thing does — thousands of random seasons per
    combination, averaged, so what you read is not one lucky season.
-2. **Five controls, always visible**: bags in the collection (1–500),
-   boutiques in the network (1–500), how concentrated the collection is, how
-   concentrated the network is, and **what flexible capacity costs**.
+2. **Four controls**: bags in the collection (1–500), boutiques in the
+   network (1–500), how concentrated the collection is, how concentrated the
+   network is. These describe the world, and changing any of them means
+   running again.
 3. **Forecast error setup**, folded. Two spread sliders and two spikiness
    sliders, bag and boutique. Defaults 21% and 44% — the deck's, measured off
    the board.
 4. **Run** and **Stop**, a progress bar, and a line counting seasons and
    combinations.
-5. **Two matrices**, turnover and margin, target sell-through down the side
-   and launch push across the top, with the cost-of-a-bag slider above them.
-6. **The read-out**: the best square, and what sharing the pool is worth at
+5. **The two prices**, in a box of their own: **cost of one bag** and **what
+   flexible capacity costs**. Always visible, filled in before the first run,
+   and captioned with the thing that makes them different from everything
+   above — neither re-runs anything.
+6. **Two matrices**, turnover and margin, target sell-through down the side
+   and launch push across the top, directly under the prices that drive them.
+7. **The read-out**: the best square, and what sharing the pool is worth at
    the premium currently set.
 
 Nothing else. No export, no persistence, no localStorage — the same reasoning
 as the deck: this is a thing to play with, not a game with results to collect.
 `index.html` and `summary.html` own that.
 
-## 2. Why the flex cost is a slider and not a fold
+## 2. Why the flex cost is a slider, and why it sits where it does
 
 It was asked for as *"always visible, 0 to 30% of product cost, step of 5%"*,
 and that is right for a reason worth writing down. Every other knob on this
@@ -57,6 +62,18 @@ this one twenty times, because the question they actually carry back to work
 is *how much would I pay for this?*
 
 Hiding it in a fold would have made the page's whole second argument optional.
+
+It started life among the controls at the top, which was the wrong home for
+the same reason. Up there it read as a world setting — something to choose
+before pressing Run — and the cost of a bag, its natural pair, was a full
+screen further down on the far side of the progress bar. Both are now in one
+box directly above the matrices, because what they have in common is the point:
+**neither of them re-runs anything.** They are arithmetic on sums already
+accumulated, so the answer moves while you drag, and the box says so.
+
+The premium is quoted off the cost the bag slider is set to, not off the
+default. Side by side, *"+10% — a piece made late costs 220 € instead of
+200 €"* under a slider reading 380 € is a visible contradiction.
 
 Range 0–30% of the bag's cost, in steps of 5, default 10%. It never stops
 paying inside that range — a piece drawn late costs at most 260 € and serves
