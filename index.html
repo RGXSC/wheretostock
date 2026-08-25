@@ -16,7 +16,8 @@
     Setup: pick a target sell-through (fixes how much is produced) and how
     much of it goes to the stores up front. Then run 13 weeks of:
         reveal demand -> sell -> allocate from warehouse -> next week.
-    Stock shipped in week N arrives at the start of week N+1.
+    Stock shipped in week N arrives at the start of week N+1, and at most
+    SHIP_CAP pieces can leave in one week, counted across all five bags.
     P&L = (1000 x sold) - (200 x produced) - 117 000 fixed, revealed at the end.
     Leftover stock is worth nothing: it is paid for and never recovered. Zero
     salvage is what makes over-producing expensive, so the briefing says it
@@ -262,6 +263,18 @@
   .action h3{ font-size:19px; margin-bottom:3px; }
   .action p{ margin:0 0 11px; color:var(--ink-soft); font-size:15px; line-height:1.35; }
 
+  /* the week's one truck, filling up as they type */
+  .shipcap{ margin:2px 0 14px; font-size:14px; color:var(--ink-soft); }
+  .shipcap .caprow{ display:flex; justify-content:space-between; align-items:baseline;
+                    gap:12px; margin-bottom:5px; }
+  .shipcap b{ color:var(--ink); }
+  .shipcap .capn{ font-variant-numeric:tabular-nums; font-weight:800; white-space:nowrap; }
+  .shipcap .captrack{ height:8px; border-radius:4px; background:var(--line-soft);
+                      overflow:hidden; }
+  .shipcap .captrack i{ display:block; height:100%; background:var(--accent);
+                        transition:width .18s ease; }
+  .shipcap.full b, .shipcap.full .capn{ color:var(--warn); }
+  .shipcap.full .captrack i{ background:var(--warn); }
   table.alloc{ width:100%; border-collapse:collapse; margin-bottom:14px; }
   table.alloc th{ font-size:12px; text-transform:uppercase; letter-spacing:.05em;
                   color:var(--ink-soft); text-align:center; padding:0 4px 6px; }
@@ -561,8 +574,9 @@
     <h2>Decision 2 — where does the stock go at product launch?</h2>
     <p class="muted" style="margin-top:0;">
       Decide which part of the production goes to the boutiques before launch; the rest stays in the
-      central warehouse, where you can send it week by week — it takes <b>one week to arrive</b>.
-      The boutique share is <b>split equally between Paris and Tokyo</b>.
+      central warehouse, where you can send it week by week — it takes <b>one week to arrive</b>,
+      and no more than <b>30 pieces</b> can leave in any one week. The boutique share is
+      <b>split equally between Paris and Tokyo</b>.
     </p>
     <div class="sliderbox">
       <div class="slidernow" id="val-sp">50% in the boutiques</div>
@@ -664,6 +678,13 @@
    ========================================================================= */
 const WEEKS = 13;
 const FORECAST_PER_BAG = 2 * WEEKS * 2;   /* 2 per week per store, 2 stores = 52 */
+/* One truck a week: at most this many pieces can leave the warehouse in a
+   round, counted across all five bags together, so a heavy week forces a
+   choice between them. Measured against five plausible ways of playing: it
+   never binds on a team that ships to demand, appears three or four weeks in
+   twelve for one that keeps a fat shelf, and moves the best strategy not at
+   all. It buys realism and a decision, not a different answer. */
+const SHIP_CAP = 30;
 
 const ECON = {
   price: 1000,        /* € earned per bag sold                              */
@@ -1148,12 +1169,19 @@ function renderAction(){
     p.textContent = 'Decide what leaves the central warehouse. It arrives at the boutiques next week, ready to sell.';
     host.appendChild(h); host.appendChild(p);
     host.appendChild(buildAllocTable());
+    const capBox = document.createElement('div');
+    capBox.id = 'ship-cap'; capBox.className = 'shipcap';
+    host.appendChild(capBox);
     const btn = bigButton('Confirm shipment', function(){
       if(!allocValid()) return;
       confirmShipment();
     });
     btn.id = 'btn-ship';
     host.appendChild(btn);
+    /* draw the capacity line straight away: it was mounted empty and only
+       filled on the first keystroke, so the week opened with a blank bar and
+       the allowance was invisible until someone had already spent some of it */
+    refreshAlloc();
     setTimeout(focusShipCell, 30);
     const none = document.createElement('button');
     none.className = 'btn-ghost';
@@ -1323,7 +1351,11 @@ function buildAllocTable(){
       inp.addEventListener('input', function(){
         let v = Math.max(0, Math.floor(Number(inp.value) || 0));
         const other = (s === 'A' ? state.ship.B[i] : state.ship.A[i]) || 0;
-        const max = Math.max(0, state.stock.W[i] - other);
+        /* two ceilings now, and the tighter one wins: what this bag still has
+           in the warehouse, and what is left of the week's one truck */
+        const elsewhere = shipTotal() - ((state.ship[s][i] || 0) + other);
+        const max = Math.max(0, Math.min(state.stock.W[i] - other,
+                                         SHIP_CAP - elsewhere - other));
         const over = v > max;
         if(over) v = max;
         /* the field always shows the quantity that will actually be shipped:
@@ -1359,7 +1391,16 @@ function focusShipCell(){
   if(first){ first.focus(); first.select(); }
 }
 
-/* Live "what is left in the warehouse" feedback + hard block on over-shipping. */
+function shipTotal(){
+  return BAGS.reduce(function(a, b, i){
+    return a + (state.ship.A[i] || 0) + (state.ship.B[i] || 0); }, 0);
+}
+
+/* Live "what is left in the warehouse" feedback + hard block on over-shipping,
+   and the same for the week's shipping capacity. The capacity line is a
+   sentence and a bar rather than a number in a corner: the room has to see it
+   filling up while they type, or the limit only exists at the moment it
+   refuses them. */
 function refreshAlloc(){
   let ok = true;
   BAGS.forEach(function(b, i){
@@ -1376,12 +1417,26 @@ function refreshAlloc(){
     });
     if(left < 0) ok = false;
   });
+  const used = shipTotal(), left = SHIP_CAP - used, full = left <= 0;
+  const cap = el('ship-cap');
+  if(cap){
+    cap.classList.toggle('full', full);
+    cap.innerHTML = '<div class="caprow"><span>' + (full
+        ? '<b>Shipping cap of ' + SHIP_CAP + ' reached</b> — nothing more can leave this week'
+        : '<b>' + fmt(left) + '</b> of ' + SHIP_CAP + ' still shippable this week')
+      + '</span><span class="capn">' + fmt(used) + ' / ' + SHIP_CAP + '</span></div>'
+      + '<div class="captrack"><i style="width:'
+      + Math.min(100, used / SHIP_CAP * 100).toFixed(1) + '%"></i></div>';
+  }
+  if(used > SHIP_CAP) ok = false;
   const btn = el('btn-ship');
   if(btn){
     btn.disabled = !ok;
     /* rebuild both spans: writing textContent here used to delete the
        "↵ Enter" badge the moment anything was typed into a cell */
-    btn.innerHTML = '<span>' + (ok ? 'Confirm shipment' : 'Not enough stock in the warehouse')
+    btn.innerHTML = '<span>' + (ok ? 'Confirm shipment'
+                     : used > SHIP_CAP ? 'Over the ' + SHIP_CAP + '-piece shipping cap'
+                     : 'Not enough stock in the warehouse')
                   + '</span><span class="kbd">↵ Enter</span>';
   }
   return ok;
@@ -1663,7 +1718,7 @@ const HINTS = [
   { id:'alloc',   week:1, step:'allocate', anchor:function(){ return el('action-panel'); }, place:'rightof',
     spot:function(){ return [document.querySelector('#action-panel table.alloc')]; },
     title:'3 — Ship from the warehouse',
-    text:'Type how many pieces leave the warehouse for each boutique. ↑ ↓ change a quantity, Tab moves on, Enter confirms. Stock arrives next week.' },
+    text:'Type how many pieces leave the warehouse for each boutique. ↑ ↓ change a quantity, Tab moves on, Enter confirms. Stock arrives next week. One truck a week: ' + SHIP_CAP + ' pieces across all five bags, and the bar underneath shows what is left of it.' },
   { id:'confirm', week:1, step:'confirm',  anchor:function(){ return el('action-panel'); },
     spot:function(){ return [document.querySelector('#action-panel button.btn-primary')]; }, place:'rightof',
     title:'4 — Close the week',
@@ -2477,6 +2532,7 @@ function renderBriefing(){
       + 'second season and no outlet.',
     'A <b>fixed cost of ' + fmtE(ECON.fixed) + '</b> (' + Math.round(ECON.fixedPct * 100)
       + '% of forecasted sales) is charged at the end.',
+    'At most <b>' + SHIP_CAP + ' pieces</b> can leave the warehouse in one week, across all bags.',
     'Missed sales are <b>lost for good</b>. There are no back-orders.'
   ];
   el('econ-list').innerHTML = items.map(function(t){ return '<li>' + t + '</li>'; }).join('');
