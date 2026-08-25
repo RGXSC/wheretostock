@@ -417,7 +417,9 @@ Alongside the two matrices the slide states what the same seasons would have
 earned rigidly, so the gain is a comparison and not an assertion.
 
 **This slide also ships on its own**, as `play.html`, for participants to take
-away — same engine, same sliders, no deck around it. See `PLAY-SPEC.md`, and
+away — the slide ends with a QR code to it, inline SVG so the deck stays
+self-contained, and the URL is spelled out underneath for anyone whose phone
+will not scan from the back of the room. Regenerate the code if the URL moves — same engine, same sliders, no deck around it. See `PLAY-SPEC.md`, and
 run `node check-drift.mjs` after any change to the model here: there is no
 build step, so the engine exists twice and only that check notices when the
 two copies disagree.

@@ -8,8 +8,16 @@ It is **slide 8 of `simulate.html` on its own**, plus flexible capacity and a
 price for it. It exists because the session ends and the argument does not:
 someone who has just spent an afternoon being told that pushing everything to
 the shelf is expensive wants to go and prove it to themselves, and they cannot
-be handed a facilitator's deck to do that. The link is given out at the end,
-with a QR code on the last slide.
+be handed a facilitator's deck to do that.
+
+The link is given out at the end: the deck's last slide finishes with a QR
+code to it, drawn as inline SVG — 33 modules at error-correction Q, about 3 cm
+on a projected 2 m screen, which scans from the back of a room — with the URL
+in text underneath for phones that will not.
+
+Both are generated, not typed. If the URL ever moves, the code has to be
+regenerated with it, and the check is to render the slide and decode the
+picture rather than to read the source.
 
 Deployed at `https://rgxsc.github.io/wheretostock/play.html`.
 
