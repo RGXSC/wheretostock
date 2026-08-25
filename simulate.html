@@ -116,6 +116,18 @@
   .ticks span.on{ color:var(--accent); }
 
   /* ---------------------------------------------------------- demand grid */
+  /* three bars stacked in a cell: plan, reality, outcome */
+  .tri{ display:block; min-width:96px; }
+  .tri .trow{ display:flex; align-items:center; gap:0; height:11px; margin:2px 0; }
+  .tri .trow i{ display:block; height:7px; border-radius:2px; min-width:1px; }
+  .tri .trow i + i{ margin-left:1px; }
+  .tri .trow b{ margin-left:6px; font-size:11.5px; font-weight:800;
+                font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .tri .trow b.soft{ color:var(--ink-soft); font-weight:700; }
+  .tri .trow b.bad{ color:var(--bad); }
+  .tri .trow b.q{ color:var(--ink-soft); }
+  .dlegend i.sw{ display:inline-block; width:12px; height:9px; border-radius:2px;
+                 margin-right:6px; vertical-align:0; }
   .dcell{ display:flex; align-items:baseline; justify-content:flex-end; gap:7px; }
   .dcell .was{ color:var(--ink-soft); font-size:13px; }
   .dcell .now{ font-weight:800; }
@@ -601,6 +613,7 @@ const DEMAND = [
 
 const ECON = { price:1000, cost:200, fixedPct:0.45 };
 const rowSum = function(r){ return r.reduce(function(a, b){ return a + b; }, 0); };
+const colSum = function(m, j){ return m.reduce(function(a, r){ return a + r[j]; }, 0); };
 const F_BAG  = FORECAST.map(rowSum);
 const D_BAG  = DEMAND.map(rowSum);
 const F_TOTAL = rowSum(F_BAG);
@@ -959,23 +972,82 @@ function renderDemand(){
      two selectors that disagreed on 16 of the 40 slider combinations, so
      the outline and the heading below it named different bags. */
   const w = demandShown ? { i:FOLLOW.i, lo:{ j:FOLLOW.a }, hi:{ j:FOLLOW.b } } : null;
+  /* what each boutique opened with, from the same run the placement table drew */
+  const shelf = BAGS.map(function(b, i){ return runBag(i, stPick, spPick).push; });
+  const shelfBag = shelf.map(rowSum);
+  /* ONE scale for every bar in the table, cells and totals alike: a boutique
+     that sells twice as much has to look twice as long, which is the entire
+     reason for drawing bars instead of printing three numbers */
+  const OUT = BAGS.map(function(){ return []; });
+  const agg = function(list){
+    return list.reduce(function(a, x){
+      a.so += x.so; a.ga += x.ga; a.sp += x.sp; return a; }, { so:0, ga:0, sp:0 });
+  };
+  let dScale = 1;
+  BAGS.forEach(function(b, i){
+    BOUTIQUES.forEach(function(c, j){
+      dScale = Math.max(dScale, FORECAST[i][j], DEMAND[i][j], shelf[i][j]);
+    });
+  });
   /* one cell format everywhere — inside the matrix, down the season column
      and along the bottom row — so the eye reads the same three parts each
      time: what was forecast, what the season asked for, and the gap */
-  const dcell = function(f, d){
+  /* Three bars, one under the other, on ONE scale across the whole table so a
+     big boutique looks big:
+
+       1  what was forecast
+       2  what the season actually asked for
+       3  what the shelf could serve, split in two — the part SOLD, and then
+          either the GAP the warehouse or the flex still has to cover, or the
+          SURPLUS already sitting in the boutique with nobody to buy it.
+
+     The third bar is the only one that carries an outcome, so it is the only
+     one with two colours: everything above it is a plan or a fact, and the
+     comparison the room needs is bar 3 against bar 2. */
+  const dcell = function(f, d, sold, gap, spare){
+    const bar = function(v, colour, cls){
+      return '<i class="' + (cls || '') + '" style="width:'
+           + (dScale ? Math.min(100, v / dScale * 100) : 0).toFixed(1)
+           + '%;background:' + colour + '"></i>';
+    };
     if(!demandShown)
-      return '<span class="dcell"><span class="was">' + fmt(f) + '</span>'
-           + '<span class="now" style="color:var(--ink-soft)">?</span></span>';
-    const dx = d - f;
-    return '<span class="dcell"><span class="was">' + fmt(f) + ' &rarr;</span>'
-         + '<span class="now">' + fmt(d) + '</span>'
-         + '<span class="dx ' + (dx > 0 ? 'over' : dx < 0 ? 'under' : 'flat') + '">'
-         + (dx > 0 ? '+' : '') + fmt(dx) + '</span></span>';
+      return '<span class="tri"><span class="trow">' + bar(f, '#c6ced7')
+           + '<b>' + fmt(f) + '</b></span>'
+           + '<span class="trow ask"><i style="width:0"></i><b class="q">?</b></span>'
+           + '<span class="trow"><i style="width:0"></i><b class="q">?</b></span></span>';
+    return '<span class="tri">'
+      + '<span class="trow">' + bar(f, '#c6ced7') + '<b class="soft">' + fmt(f) + '</b></span>'
+      + '<span class="trow">' + bar(d, '#3d5a6c') + '<b>' + fmt(d) + '</b></span>'
+      + '<span class="trow">' + bar(sold, '#12557f')
+      +   (gap   ? bar(gap,   'var(--bad)') : '')
+      +   (spare ? bar(spare, '#c9d3dc')    : '')
+      +   '<b class="' + (gap ? 'bad' : spare ? 'soft' : '') + '">'
+      +   (gap && spare ? '−' + fmt(gap) + ' / +' + fmt(spare)
+           : gap ? '−' + fmt(gap) : spare ? '+' + fmt(spare) : '✓') + '</b></span>'
+      + '</span>';
   };
 
-  let h = '<div class="dlegend"><span><i class="was">forecast</i></span>'
-        + '<span><i class="now">the actual demand</i></span>'
-        + '<span><i class="dx over">the gap</i></span></div>';
+  /* the totals are five times the size of a cell, so they get their own scale;
+     sharing one would flatten every cell in the table to a stub */
+  let tScale = 1;
+  BAGS.forEach(function(b, i){ tScale = Math.max(tScale, F_BAG[i], D_BAG[i], shelfBag[i]); });
+  BOUTIQUES.forEach(function(c, j){
+    tScale = Math.max(tScale, colSum(FORECAST, j), colSum(DEMAND, j), colSum(shelf, j)); });
+  tScale = Math.max(tScale, F_TOTAL, rowSum(D_BAG), rowSum(shelfBag));
+  const dcellBig = function(f, d, so, ga, sp){
+    const keep = dScale; dScale = tScale;
+    const out = dcell(f, d, so, ga, sp);
+    dScale = keep;
+    return out;
+  };
+
+  let h = '<div class="dlegend">'
+        + '<span><i class="sw" style="background:#c6ced7"></i>forecast</span>'
+        + '<span><i class="sw" style="background:#3d5a6c"></i>what the season asked for</span>'
+        + '<span><i class="sw" style="background:#12557f"></i>the shelf could serve</span>'
+        + '<span><i class="sw" style="background:var(--bad)"></i>gap the warehouse must cover</span>'
+        + '<span><i class="sw" style="background:#c9d3dc"></i>surplus already in the boutique</span>'
+        + '</div>';
   h += '<table class="grid"><thead><tr><th>Bag</th>'
      + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
      + '<th>Season</th></tr></thead><tbody>';
@@ -984,16 +1056,27 @@ function renderDemand(){
     BOUTIQUES.forEach(function(c, j){
       const hit = w && w.i === i ? (w.lo.j === j ? ' class="hit-left"'
                                   : w.hi.j === j ? ' class="hit-away"' : '') : '';
-      h += '<td' + hit + '>' + dcell(FORECAST[i][j], DEMAND[i][j]) + '</td>';
+      const so = Math.min(shelf[i][j], DEMAND[i][j]);
+      const ga = Math.max(0, DEMAND[i][j] - shelf[i][j]);
+      const sp = Math.max(0, shelf[i][j] - DEMAND[i][j]);
+      OUT[i][j] = { so:so, ga:ga, sp:sp };
+      h += '<td' + hit + '>' + dcell(FORECAST[i][j], DEMAND[i][j], so, ga, sp) + '</td>';
     });
-    h += '<td class="seasontot">' + dcell(F_BAG[i], D_BAG[i]) + '</td></tr>';
+    /* the bag's own row, adding the CELLS: a gap in Tokyo is not cancelled by
+       a surplus in Paris, because the stock cannot walk there */
+    h += '<td class="seasontot">' + dcellBig(F_BAG[i], D_BAG[i],
+           agg(OUT[i]).so, agg(OUT[i]).ga, agg(OUT[i]).sp) + '</td></tr>';
   });
   h += '<tr class="tot"><td>All five</td>'
      + BOUTIQUES.map(function(c, j){
          const f = FORECAST.reduce(function(a, r){ return a + r[j]; }, 0);
          const d = DEMAND.reduce(function(a, r){ return a + r[j]; }, 0);
-         return '<td>' + dcell(f, d) + '</td>'; }).join('')
-     + '<td class="seasontot">' + dcell(F_TOTAL, rowSum(D_BAG)) + '</td></tr></tbody></table>';
+         const col = agg(OUT.map(function(r){ return r[j]; }));
+         return '<td>' + dcellBig(f, d, col.so, col.ga, col.sp) + '</td>'; }).join('')
+     + '<td class="seasontot">' + (function(){
+         const all = agg([].concat.apply([], OUT));
+         return dcellBig(F_TOTAL, rowSum(D_BAG), all.so, all.ga, all.sp); })()
+     + '</td></tr></tbody></table>';
   el('demand-table').innerHTML = h;
   el('btn-reveal').classList.toggle('hidden', demandShown);
   if(demandShown) renderConsequence();

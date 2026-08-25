@@ -21,10 +21,30 @@ pictures rather than one table changing under you.
   cases, and only then the whole-collection roll-up and the money.
 
 Every table on those slides puts the **boutiques across the top** — the axis
-they have on the board, on the demand matrix and on the placement table. The
-demand matrix uses one cell format throughout, inside the squares and down the
-season column and along the bottom row, with a legend naming its three parts:
-the forecast, the actual demand, the gap.
+they have on the board, on the demand matrix and on the placement table.
+
+**The demand cell is three bars**, one under the other, on one scale across
+the whole table so a big boutique looks big:
+
+1. what was **forecast**;
+2. what the season **actually asked for**;
+3. what the **shelf could serve** — and this one alone is split in two, into
+   the part that **sold** and then either the **gap** the warehouse still has
+   to cover or the **surplus** already sitting in the boutique.
+
+Only the third bar carries an outcome, so only the third bar has two colours.
+Everything above it is a plan or a fact, and the comparison the room needs is
+bar 3 against bar 2. Before the reveal, bar 1 is drawn and the other two are a
+question mark.
+
+**The totals add the cells; they never net one against another.** A shortage
+in Tokyo is not cancelled by a surplus in Paris, because the stock cannot walk
+there, and pretending it can is the exact error this slide exists to expose.
+Netted, the season reads *71 short* and sounds like a volume problem. Added,
+it reads **650 forecast, 650 demanded, 198 short and 127 spare** — the whole
+argument of the page in one cell. The bag rows cross-check against the panel
+underneath: Aveline's season shows −93 / +42, and the follow table below it
+says *needed from the warehouse 93, left on the shelf 42*.
 
 **One bag and two boutiques are followed across all three**, and they are
 chosen from the setup rather than fixed, because the interesting pair moves
