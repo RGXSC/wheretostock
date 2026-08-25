@@ -70,8 +70,13 @@ Everything below is a deliberate change, and each one is stated on the page:
    is the entire slope of the push axis.
 
 Unchanged: the five bags, thirteen weeks of forecast, production = forecast ÷
-target sell-through, 1 000 € price, 200 € unit cost, fixed cost 45% of
-forecast sales.
+target sell-through, 1 000 € price, 200 € unit cost. The fixed cost is 45% of
+forecast sales **rounded up to the nearest 10 000** — 300 000 € here and
+120 000 € in the game — so the briefing carries a round number instead of a
+spreadsheet output. Safe to round, and worth knowing why: the fixed cost is a
+constant in the objective, so it moves the level of every square and the
+choice of none. Swept from 0 to 90% of forecast sales, the best combination
+never budged.
 
 Leftover stock is worth **nothing** — the margin writes it off at full cost
 with no recovery, and the board says so in as many words. It is not a detail:

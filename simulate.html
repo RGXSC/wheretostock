@@ -604,7 +604,13 @@ const rowSum = function(r){ return r.reduce(function(a, b){ return a + b; }, 0);
 const F_BAG  = FORECAST.map(rowSum);
 const D_BAG  = DEMAND.map(rowSum);
 const F_TOTAL = rowSum(F_BAG);
-ECON.fixed = Math.round(ECON.fixedPct * F_TOTAL * ECON.price);
+/* rounded up to the nearest 10 000 so the briefing carries a round number:
+   45% of forecast sales is 117 000 in the game and 292 500 here, which read
+   like the output of a spreadsheet rather than a budget. Safe to round: the
+   fixed cost is a constant in the objective, so it moves the LEVEL of every
+   square and the CHOICE of none - swept from 0 to 90% of forecast sales, the
+   best combination never budged. */
+ECON.fixed = Math.ceil(ECON.fixedPct * F_TOTAL * ECON.price / 10000) * 10000;
 /* Each bag is pushed out on its OWN forecast row, not on one network-wide
    share applied to the whole collection: a bag that is expected to sell
    differently across the network is placed that way. */
@@ -874,7 +880,7 @@ function renderBoard(){
   h += '<p class="small muted" style="margin-top:12px;max-width:none;">'
      + 'One bag sells for ' + fmtE(ECON.price) + ', costs ' + fmtE(ECON.cost)
      + ' to make whether it sells or not, and the season carries a fixed cost of '
-     + fmtE(ECON.fixed) + ' — 45% of forecast sales. '
+     + fmtE(ECON.fixed) + ' — about 45% of forecast sales. '
      /* the margin writes leftover off in full; said here because "costs X to
         make whether it sells or not" only states that the cost is incurred,
         which leaves room to read the stock as still carrying value */

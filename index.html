@@ -492,6 +492,9 @@
   .pnl{ width:100%; border-collapse:collapse; margin:18px 0; }
   .pnl td{ padding:11px 8px; border-bottom:1px solid var(--line-soft); font-size:19px; }
   .pnl td:last-child{ text-align:right; font-weight:800; font-variant-numeric:tabular-nums; }
+  /* the subtotal is a rule and bold weight, not a second grand total: the
+     season is not finished at this line, it has only stopped trading */
+  .pnl tr.sub td{ border-top:2px solid var(--line); font-weight:800; }
   .pnl tr.total td{ border-top:3px solid var(--ink); border-bottom:0;
                     font-size:27px; font-weight:800; padding-top:14px; }
   .pnl tr.neg td:last-child{ color:var(--warn); }
@@ -712,7 +715,13 @@ const BAGS = [
 /* Everything below is derived, so changing WEEKS above rescales the whole
    game — forecast, production and the fixed cost stay consistent. */
 const FORECAST_TOTAL = FORECAST_PER_BAG * BAGS.length;
-ECON.fixed = Math.round(ECON.fixedPct * FORECAST_TOTAL * ECON.price);
+/* rounded up to the nearest 10 000 so the briefing carries a round number:
+   45% of forecast sales is 117 000 in the game and 292 500 here, which read
+   like the output of a spreadsheet rather than a budget. Safe to round: the
+   fixed cost is a constant in the objective, so it moves the LEVEL of every
+   square and the CHOICE of none - swept from 0 to 90% of forecast sales, the
+   best combination never budged. */
+ECON.fixed = Math.ceil(ECON.fixedPct * FORECAST_TOTAL * ECON.price / 10000) * 10000;
 
 /* Inline SVG silhouettes — one distinct shape per bag, no external assets. */
 const BAG_SHAPES = [
@@ -2088,9 +2097,20 @@ function renderEnd(){
     +     (t.revenue ? (t.margin / t.revenue * 100).toFixed(1) + '%' : '—') + '</div></div>'
     + '</div>'
     + '<table class="pnl">'
+    /* Four steps, not two. Charging every bag made against the bags sold buried
+       the whole cost of over-producing inside one "cost of goods" line, where
+       a team could read it as the price of trading. Split out, the season
+       earns a gross margin on what it actually sold, and then pays separately
+       for what nobody bought — which is the decision they took at setup, and
+       the only line on the screen they could have changed. Same margin. */
     +   '<tr><td>Revenue — ' + fmt(t.sold) + ' bags sold at 1 000 €</td><td>' + fmtE(t.revenue) + '</td></tr>'
-    +   '<tr class="neg"><td>Cost of goods — ' + fmt(t.produced) + ' bags produced at 200 €</td><td>− ' + fmtE(t.cogs) + '</td></tr>'
-    +   '<tr class="neg"><td>Fixed cost — 45% of forecast sales</td><td>− ' + fmtE(t.fixed) + '</td></tr>'
+    +   '<tr class="neg"><td>Cost of the ' + fmt(t.sold) + ' sold — at 200 €</td><td>− '
+    +     fmtE(t.sold * ECON.cost) + '</td></tr>'
+    +   '<tr class="sub"><td>Gross margin on what sold</td><td>'
+    +     fmtE(t.revenue - t.sold * ECON.cost) + '</td></tr>'
+    +   '<tr class="neg"><td>Written off — ' + fmt(t.leftover) + ' bags nobody bought, at 200 €</td><td>− '
+    +     fmtE(t.leftover * ECON.cost) + '</td></tr>'
+    +   '<tr class="neg"><td>Fixed cost — about 45% of forecast sales</td><td>− ' + fmtE(t.fixed) + '</td></tr>'
     +   '<tr class="total' + (t.margin < 0 ? ' neg' : '') + '"><td>Margin</td><td>' + fmtE(t.margin) + '</td></tr>'
     + '</table>'
     + '<div class="card"><h2>Bag by bag</h2><table class="h" style="width:100%">'
@@ -2278,9 +2298,15 @@ function openTeamDetail(){
 }
 
 function panelBridge(t, euro){
+    /* the same four steps as the game's own P&L: what the season earned on
+       what it sold, and then, separately, what it paid for what nobody
+       bought. Charging every bag made against the bags sold hid the second
+       inside the first. */
   const rows = [
     { lab:'Sold ' + fmt(t.sold) + ' bags', v:t.revenue, cls:'pos', sign:'+' },
-    { lab:'Made ' + fmt(t.produced) + ' bags', v:-t.cogs, cls:'neg', sign:'−' },
+    { lab:'Cost of the ' + fmt(t.sold) + ' sold', v:-t.sold * ECON.cost, cls:'neg', sign:'−' },
+    { lab:'Written off — ' + fmt(t.leftover) + ' nobody bought',
+      v:-t.leftover * ECON.cost, cls:'neg', sign:'−' },
     { lab:'Fixed costs', v:-t.fixed, cls:'neg', sign:'−' },
     { lab:'Margin', v:t.margin, cls:t.margin > 0 ? 'pos' : 'bad', sign:'=', rule:true }
   ];
@@ -2530,7 +2556,9 @@ function renderBriefing(){
        It does not, and that assumption is what makes over-producing look free */
     'Anything still <b>unsold when the season ends is worth nothing</b> — there is no '
       + 'second season and no outlet.',
-    'A <b>fixed cost of ' + fmtE(ECON.fixed) + '</b> (' + Math.round(ECON.fixedPct * 100)
+    /* "about", because the figure is rounded up to a round number and is no
+       longer exactly fixedPct of forecast sales */
+    'A <b>fixed cost of ' + fmtE(ECON.fixed) + '</b> (about ' + Math.round(ECON.fixedPct * 100)
       + '% of forecasted sales) is charged at the end.',
     'At most <b>' + SHIP_CAP + ' pieces</b> can leave the warehouse in one week, across all bags.',
     'Missed sales are <b>lost for good</b>. There are no back-orders.'

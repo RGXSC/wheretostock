@@ -1680,9 +1680,16 @@ function drawTeamZoom(){
 
 /* --- panel 1: turnover, costs, margin, and the two leaks underneath ----- */
 function bridgePanel(g, e, m, dead, sc){
+    /* the same four steps as the game's own P&L: what the season earned on
+       what it sold, and then, separately, what it paid for what nobody
+       bought. Charging every bag made against the bags sold hid the second
+       inside the first. */
+  const leftover = Math.max(0, g.producedTotal - g.sold);
   const rows = [
     { lab:'Sold ' + fmt(g.sold) + ' bags', v:g.turnover, cls:'pos', sign:'+' },
-    { lab:'Made ' + fmt(g.producedTotal) + ' bags', v:-g.producedTotal * e.cost, cls:'neg', sign:'−' },
+    { lab:'Cost of the ' + fmt(g.sold) + ' sold', v:-g.sold * e.cost, cls:'neg', sign:'−' },
+    { lab:'Written off — ' + fmt(leftover) + ' nobody bought',
+      v:-leftover * e.cost, cls:'neg', sign:'−' },
     { lab:'Fixed costs', v:-e.fixed, cls:'neg', sign:'−' },
     { lab:'Margin', v:m, cls:m > 0 ? 'pos' : 'bad', sign:'=', rule:true }
   ];
