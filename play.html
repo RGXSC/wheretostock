@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en" id="htmlRoot">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where to stock — the simulator</title>
+<!-- =========================================================================
+  ONE standalone file. No network of any kind: no CDN, no fonts, no images,
+  no fetch. Open by double-clicking (file://) or from a link. Works offline.
+
+  WHAT THIS IS
+    The Monte Carlo from the training deck, on its own, for someone to play
+    with alone after the session. Any collection up to 500 bags, any network
+    up to 500 boutiques; it plays as many random seasons as it can in twenty
+    seconds and averages them.
+
+    Two decisions are scored across every combination:
+      target sell-through  - how much gets made, = forecast / target
+      launch push          - how much of it is in the boutiques on day one
+
+    Half of whatever is held back stays as that bag's own central reserve;
+    the other half joins ONE pool shared by the whole collection and is only
+    manufactured if a shortage actually calls on it. What that late capacity
+    costs is a slider.
+
+  KEPT IN STEP WITH simulate.html
+    The engine here is lifted verbatim from simulate.html - same constants,
+    same paretoShares, same lognormal error, same mcStart. There is no build
+    step and no imports, so the two copies can drift. If you change the model
+    in one, change it in the other, and the check in the repo will tell you
+    if you forget.
+  ========================================================================= -->
+<style>
+/* =========================================================================
+   Same discipline as the game and the debrief: one file, no network, system
+   fonts, readable from a metre. Greyscale and blue, one red for what was
+   lost, one green for what was earned.
+   ========================================================================= */
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  :root{
+    --bg:#eef1f4; --surface:#ffffff; --ink:#12161b; --ink-soft:#525c68;
+    --line:#c6ced7; --line-soft:#e2e7ec; --accent:#12557f; --accent-soft:#e7f0f7;
+    --good:#0f6b45; --bad:#8a3115; --radius:10px;
+  }
+  body{ font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background:var(--bg); color:var(--ink); font-size:17px; line-height:1.5;
+        -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:1240px; margin:0 auto; padding:0 20px; }
+  h1{ font-size:29px; } h2{ font-size:22px; } h3{ font-size:17px; }
+  p{ max-width:none; }
+  .muted{ color:var(--ink-soft); }
+  .small{ font-size:14px; }
+  b.num{ font-variant-numeric:tabular-nums; }
+
+  /* ------------------------------------------------------------- chrome */
+  .topbar{ position:sticky; top:0; z-index:40; background:var(--surface);
+           border-bottom:2px solid var(--line-soft); }
+  .topbar-inner{ max-width:1240px; margin:0 auto; padding:12px 20px;
+                 display:flex; align-items:center; gap:14px; }
+  .pill{ background:var(--accent); color:#fff; font-weight:800; font-size:15px;
+         padding:5px 12px; border-radius:999px; white-space:nowrap; }
+  .stagetitle{ font-weight:800; font-size:19px; }
+  .footbar{ position:fixed; left:0; right:0; bottom:0; z-index:40;
+            background:var(--surface); border-top:2px solid var(--line-soft); }
+  .footbar-inner{ max-width:1240px; margin:0 auto; padding:12px 20px;
+                  display:flex; gap:12px; align-items:center; }
+  /* .wrap is a class and main is an element, so `.wrap { padding }` wins on
+     specificity — the bottom padding has to be written on main.wrap or the
+     last of the page sits under the fixed bar with no way to scroll to it */
+  main.wrap{ padding:26px 20px 130px; }
+
+  button{ font:inherit; cursor:pointer; border-radius:8px; border:2px solid var(--line);
+          background:var(--surface); color:var(--ink); font-weight:700;
+          min-height:46px; padding:8px 18px; }
+  button:disabled{ opacity:.45; cursor:default; }
+  .btn-primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn-xl{ min-height:58px; font-size:19px; flex:1; }
+  .btn-ghost{ background:none; }
+  .kbd{ font-size:12px; font-weight:800; opacity:.8; border:1px solid currentColor;
+        border-radius:5px; padding:1px 6px; margin-left:9px; }
+
+  .card{ background:var(--surface); border-radius:var(--radius); padding:18px 24px;
+         margin-bottom:14px; }
+  .note{ background:var(--accent-soft); border-left:4px solid var(--accent);
+         padding:10px 16px; border-radius:6px; margin:10px 0; }
+  .note.q{ background:#fdf6ec; border-left-color:#b06e28; }
+  .hidden{ display:none !important; }
+
+  /* --------------------------------------------------------- data table */
+  table.grid{ border-collapse:collapse; width:100%; }
+  table.grid th, table.grid td{ padding:6px 8px; text-align:right;
+        font-variant-numeric:tabular-nums; border-bottom:1px solid var(--line-soft); }
+  table.grid th{ font-size:12px; font-weight:800; color:var(--ink-soft);
+        text-transform:uppercase; letter-spacing:.04em; text-align:right;
+        border-bottom:2px solid var(--line); }
+  table.grid th:first-child, table.grid td:first-child{ text-align:left; }
+  table.grid tr.tot td{ font-weight:800; border-top:2px solid var(--line);
+        border-bottom:0; background:#f6f8fa; }
+  /* One bar per figure, tall enough to read, with the number inside it when
+     the bar can hold it and alongside in dark ink when it cannot. Which of
+     the two is decided by measuring the rendered label, not by guessing a
+     threshold — a three-digit number in a narrow column would otherwise end
+     up as white text on white. */
+  .cb{ position:relative; display:block; height:22px; border-radius:4px;
+       background:#f1f4f7; }
+  .cb i{ position:absolute; left:0; top:0; bottom:0; border-radius:4px; }
+  .cb b{ position:absolute; top:0; line-height:22px; font-size:13px; font-weight:800;
+         white-space:nowrap; font-variant-numeric:tabular-nums;
+         right:calc(100% - var(--w) + 6px); color:#fff;
+         text-shadow:0 1px 2px rgba(0,0,0,.35); }
+  .cb.out b{ right:auto; left:calc(var(--w) + 5px); color:var(--ink); text-shadow:none; }
+  .cb.zero{ background:none; }
+  .cb.zero b{ right:auto; left:0; color:var(--ink-soft); text-shadow:none; }
+  .up{ color:var(--good); font-weight:800; } .down{ color:var(--bad); font-weight:800; }
+
+  /* -------------------------------------------------------------- picks */
+  /* the same slider the game uses, so the two pages feel like one tool */
+  .picks{ display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+          gap:6px 40px; margin:4px 0 2px; }
+  .pick label{ display:block; font-size:12px; font-weight:800; color:var(--ink-soft);
+               text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px; }
+  .sliderbox{ padding:4px 4px 0; }
+  .slidernow{ font-size:26px; font-weight:800; line-height:1; color:var(--accent);
+              text-align:center; margin-bottom:4px; font-variant-numeric:tabular-nums; }
+  .slider{ -webkit-appearance:none; appearance:none; width:100%;
+           background:transparent; height:40px; margin:0; cursor:pointer; }
+  .slider:focus-visible{ outline:3px solid var(--accent); outline-offset:4px; border-radius:8px; }
+  .slider::-webkit-slider-runnable-track{
+    height:16px; border-radius:8px; background:var(--line-soft); border:2px solid var(--line); }
+  .slider::-webkit-slider-thumb{
+    -webkit-appearance:none; width:36px; height:36px; border-radius:50%;
+    background:var(--accent); border:4px solid #fff; margin-top:-12px;
+    box-shadow:0 2px 10px rgba(10,30,50,.4); }
+  .slider::-moz-range-track{
+    height:16px; border-radius:8px; background:var(--line-soft); border:2px solid var(--line); }
+  .slider::-moz-range-thumb{
+    width:32px; height:32px; border-radius:50%; background:var(--accent);
+    border:4px solid #fff; box-shadow:0 2px 10px rgba(10,30,50,.4); }
+  .ticks{ display:flex; justify-content:space-between; margin-top:-4px; }
+  .ticks span{ font-size:14px; font-weight:700; color:var(--ink-soft);
+               font-variant-numeric:tabular-nums; }
+  .ticks span.on{ color:var(--accent); }
+
+  /* ---------------------------------------------------------- demand grid */
+  /* three bars stacked in a cell: plan, reality, outcome */
+  .tri{ display:block; min-width:96px; }
+  .tri .trow{ display:flex; align-items:center; gap:0; height:11px; margin:2px 0; }
+  .tri .trow i{ display:block; height:7px; border-radius:2px; min-width:1px; }
+  .tri .trow i + i{ margin-left:1px; }
+  .tri .trow b{ margin-left:6px; font-size:11.5px; font-weight:800;
+                font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .tri .trow b.soft{ color:var(--ink-soft); font-weight:700; }
+  .tri .trow b.bad{ color:var(--bad); }
+  .tri .trow b.q{ color:var(--ink-soft); }
+  .dlegend i.sw{ display:inline-block; width:12px; height:9px; border-radius:2px;
+                 margin-right:6px; vertical-align:0; }
+  .dcell{ display:flex; align-items:baseline; justify-content:flex-end; gap:7px; }
+  .dcell .was{ color:var(--ink-soft); font-size:13px; }
+  .dcell .now{ font-weight:800; }
+  /* the three parts of a cell, named once above the table */
+  .dlegend{ display:flex; gap:18px; flex-wrap:wrap; margin:0 0 12px; font-size:13px;
+            font-weight:700; color:var(--ink-soft); }
+  .dlegend i{ font-style:normal; }
+  .dlegend i.was{ color:var(--ink-soft); font-size:13px; font-weight:600; }
+  .dlegend i.now{ color:var(--ink); font-weight:800; }
+  .dlegend i.dx{ font-size:12px; font-weight:800; padding:1px 7px; border-radius:4px;
+                 background:#efe3dc; color:var(--bad); }
+  td.seasontot{ border-left:2px solid var(--line-soft); }
+  .dcell .dx{ font-size:12px; font-weight:800; padding:1px 5px; border-radius:4px;
+              color:#fff; min-width:34px; text-align:center; }
+  .dx.over{ background:var(--bad); }        /* asked for more than we planned */
+  .dx.under{ background:#8b96a1; }          /* asked for less */
+  .dx.flat{ background:none; color:var(--ink-soft); }
+  /* the two cells the worked example is about, marked in the table itself */
+  td.hit-left{ background:#eef1f4; box-shadow:inset 0 0 0 2px #8b96a1; }
+  td.hit-away{ background:#fdf1ec; box-shadow:inset 0 0 0 2px var(--bad); }
+  /* the bag and the two boutiques followed from placement to resupply */
+  th.foll{ color:var(--accent); }
+  tr.follrow td{ background:#f4f8fb; }
+  tr.follrow td:first-child{ box-shadow:inset 3px 0 0 var(--accent); }
+  tr.follrow.lo td{ background:#eef1f4; }
+  tr.follrow.lo td:first-child{ box-shadow:inset 3px 0 0 #8b96a1; }
+  tr.follrow.hi td{ background:#fdf1ec; }
+  tr.follrow.hi td:first-child{ box-shadow:inset 3px 0 0 var(--bad); }
+  /* the transposed table: boutiques across the top, one line of the story
+     per row, the two followed boutiques tinted down their whole column */
+  /* the row labels are a caption column, not a data column: give them what
+     they need and no more, so the boutiques keep the width */
+  table.flip th:first-child{ text-align:left; font-size:14px; font-weight:700;
+                             color:var(--ink-soft); white-space:nowrap;
+                             width:1%; padding:6px 16px 6px 0; text-transform:none;
+                             letter-spacing:0; }
+  table.flip thead th:first-child{ width:1%; }
+  table.flip td.foll.lo, table.flip th.foll.lo{ background:#eef1f4; }
+  table.flip td.foll.hi, table.flip th.foll.hi{ background:#fdf1ec; }
+  table.flip th.foll{ color:var(--ink); }
+  table.flip tr.need th, table.flip tr.miss th{ color:var(--bad); }
+  table.flip tr.sent th{ color:var(--good); }
+  table.flip tr.tot td, table.flip tr.tot th{ border-top:2px solid var(--line-soft); }
+  .focuscard.good{ border-color:#8fc2a2; }
+  .focuscard.good .big{ color:var(--good); }
+  #demand-table{ overflow-x:auto; }
+  .focusbox{ display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+             gap:18px; margin-top:16px; }
+  .focuscard{ border:2px solid var(--line-soft); border-radius:var(--radius); padding:16px 18px; }
+  .focuscard.left{ border-color:#8b96a1; }
+  .focuscard.away{ border-color:var(--bad); }
+  .focuscard h4{ font-size:15px; font-weight:800; color:var(--ink-soft);
+                 text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+  .focuscard .big{ font-size:34px; font-weight:800; line-height:1.05; }
+  .focuscard.left .big{ color:#6b7580; }
+  .focuscard.away .big{ color:var(--bad); }
+  .focuscard p{ font-size:15px; margin-top:8px; }
+
+  /* ------------------------------------------------------------- matrix */
+  /* "safe center" so a matrix wider than the card scrolls from its first
+     column instead of having the left-hand edge clipped off by the centring */
+  .mwrap{ overflow-x:auto; display:flex; justify-content:safe center; }
+  table.matrix{ border-collapse:separate; border-spacing:4px; margin:0 auto;
+                width:100%; }
+  table.matrix td{ min-width:74px; }
+  table.matrix th{ font-size:12px; font-weight:800; color:var(--ink-soft);
+                   text-transform:uppercase; letter-spacing:.04em; padding:3px 6px; }
+  table.matrix td{ min-width:74px; height:44px; padding:0; }
+  .mcell{ width:100%; height:100%; border-radius:7px; border:2px solid var(--line-soft);
+          background:var(--surface); display:flex; flex-direction:column;
+          justify-content:center; align-items:center; gap:3px; position:relative; }
+  .mcell .v{ font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
+  /* three tiers, not a gradient: the best square, everything within 5% of it,
+     and the rest. What a room needs from this table is where the good region
+     is, not a reading of every square. */
+  /* no ring: several squares often tie for best, and touching rings merge
+     into a blob. The fill already separates the three tiers. */
+  .mcell.best{ background:#0f6b45; color:#fff; border-color:#0f6b45; }
+  .mcell.near{ background:#cfe6d6; color:var(--ink); border-color:#8fc2a2; }
+  .mcell.rest{ background:var(--surface); color:var(--ink-soft); }
+  .mcell.rest.neg, .mcell.near.neg{ color:var(--bad); }
+  .mcell.tested{ box-shadow:inset 0 0 0 3px var(--ink); }
+  .mcell .star{ position:absolute; top:1px; right:4px; font-size:15px; }
+  .mlegend{ display:flex; gap:20px; flex-wrap:wrap; margin-top:12px;
+            font-size:13px; font-weight:700; color:var(--ink-soft); }
+  .mlegend i{ display:inline-block; width:14px; height:14px; border-radius:4px;
+              margin-right:7px; vertical-align:-2px; border:2px solid var(--line-soft); }
+  .axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-size:12px;
+           font-weight:800; color:var(--ink-soft); text-transform:uppercase;
+           letter-spacing:.06em; }
+  .matrices{ display:grid; grid-template-columns:repeat(auto-fit,minmax(520px,1fr)); gap:20px; }
+
+  /* the two worlds side by side, same three numbers in each */
+  .vs{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+  .vsbox{ border:2px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .vsbox.win{ border-color:var(--good); background:#f2f8f4; }
+  .vsbox h4{ margin:0 0 10px; font-size:12px; text-transform:uppercase;
+             letter-spacing:.05em; color:var(--ink-soft); }
+  .vsline{ display:flex; justify-content:space-between; gap:12px; padding:3px 0;
+           font-variant-numeric:tabular-nums; }
+  .vsline b{ font-weight:800; }
+  .vsbig{ font-size:26px; font-weight:800; letter-spacing:-.02em; margin-bottom:6px; }
+  .vsbox.win .vsbig{ color:var(--good); }
+  .vsgain{ margin-top:10px; font-weight:800; color:var(--good); }
+
+  /* --------------------------------------------------------- monte carlo */
+  .mcform{ display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px 26px; }
+  .mcfield label{ display:block; font-size:12px; font-weight:800; color:var(--ink-soft);
+                  text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px; }
+  .mcfield input[type=number]{ font:inherit; font-weight:700; width:104px; min-height:44px;
+        padding:6px 10px; border:2px solid var(--line); border-radius:8px;
+        font-variant-numeric:tabular-nums; }
+  .mcfield input[type=range]{ width:100%; height:34px; }
+  .mcfield .hint{ font-size:13px; color:var(--ink-soft); margin-top:3px; }
+  .shape svg{ width:100%; height:62px; display:block; }
+  /* The forecast-error controls live behind this. Shut, the run reads as two
+     board sizes and two concentrations, which is the teaching moment; open,
+     the error model is all there for whoever asks how the seasons are drawn.
+     A <details> rather than scripted folding: it opens with no JS, prints
+     open, and the keyboard already knows how to work it. */
+  .fold{ margin-top:18px; border:2px solid var(--line); border-radius:10px;
+         padding:0 16px; }
+  .fold[open]{ padding-bottom:16px; }
+  .fold > summary{ cursor:pointer; padding:13px 0; font-size:13px; font-weight:800;
+        color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em;
+        list-style:none; display:flex; align-items:center; gap:9px; }
+  .fold > summary::-webkit-details-marker{ display:none; }
+  .fold > summary::before{ content:'▸'; font-size:15px; color:var(--accent);
+        transition:transform .12s ease; }
+  .fold[open] > summary::before{ transform:rotate(90deg); }
+  .fold > summary:focus-visible{ outline:3px solid var(--accent); outline-offset:3px; }
+  .fold .sub{ font-size:12px; font-weight:800; color:var(--ink-soft);
+              text-transform:uppercase; letter-spacing:.05em; margin:12px 0 5px; }
+  .bar{ height:14px; border-radius:7px; background:var(--line-soft); overflow:hidden; margin-top:12px; }
+  .bar i{ display:block; height:100%; background:var(--accent); width:0; transition:width .1s linear; }
+  .runline{ font-size:15px; font-weight:700; color:var(--ink-soft); margin-top:8px;
+            font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <span class="pill">Simulator</span>
+    <span class="stagetitle">Where to stock</span>
+  </div>
+</header>
+
+<main class="wrap">
+<section>
+  <div class="card">
+    <h2 style="margin-bottom:6px;">Play the whole season, as many times as it takes</h2>
+    <p class="small muted" style="margin-top:0;max-width:74ch;">
+      Pick a collection and a network. The simulator plays thousands of random
+      seasons against every combination of the two decisions and averages them,
+      so what you are looking at is not one lucky season — it is what the
+      combination is worth on average.
+    </p>
+    <div class="mcform">
+      <div class="mcfield">
+        <label>Bags in the collection</label>
+        <input type="number" id="mc-sku" min="1" max="500" value="40">
+        <div class="hint">1 to 500</div>
+      </div>
+      <div class="mcfield">
+        <label>Boutiques in the network</label>
+        <input type="number" id="mc-store" min="1" max="500" value="40">
+        <div class="hint">1 to 500</div>
+      </div>
+      <div class="mcfield">
+        <label>Collection concentration</label>
+        <input class="slider" type="range" id="mc-askew" min="0" max="100" value="55">
+        <div class="shape" id="mc-askew-s"></div>
+        <div class="hint" id="mc-askew-h"></div>
+      </div>
+      <div class="mcfield">
+        <label>Network concentration</label>
+        <input class="slider" type="range" id="mc-bskew" min="0" max="100" value="45">
+        <div class="shape" id="mc-bskew-s"></div>
+        <div class="hint" id="mc-bskew-h"></div>
+      </div>
+      <div class="mcfield">
+        <label>Flexible capacity costs <span id="mc-flex-r"></span></label>
+        <input class="slider" type="range" id="mc-flexcost" min="0" max="30" step="5" value="10">
+        <div class="hint" id="mc-flex-h"></div>
+      </div>
+    </div>
+    <details class="fold" id="mc-err">
+      <summary>Forecast error setup</summary>
+      <div class="mcform">
+        <div class="mcfield">
+          <div class="sub">On one bag</div>
+          <label>Typically wrong by <span id="mc-espread-r"></span></label>
+          <input class="slider" type="range" id="mc-espread" min="2" max="60" value="21">
+          <label style="margin-top:12px;">Spikiness <span id="mc-espike-r"></span></label>
+          <input class="slider" type="range" id="mc-espike" min="0" max="100" value="0">
+          <div class="shape" id="mc-e-s"></div>
+          <div class="hint" id="mc-e-h"></div>
+        </div>
+        <div class="mcfield">
+          <div class="sub">On one boutique</div>
+          <label>Typically wrong by <span id="mc-fspread-r"></span></label>
+          <input class="slider" type="range" id="mc-fspread" min="2" max="60" value="44">
+          <label style="margin-top:12px;">Spikiness <span id="mc-fspike-r"></span></label>
+          <input class="slider" type="range" id="mc-fspike" min="0" max="100" value="0">
+          <div class="shape" id="mc-f-s"></div>
+          <div class="hint" id="mc-f-h"></div>
+        </div>
+      </div>
+      <p class="small muted" style="margin-top:12px;font-size:12.5px;">
+        A forecast is missed by a <b>multiplier</b>, never by a subtraction: a bag can sell
+        three times what was planned, it can never sell less than none. <b>Typically wrong
+        by</b> sets how far off a forecast usually lands. <b>Spikiness</b> shares that same
+        error out differently — at the left every bag is a little off, to the right most
+        land close and a few miss enormously. The overall error stays where the first
+        slider put it, so only the shape moves.</p>
+    </details>
+    <div style="display:flex;gap:12px;margin-top:18px;flex-wrap:wrap;">
+      <button class="btn-primary btn-xl" id="btn-mc" style="max-width:300px;">Run</button>
+      <button class="btn-ghost" id="btn-mc-stop" disabled>Stop</button>
+    </div>
+    <div class="bar"><i id="mc-bar"></i></div>
+    <div class="runline" id="mc-line">Not run yet.</div>
+    <div id="mc-out" class="hidden" style="margin-top:20px;">
+      <div class="mcfield" style="max-width:520px;margin-bottom:16px;">
+        <label>Cost of one bag &nbsp;<span id="mc-cost-read"></span></label>
+        <input class="slider" type="range" id="mc-cost" min="100" max="500" step="10" value="200">
+      </div>
+      <div class="matrices">
+        <div><h3 style="margin-bottom:8px;">Average turnover</h3><div class="mwrap" id="mx-mt"></div></div>
+        <div><h3 style="margin-bottom:8px;">Average margin</h3><div class="mwrap" id="mx-mm"></div></div>
+      </div>
+      <div class="mlegend"><span><i style="background:#0f6b45;border-color:#0f6b45"></i>the best</span><span><i style="background:#cfe6d6;border-color:#8fc2a2"></i>within 5% of it</span><span><i style="background:#fff"></i>the rest</span></div>
+      <div id="mc-read" style="margin-top:16px;"></div>
+    </div>
+    <p class="small muted" id="mc-foot" style="margin-top:20px;font-size:12.5px;"></p>
+  </div>
+</section>
+</main>
+
+<script>
+"use strict";
+
+const WEEKS = 13;
+const ECON = { price:1000, cost:200, fixedPct:0.45 };
+const ST_LEVELS = [60, 70, 80, 90, 100];
+/* No boutique opens a launch with an empty window, so the axis starts at 30%
+   rather than 0 — the same floor the game uses. */
+const SP_LEVELS = [30, 40, 50, 60, 70, 80, 90, 100];
+const el = function(id){ return document.getElementById(id); };
+const fmt  = function(n){ return Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' '); };
+const fmtE = function(n){ return fmt(n) + ' €'; };
+/* matrix squares are narrow: keep every value to about six characters, so a
+   collection of 500 bags does not blow the column apart */
+const fmtK = function(n){
+  const a = Math.abs(n);
+  if(a >= 1e9) return (n / 1e9).toFixed(2) + ' Md';
+  if(a >= 999500) return (n / 1e6).toFixed(1) + ' M';   /* 999 999 is 1.0 M, not 1 000k */
+  const k = Math.round(n / 1000);
+  return (k === 0 ? '0' : fmt(k)) + 'k';                /* never "-0k" */
+};
+/* red at the worst square on screen, green at the best; five stops, because
+   three left the whole middle of the field one muddy olive */
+const RAMP = [[150,32,14],[192,84,22],[201,146,26],[104,148,52],[15,107,69]];
+const CLR_BAD = '#8a3115';
+let gSpare = null;
+let mcAbort = false, mcRunning = false;
+let mcResult = null;
+function heat(v, lo, hi){
+  const t = hi === lo ? 1 : (v - lo) / (hi - lo);
+  const seg = Math.min(RAMP.length - 2, Math.floor(t * (RAMP.length - 1)));
+  const f = t * (RAMP.length - 1) - seg;
+  const a = RAMP[seg], b = RAMP[seg + 1];
+  return 'rgb(' + a.map(function(x, k){ return Math.round(x + (b[k] - x) * f); }).join(',') + ')';
+}
+
+/* A matrix of sell-through (across) by launch push (down). `get` returns a
+   number or null for a square not yet played. Bars run 45%→100% across the
+   range on screen: a zero-based bar hides a 10% spread, a purely range-based
+   one leaves the weakest square a stub. */
+function matrix(host, get, fmtFn, marks){
+  const vals = [];
+  SP_LEVELS.forEach(function(sp){ ST_LEVELS.forEach(function(st){
+    const v = get(st, sp); if(v !== null && v !== undefined) vals.push(v);
+  }); });
+  const hi = vals.length ? Math.max.apply(null, vals) : 1;
+  const band = hi - Math.abs(hi) * 0.05;      /* within 5% of the best */
+
+  let h = '<table class="matrix"><thead><tr><th></th><th></th>'
+        + '<th colspan="' + ST_LEVELS.length + '">Target sell-through</th></tr>'
+        + '<tr><th></th><th></th>'
+        + ST_LEVELS.map(function(s){ return '<th>' + s + '%</th>'; }).join('') + '</tr></thead><tbody>';
+  SP_LEVELS.forEach(function(sp, r){
+    h += '<tr>' + (r === 0 ? '<th class="axis-y" rowspan="' + SP_LEVELS.length
+                           + '">In the boutiques at launch</th>' : '')
+       + '<th>' + sp + '%</th>';
+    ST_LEVELS.forEach(function(st){
+      const v = get(st, sp);
+      if(v === null || v === undefined){ h += '<td><div class="mcell"></div></td>'; return; }
+      const tier = v === hi ? 'best' : (v >= band ? 'near' : 'rest');
+      const mk = marks ? marks(st, sp, v) : '';
+      h += '<td><div class="mcell ' + tier + (v < 0 ? ' neg' : '')
+         + (mk.indexOf('tested') >= 0 ? ' tested' : '') + '">'
+         + (mk.indexOf('T') >= 0 ? '<span class="star">★</span>' : '')
+         + (mk.indexOf('M') >= 0 ? '<span class="star" style="left:5px;right:auto">◆</span>' : '')
+         + '<span class="v">' + fmtFn(v) + '</span>'
+         + '</div></td>';
+    });
+    h += '</tr>';
+  });
+  el(host).innerHTML = h + '</tbody></table>';
+}
+
+function key(st, sp){ return st + '/' + sp; }
+
+function best(getter){
+  let bs = null;
+  ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
+    const v = getter(st, sp);
+    if(v === null || v === undefined) return;
+    if(!bs || v > bs.v) bs = { st:st, sp:sp, v:v };
+  }); });
+  return bs;
+}
+
+function paretoShares(n, skew){
+  const a = skew / 100 * 2;                    /* 0 = flat, 2 = very steep */
+  const w = [];
+  let s = 0;
+  for(let i = 0; i < n; i++){ const v = Math.pow(i + 1, -a); w.push(v); s += v; }
+  for(let i = 0; i < n; i++) w[i] /= s;
+  return w;
+}
+
+function topShare(w, frac){
+  const n = Math.max(1, Math.round(w.length * frac));
+  let s = 0;
+  for(let i = 0; i < n; i++) s += w[i];
+  return s;
+}
+
+/* The curve the slider is actually shaping: one bar per bag or boutique,
+   biggest first, each as tall as its share of the forecast. Drawn live, so
+   "concentration" stops being an abstract number. Above 60 items the bars
+   would be thinner than a hairline, so they are pooled into 60 buckets and
+   the caption says so. */
+function shapeSVG(w){
+  const W = 260, H = 54, n = w.length, MAX = 60;
+  let bars = w;
+  if(n > MAX){
+    bars = [];
+    for(let k = 0; k < MAX; k++){
+      const from = Math.floor(k * n / MAX), to = Math.floor((k + 1) * n / MAX);
+      let s = 0;
+      for(let i = from; i < to; i++) s += w[i];
+      bars.push(s / Math.max(1, to - from));
+    }
+  }
+  const hi = Math.max.apply(null, bars);
+  const bw = W / bars.length;
+  const base = H - 11;
+  let g = '';
+  bars.forEach(function(v, i){
+    const h = Math.max(1, v / hi * (base - 4));
+    g += '<rect x="' + (i * bw).toFixed(2) + '" y="' + (base - h).toFixed(2)
+       + '" width="' + Math.max(0.6, bw - 0.7).toFixed(2) + '" height="' + h.toFixed(2)
+       + '" fill="' + (i < bars.length / 5 ? '#12557f' : '#9aa7b3') + '"/>';
+  });
+  /* the bars alone say little once the curve is steep — one item towers and
+     the rest is a flat line. The cumulative share on top is what the eye can
+     actually read: how fast it reaches the ceiling IS the concentration. */
+  let acc = 0, pts = ['0,' + base.toFixed(1)];
+  w.forEach(function(v, i){
+    acc += v;
+    pts.push(((i + 1) / w.length * W).toFixed(2) + ',' + (base - acc * (base - 4)).toFixed(2));
+  });
+  const x = W / 5;
+  g += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#8a3115" stroke-width="2"/>'
+     + '<line x1="' + x + '" y1="0" x2="' + x + '" y2="' + base
+     + '" stroke="#8a3115" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>'
+     + '<line x1="0" y1="' + base + '" x2="' + W + '" y2="' + base + '" stroke="#c6ced7"/>'
+     + '<text x="0" y="' + (H - 1) + '" font-size="9" fill="#7b8794">biggest</text>'
+     + '<text x="' + (W / 2) + '" y="' + (H - 1) + '" font-size="9" fill="#8a3115" '
+     + 'text-anchor="middle">cumulative</text>'
+     + '<text x="' + W + '" y="' + (H - 1) + '" font-size="9" fill="#7b8794" text-anchor="end">smallest'
+     + '</text>';
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img">' + g + '</svg>';
+}
+
+function errParams(spreadPct, spikePct){
+  const cv = Math.max(0.001, spreadPct / 100);
+  const t  = Math.max(0, Math.min(1, spikePct / 100));
+  const w  = 0.10, k = 1 + 5 * t;
+  const cvOf = function(s){
+    const m1 = (1 - w) * Math.exp(s * s / 2) + w * Math.exp(k * k * s * s / 2);
+    const m2 = (1 - w) * Math.exp(2 * s * s) + w * Math.exp(2 * k * k * s * s);
+    return Math.sqrt(Math.max(0, m2 / (m1 * m1) - 1));
+  };
+  let lo = 1e-4, hi = 3;
+  for(let i = 0; i < 60; i++){ const mid = (lo + hi) / 2; if(cvOf(mid) < cv) lo = mid; else hi = mid; }
+  const s = (lo + hi) / 2;
+  /* centred so the average forecast is neither optimistic nor pessimistic.
+     The season is recentred anyway, but a curve drawn off-centre would read
+     as a claim about bias that the model does not make. */
+  const mean = (1 - w) * Math.exp(s * s / 2) + w * Math.exp(k * k * s * s / 2);
+  return { s:s, k:k, w:w, mu:-Math.log(mean) };
+}
+
+function gauss(){
+  if(gSpare !== null){ const v = gSpare; gSpare = null; return v; }
+  let u1 = 0; while(u1 === 0) u1 = Math.random();
+  const r = Math.sqrt(-2 * Math.log(u1)), th = 2 * Math.PI * Math.random();
+  gSpare = r * Math.sin(th);
+  return r * Math.cos(th);
+}
+
+function errDraw(p){
+  return Math.exp(p.mu + (Math.random() < p.w ? p.k : 1) * p.s * gauss());
+}
+
+/* Abramowitz & Stegun 7.1.26 — six digits, which is five more than a slider
+   caption needs */
+function normCdf(z){
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989422804014327 * Math.exp(-z * z / 2);
+  const pr = d * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937
+           + t * (-1.821255978 + t * 1.330274429))));
+  return z > 0 ? 1 - pr : pr;
+}
+
+function errQuantile(p, q){
+  const cdf = function(x){
+    const z = (Math.log(x) - p.mu) / p.s;
+    return (1 - p.w) * normCdf(z) + p.w * normCdf(z / p.k);
+  };
+  let lo = 1e-6, hi = 500;
+  for(let i = 0; i < 90; i++){
+    const mid = Math.sqrt(lo * hi);
+    if(cdf(mid) < q) lo = mid; else hi = mid;
+  }
+  return Math.sqrt(lo * hi);
+}
+
+function errDensity(p, x){
+  if(x <= 0) return 0;
+  const L = Math.log(x) - p.mu;
+  const f = function(sg){
+    return Math.exp(-L * L / (2 * sg * sg)) / (x * sg * 2.5066282746310002);
+  };
+  return (1 - p.w) * f(p.s) + p.w * f(p.k * p.s);
+}
+
+/* The curve the two sliders are shaping. The x range is FIXED at 0..2.6x the
+   forecast: a range that rescaled itself would make every setting look
+   identical, and the whole point is watching the shape move against a still
+   axis. The tail past +160% is clipped rather than squashed — the caption
+   carries the part that runs off the edge. */
+function errShapeSVG(p){
+  const W = 260, H = 54, base = H - 11, HI = 2.6, N = 150;
+  let peak = 0;
+  const ys = [];
+  for(let i = 0; i <= N; i++){
+    const v = errDensity(p, HI * i / N);
+    ys.push(v); if(v > peak) peak = v;
+  }
+  const pts = [];
+  for(let i = 0; i <= N; i++){
+    pts.push((i / N * W).toFixed(2) + ','
+      + (base - (peak ? ys[i] / peak : 0) * (base - 4)).toFixed(2));
+  }
+  const x1 = W / HI;                       /* where the forecast was exactly right */
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img">'
+    + '<polygon points="0,' + base + ' ' + pts.join(' ') + ' ' + W + ',' + base
+    +   '" fill="#dce7f0"/>'
+    + '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#12557f" stroke-width="2"/>'
+    + '<line x1="' + x1.toFixed(1) + '" y1="0" x2="' + x1.toFixed(1) + '" y2="' + base
+    +   '" stroke="#8a3115" stroke-width="1" stroke-dasharray="3 3" opacity=".65"/>'
+    + '<line x1="0" y1="' + base + '" x2="' + W + '" y2="' + base + '" stroke="#c6ced7"/>'
+    + '<text x="0" y="' + (H - 1) + '" font-size="9" fill="#7b8794">sold nothing</text>'
+    + '<text x="' + x1.toFixed(1) + '" y="' + (H - 1) + '" font-size="9" fill="#8a3115" '
+    +   'text-anchor="middle">on forecast</text>'
+    + '<text x="' + W + '" y="' + (H - 1) + '" font-size="9" fill="#7b8794" '
+    +   'text-anchor="end">+160%</text></svg>';
+}
+
+/* the curve says "skewed"; the sentence says what that costs. Percentiles
+   rather than a standard deviation, because half of them land between A and
+   B is a fact anyone can picture. */
+function errHint(p, what){
+  const pc = function(x){ const v = (x - 1) * 100;
+    return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(0) + '%'; };
+  /* the far end is read at the 99th and not the 95th: with the wide draw
+     firing one time in ten, the 95th still sits inside the ordinary lump, so
+     it FALLS as `spike` rises — which is the opposite of what the slider
+     does. The 99th is out where the wide draw actually lives. */
+  return 'half the ' + what + ' land between ' + pc(errQuantile(p, 0.25)) + ' and '
+    + pc(errQuantile(p, 0.75)) + ' of forecast · one in a hundred is over '
+    + pc(errQuantile(p, 0.99));
+}
+
+function mcHints(){
+  /* the same clamp the run uses: typing 900 bags used to draw a preview of a
+     900-item board that the simulation would never run */
+  const cl = function(v){ return Math.max(1, Math.min(500, Math.round(Number(v) || 1))); };
+  const n = cl(el('mc-sku').value), m = cl(el('mc-store').value);
+  const a = paretoShares(n, Number(el('mc-askew').value));
+  const b = paretoShares(m, Number(el('mc-bskew').value));
+  el('mc-askew-s').innerHTML = shapeSVG(a);
+  el('mc-bskew-s').innerHTML = shapeSVG(b);
+  /* "the top 20%" of two items is one item, which is 50% — a share that says
+     nothing about concentration. Below five, name the biggest instead. */
+  el('mc-askew-h').textContent = n < 5
+    ? 'the largest of the ' + n + ' bag' + (n > 1 ? 's' : '') + ' carries '
+      + (a[0] * 100).toFixed(0) + '% of the forecast'
+    : 'the top 20% of bags carry ' + (topShare(a, 0.2) * 100).toFixed(0) + '% of the forecast';
+  el('mc-bskew-h').textContent = m < 5
+    ? 'the largest of the ' + m + ' boutique' + (m > 1 ? 's' : '') + ' carries '
+      + (b[0] * 100).toFixed(0) + '% of the forecast'
+    : 'the top 20% of boutiques carry ' + (topShare(b, 0.2) * 100).toFixed(0) + '% of the forecast';
+
+  const eS = Number(el('mc-espread').value), eK = Number(el('mc-espike').value);
+  const fS = Number(el('mc-fspread').value), fK = Number(el('mc-fspike').value);
+  const pe = errParams(eS, eK), pf = errParams(fS, fK);
+  el('mc-espread-r').textContent = eS + '%';
+  el('mc-fspread-r').textContent = fS + '%';
+  /* a bare 0-100 reads as a percentage of something; it is not, so it is
+     named in words the curve above it actually shows */
+  const spikeWord = function(v){
+    return v < 12 ? '— everything a little off'
+         : v < 45 ? '— some miss more than others'
+         : v < 80 ? '— a few miss badly'
+                  : '— most exact, a few enormous';
+  };
+  el('mc-espike-r').textContent = spikeWord(eK);
+  el('mc-fspike-r').textContent = spikeWord(fK);
+  const fc = Number(el('mc-flexcost').value);
+  el('mc-flex-r').textContent = fc ? '+' + fc + '%' : 'the same as planned stock';
+  el('mc-flex-h').textContent = fc
+    ? 'a piece made late costs ' + fmtE(Math.round(ECON.cost * (1 + fc / 100)))
+      + ' instead of ' + fmtE(ECON.cost)
+    : 'a piece made late costs no more than one planned a season ahead';
+  el('mc-e-s').innerHTML = errShapeSVG(pe);
+  el('mc-f-s').innerHTML = errShapeSVG(pf);
+  el('mc-e-h').textContent = errHint(pe, 'bags');
+  el('mc-f-h').textContent = errHint(pf, 'boutiques');
+}
+
+function readMC(){
+  const clamp = function(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); };
+  const n = clamp(Math.round(Number(el('mc-sku').value) || 1), 1, 500);
+  const m = clamp(Math.round(Number(el('mc-store').value) || 1), 1, 500);
+  el('mc-sku').value = n; el('mc-store').value = m;
+  return { n:n, m:m,
+           flexCost:Number(el('mc-flexcost').value) / 100,
+           eErr:errParams(Number(el('mc-espread').value), Number(el('mc-espike').value)),
+           fErr:errParams(Number(el('mc-fspread').value), Number(el('mc-fspike').value)),
+           eSpread:Number(el('mc-espread').value), eSpike:Number(el('mc-espike').value),
+           fSpread:Number(el('mc-fspread').value), fSpike:Number(el('mc-fspike').value),
+           aSkew:Number(el('mc-askew').value), bSkew:Number(el('mc-bskew').value) };
+}
+
+function mcStart(){
+  if(mcRunning) return;
+  /* the previous run's matrices are wrong the moment the board changes, and
+     leaving them up for twenty seconds read as live results */
+  mcResult = null;
+  ['mx-mt','mx-mm'].forEach(function(id){ el(id).textContent = ''; });
+  el('mc-foot').textContent = '';
+  const cfg = readMC();
+  const n = cfg.n, m = cfg.m;
+  const skuShare = paretoShares(n, cfg.aSkew);
+  const boutiqueShare = paretoShares(m, cfg.bSkew);
+  const TOTAL = 2 * WEEKS * n * m;             /* two per boutique per bag per week */
+  const fixed = ECON.fixedPct * TOTAL * ECON.price;
+  const F = new Float64Array(n);               /* forecast per bag, all boutiques */
+  for(let i = 0; i < n; i++) F[i] = TOTAL * skuShare[i];
+  const g = new Float64Array(m);               /* boutique share of any bag */
+  for(let j = 0; j < m; j++) g[j] = boutiqueShare[j];
+
+  const combos = [];
+  ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
+    combos.push({ st:st, sp:sp, s:st / 100, p:sp / 100 }); }); });
+  const sumT = new Float64Array(combos.length);
+  /* production is kept as well as turnover: margin at any unit cost is then
+     turnover − production x cost − fixed, with nothing to re-run. The margin
+     itself is never accumulated — it would freeze the cost the run used. */
+  const sumP = new Float64Array(combos.length);
+  /* With flexible capacity the season no longer has ONE production figure:
+     what was committed up front is paid at the plain unit cost, and only the
+     flex actually drawn carries the premium. Keeping the two apart means the
+     cost slider AND the premium slider both stay free — margin at any pair of
+     values is arithmetic on numbers already accumulated, with nothing to
+     re-run. sumR is the same season played rigidly, so the page can say what
+     flexibility was worth rather than only what it produced.
+
+     The premium changes the COST of flex, never the decision to draw it: a
+     unit drawn serves demand worth 1 000 €, against at most 260 € at the top
+     of the slider, so it is always worth drawing. The allocation is therefore
+     premium-independent and these accumulators stay valid as it moves. */
+  const sumC = new Float64Array(combos.length);   /* committed: pushed + own reserve */
+  const sumX = new Float64Array(combos.length);   /* flex actually drawn */
+  const sumR = new Float64Array(combos.length);   /* the rigid season's turnover */
+  const sumRP = new Float64Array(combos.length);  /* and its production */
+  const wins = new Float64Array(combos.length);
+
+  const A = new Float64Array(n), u = new Float64Array(m), B = new Float64Array(m);
+  const idx = new Int32Array(m);
+  const Pg = new Float64Array(m + 1), PB = new Float64Array(m + 1);
+  const su = new Float64Array(m);
+  let seasons = 0, minErr = 1e9, maxErr = -1e9;
+
+  function season(){
+    let SA = 0, SB = 0;
+    for(let i = 0; i < n; i++){
+      A[i] = F[i] * errDraw(cfg.eErr);
+      SA += A[i];
+    }
+    for(let j = 0; j < m; j++){
+      u[j] = errDraw(cfg.fErr);
+      B[j] = g[j] * u[j];
+      SB += B[j];
+    }
+    const scale = TOTAL / (SA * SB);
+    /* what the chosen spread actually became once the season was recentred */
+    for(let i = 0; i < n; i++){
+      const e = A[i] * SB * scale / F[i] - 1;
+      if(e < minErr) minErr = e;
+      if(e > maxErr) maxErr = e;
+    }
+    for(let j = 0; j < m; j++) idx[j] = j;
+    const arr = Array.prototype.slice.call(idx);
+    arr.sort(function(x, y){ return u[x] - u[y]; });
+    for(let k = 0; k < m; k++){ su[k] = u[arr[k]]; Pg[k + 1] = Pg[k] + g[arr[k]]; PB[k + 1] = PB[k] + B[arr[k]]; }
+    const Gall = Pg[m], Ball = PB[m];
+
+    let bestM = -Infinity, bestK = 0;
+    for(let c = 0; c < combos.length; c++){
+      const p = combos[c].p, s = combos[c].s;
+      /* rigid: every bag keeps its whole central pool to itself.
+         flexible: half that pool stays its own, half joins one pool shared by
+         the entire collection. The shared half needs no second pass over the
+         bags — only the TOTAL sold matters, so what is still short after each
+         bag has drawn on its own reserve, and the size of the shared pool,
+         both fold into scalars and meet after the loop. */
+      let soldR = 0, prodR = 0;
+      let soldF = 0, committed = 0, capAll = 0, stillShort = 0;
+      for(let i = 0; i < n; i++){
+        const prod = F[i] / s;
+        prodR += prod;
+        const dScale = A[i] * scale;           /* d(i,j) = dScale * B[j] */
+        let onShelf, shortfall;
+        if(p === 0){
+          onShelf = 0;
+          shortfall = dScale * Ball;
+        } else {
+          const theta = prod * p / dScale;     /* a boutique runs out iff u >= theta */
+          let lo = 0, hi = m;                  /* first index with su >= theta */
+          while(lo < hi){ const mid = (lo + hi) >> 1; if(su[mid] < theta) lo = mid + 1; else hi = mid; }
+          const gHigh = Gall - Pg[lo], bLow = PB[lo], bHigh = Ball - PB[lo];
+          onShelf = prod * p * gHigh + dScale * bLow;
+          shortfall = Math.max(0, dScale * bHigh - prod * p * gHigh);
+        }
+        const pool = prod * (1 - p);
+        soldR += onShelf + Math.min(shortfall, pool);
+        const own = pool / 2;
+        const fromOwn = Math.min(shortfall, own);
+        soldF += onShelf + fromOwn;
+        stillShort += shortfall - fromOwn;
+        committed += prod * p + own;
+        capAll += pool - own;
+      }
+      /* the shared pool is blind to which bag calls on it, and what nobody
+         calls on is never manufactured and never paid for */
+      const drawn = Math.min(stillShort, capAll);
+      const soldFlex = soldF + drawn;
+      sumT[c] += soldFlex * ECON.price;
+      sumP[c] += committed + drawn;
+      sumC[c] += committed; sumX[c] += drawn;
+      sumR[c] += soldR * ECON.price; sumRP[c] += prodR;
+      /* the winner of a single season is judged on the flexible reading, which
+         is the one the matrices draw */
+      const margin = soldFlex * ECON.price
+                   - (committed + drawn * (1 + cfg.flexCost)) * ECON.cost - fixed;
+      if(margin > bestM){ bestM = margin; bestK = c; }
+    }
+    wins[bestK]++;
+    seasons++;
+  }
+
+  mcRunning = true; mcAbort = false;
+  el('btn-mc').disabled = true; el('btn-mc-stop').disabled = false;
+  const t0 = performance.now(), BUDGET = 20000;
+  function chunk(){
+    const c0 = performance.now();
+    while(performance.now() - c0 < 70){
+      season();
+      if(performance.now() - t0 > BUDGET) break;
+    }
+    const done = Math.min(1, (performance.now() - t0) / BUDGET);
+    el('mc-bar').style.width = (done * 100).toFixed(1) + '%';
+    el('mc-line').textContent = fmt(seasons) + ' seasons · '
+      + fmt(seasons * combos.length) + ' combinations tested';
+    if(!mcAbort && performance.now() - t0 < BUDGET){ requestAnimationFrame(chunk); return; }
+    finish();
+  }
+  function finish(){
+    mcRunning = false;
+    el('btn-mc').disabled = false; el('btn-mc-stop').disabled = true;
+    /* a run that was stopped early keeps the bar where it actually got to:
+       snapping to 100% claimed the full twenty seconds had been spent */
+    if(!mcAbort) el('mc-bar').style.width = '100%';
+    const avgT = {}, avgP = {}, win = {}, avgC = {}, avgX = {}, avgR = {}, avgRP = {};
+    combos.forEach(function(c, i){
+      const k = key(c.st, c.sp);
+      avgT[k] = sumT[i] / seasons;
+      avgP[k] = sumP[i] / seasons;
+      /* committed and drawn kept apart so both the unit cost and the premium
+         stay adjustable after the run */
+      avgC[k] = sumC[i] / seasons;
+      avgX[k] = sumX[i] / seasons;
+      avgR[k] = sumR[i] / seasons;      /* the same seasons played rigidly */
+      avgRP[k] = sumRP[i] / seasons;
+      win[k] = wins[i] / seasons;
+    });
+    mcResult = { avgT:avgT, avgP:avgP, win:win, seasons:seasons, combos:combos.length,
+                 avgC:avgC, avgX:avgX, avgR:avgR, avgRP:avgRP, flexCost:cfg.flexCost,
+                 n:n, m:m, minErr:minErr, maxErr:maxErr, total:TOTAL, fixed:fixed,
+                 eSpread:cfg.eSpread, eSpike:cfg.eSpike,
+                 fSpread:cfg.fSpread, fSpike:cfg.fSpike };
+    renderMC();
+  }
+  requestAnimationFrame(chunk);
+}
+
+function renderMC(){
+  if(!mcResult) return;
+  const r = mcResult;
+  const cost = Number(el('mc-cost').value);
+  el('mc-cost-read').textContent = fmtE(cost) + ' — ' + (cost / ECON.price * 100).toFixed(0) + '% of the price';
+  /* the premium is read here, not baked in at run time, so dragging it
+     recomputes the whole board without touching the simulation */
+  const prem = Number(el('mc-flexcost').value) / 100;
+  const gT = function(st, sp){ return r.avgT[key(st, sp)]; };
+  const cogs = function(st, sp){
+    const k = key(st, sp);
+    return r.avgC[k] * cost + r.avgX[k] * cost * (1 + prem);
+  };
+  const gM = function(st, sp){ return r.avgT[key(st, sp)] - cogs(st, sp) - r.fixed; };
+  /* the same seasons with every bag keeping its pool to itself, so the page
+     can say what the flexibility was worth instead of only what it produced */
+  const gR = function(st, sp){
+    return r.avgR[key(st, sp)] - r.avgRP[key(st, sp)] * cost - r.fixed; };
+  const bt = best(gT), bm = best(gM), br = best(gR);
+  matrix('mx-mt', gT, fmtK, function(st, sp){ return (st === bt.st && sp === bt.sp) ? 'TR' : ''; });
+  matrix('mx-mm', gM, fmtK, function(st, sp){
+    return ((st === bm.st && sp === bm.sp) ? 'MR' : '') + ((st === bt.st && sp === bt.sp) ? 'T' : ''); });
+  el('mc-out').classList.remove('hidden');
+  el('mc-line').textContent = fmt(r.seasons) + ' seasons · '
+    + fmt(r.seasons * r.combos) + ' combinations tested · '
+    + fmt(r.n) + ' bags × ' + fmt(r.m) + ' boutiques';
+  const gain = bm.v - br.v;
+  const drawn = r.avgX[key(bm.st, bm.sp)], held = r.avgC[key(bm.st, bm.sp)];
+  el('mc-read').innerHTML =
+      '<div class="note"><b>★ Best average turnover</b> ' + bt.st + '% / ' + bt.sp + '%. &nbsp; '
+    + '<b>◆ Best average margin</b> ' + bm.st + '% / ' + bm.sp + '%.</div>'
+    + '<p class="small muted" style="margin-top:8px;">'
+    + 'With every bag keeping its central pool to itself, the best margin would be <b>'
+    + fmtE(Math.round(br.v)) + '</b> at ' + br.st + '% / ' + br.sp + '%. Sharing half of it '
+    + 'across the collection is worth <b class="' + (gain >= 0 ? 'up' : 'down') + '">'
+    + (gain >= 0 ? '+' : '−') + fmtE(Math.abs(Math.round(gain))) + '</b> at a '
+    + (prem ? '+' + (prem * 100).toFixed(0) + '% premium' : 'premium of nothing')
+    + ' — ' + fmt(Math.round(drawn)) + ' of the ' + fmt(Math.round(held + drawn))
+    + ' pieces made are drawn late.</p>';
+  /* signs are taken from the numbers, not assumed: a range of ±0.4% used to
+     be printed as "-0% to +0%" */
+  const pc = function(v){ const x = v * 100;
+    return (Math.abs(x) < 0.5 ? '' : (x > 0 ? '+' : '−')) + Math.abs(x).toFixed(0) + '%'; };
+  /* the shape is named, not just the range: a reader who knows forecast error
+     is lopsided can tell at a glance whether this run assumed that or not */
+  el('mc-foot').textContent = 'Errors of ' + pc(r.minErr) + ' to ' + pc(r.maxErr)
+    + ' per bag once recentred · lognormal, typically ' + r.eSpread + '%/' + r.fSpread
+    + '% off' + (r.eSpike || r.fSpike ? ', spiky' : '') + ' · continuous quantities.';
+}
+
+
+/* --------------------------------------------------------------- wiring */
+function init(){
+  ['mc-sku','mc-store','mc-askew','mc-bskew',
+   'mc-espread','mc-espike','mc-fspread','mc-fspike','mc-flexcost'].forEach(function(id){
+    el(id).addEventListener('input', mcHints);
+  });
+  el('mc-cost').addEventListener('input', renderMC);
+  /* both are post-processing on the accumulated sums, so neither re-runs */
+  el('mc-flexcost').addEventListener('input', function(){ mcHints(); renderMC(); });
+  el('btn-mc').addEventListener('click', mcStart);
+  el('btn-mc-stop').addEventListener('click', function(){ mcAbort = true; });
+  /* Enter runs it, the same key the deck uses to move on */
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && !mcRunning && document.activeElement.tagName !== 'BUTTON'){
+      e.preventDefault(); mcStart();
+    }
+  });
+  mcHints();
+}
+init();
+</script>
+</body>
+</html>

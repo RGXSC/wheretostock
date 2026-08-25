@@ -416,6 +416,12 @@ asks where the break-even is.
 Alongside the two matrices the slide states what the same seasons would have
 earned rigidly, so the gain is a comparison and not an assertion.
 
+**This slide also ships on its own**, as `play.html`, for participants to take
+away — same engine, same sliders, no deck around it. See `PLAY-SPEC.md`, and
+run `node check-drift.mjs` after any change to the model here: there is no
+build step, so the engine exists twice and only that check notices when the
+two copies disagree.
+
 ## 5. Cost of the bag
 
 One slider, on the Monte Carlo panel. It had a slide of its own; that slide is
