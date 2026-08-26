@@ -1975,10 +1975,10 @@ function spotCard(k){
     text:sw('plan') + ' the plan for ' + esc(BAGS[i].name) + ' in '
       + esc(BOUTIQUES[j]) + ': <b>' + fmt(f) + '</b>.<br>'
       + sw('real') + ' what the season actually asked for: <b>' + fmt(d)
-      + '</b>.<br>The third bar is that same demand, coloured by what happened: '
-      + sw('sold') + ' <b>' + fmt(given) + '</b> served off the shelf, '
-      + sw('miss') + ' <b>' + fmt(ga) + '</b> who found nothing — '
-      + fmtE(ECON.price) + ' of sales each, walking out of the door.' };
+      + '</b>.<br>The third bar is that one again, cut where the shelf ran out: '
+      + '<b>' + fmt(given) + '</b> served, then ' + sw('miss') + ' <b>' + fmt(ga)
+      + '</b> who found nothing — ' + fmtE(ECON.price)
+      + ' of sales each, walking out of the door.' };
   /* the no-surplus board: the cell the forecast came closest to getting right */
   return { title:'The one we very nearly got right',
     text:'Planned <b>' + fmt(f) + '</b> for ' + esc(BAGS[i].name) + ' in '

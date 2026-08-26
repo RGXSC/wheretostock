@@ -203,12 +203,22 @@ The swatches are 26×11px — bar-shaped, not dots — and each carries a 1px
 hairline, because the card sits on near-black `--ink` and `--real` navy would
 otherwise be invisible on it.
 
-The trap here is a swatch that is *not* the colour on screen: the first
-version offered green for "served off the shelf" while the third bar is still
-navy at that beat — green only appears once the warehouse ships, two beats
-later. `swatch.mjs` checks all 268 swatches across the three cards of all
-forty combinations against the classes actually drawn in the cells each card
-points at, and checks no card names a colour in words any more.
+Two traps, both hit on the way here.
+
+**A swatch that is not the colour on screen.** The first version offered green
+for "served off the shelf" while the third bar is still navy at that beat —
+green only appears once the warehouse ships, two beats later.
+
+**Two swatches of the same colour in one card.** The served part of bar 3 *is*
+the same navy as bar 2, so chipping both put two identical blocks in one
+paragraph, which reads as a mistake even though it is true. Position separates
+them in the grid; nothing separates them in prose. The card now says what bar 3
+is — *"the third bar is that one again, cut where the shelf ran out"* — and
+carries the red chip only. **One colour, one chip, per card.**
+
+`swatch.mjs` checks all 228 swatches across the three cards of all forty
+combinations against the classes actually drawn in the cells each card points
+at, that no card repeats a colour, and that no card names a colour in words.
 
 ## The spotlight
 
