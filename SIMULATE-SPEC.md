@@ -33,12 +33,21 @@ grows would be strictly worse than what it replaced.
 
 | beat | what is on screen |
 |---|---|
-| 0 | **the plan** — one grey bar a cell, a grey `?` where the delta will go |
+| 0 | **the plan** — one grey bar a cell, a grey `?` where the outcome will go |
 | 1 | **spotlight**: the worst shortage on the board, opened alone |
 | 2 | **spotlight**: the biggest surplus, opened alone |
 | 3 | **spotlight**: the grand total — *the total was right* |
-| 4 | **all twenty-five**, plus the followed bag and the two followed boutiques |
+| 4 | **all twenty-five**, and nothing else on the screen |
 | 5 | **the warehouse answers** — green eats into red, in place |
+
+**Nothing sits under the grid until beat 5.** Beat 4 used to carry the
+followed bag boutique by boutique — given at launch, demand, sold, needed from
+the warehouse, left on the shelf — and the grid above now says every one of
+those things for all five bags instead of one. It was also the only reason a
+900 × 1440 screen had to scroll: the grid is 542px, that table was 322px, and
+the beat now lands at exactly 900. Beat 5 keeps what the grid genuinely cannot
+show — what the two followed boutiques cost in money, what was made against
+what reached a shelf, and the P&L.
 
 **The walk exists because a dense grid is unreadable until you can read one
 cell of it.** Three cards of about thirty words, then twenty-five cells the
@@ -62,12 +71,7 @@ which is the argument the old slide had to make in prose.
 
 ## The demand cell
 
-**The delta leads.** One signed number, set three times the size of everything
-else in the cell, in the colour of what happened: from five metres a room
-reads a field of red and amber first and the numerals only if it wants them.
-
-Under it, three bars on one scale across the whole table so a big boutique
-looks big:
+Three bars on one scale across the whole table so a big boutique looks big:
 
 1. what was **planned**;
 2. what the season **actually asked for**;
@@ -78,6 +82,38 @@ Bar 3 is bar 2 recoloured. Blue + green + red always sums to exactly the
 demand above it, and amber is the only thing that can ever stick out past its
 end. That is the single rule the whole grid rests on, and it is what the first
 spotlight card teaches.
+
+**Every figure is the colour of the bar it counts**, and the outcome row
+carries **one figure per segment** on a line of its own under the bars:
+
+    ▬▬▬▬▬▬▬▬▬▬▬   73        grey    the plan
+    ▬▬▬▬▬▬       101        navy    what it asked for
+    ▬▬▬▄▄▄▄
+                  54 +27 −20        navy · green · red
+
+The one that costs money — red or amber — is set large, and those large
+figures line up down the right edge of every cell, so the table still scans as
+a field of red and amber from five metres.
+
+Three things had to be got wrong first to arrive here. The outcome row used to
+print **one** figure beside a bar made of two or three segments, so a reader
+could not tell which part it counted or why there was only one of it. Above
+the bars there was a big signed delta as well, which was that same cost figure
+printed a second time. And putting the figures beside the bars left them 46%
+of a 170px column to live in — `54 +27 −20` and `−93 +42` do not fit in eighty
+pixels, so the last column painted its surplus out past the edge of the table
+and lost it. Their own line, right-aligned across the whole cell, is what made
+three figures possible at all.
+
+**A total drops the figure for what it sold**, because it is on the row above
+it in every cell that made it up, and a total can carry a shortage *and* a
+surplus — four figures where a cell wants three. What the warehouse **sent**
+is never dropped: a green segment with no green figure beside it is exactly
+the failure this line exists to fix.
+
+**The bars are 10px**, and there is nothing under the grid to make room for
+(below). At 6px a bar made of three segments and two gaps is not a bar, it is
+a smudge.
 
 ## The colours
 

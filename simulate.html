@@ -138,19 +138,26 @@
 
   /* ---------------------------------------------------------- demand grid */
   /* three bars stacked in a cell: plan, reality, outcome */
-  .tri{ display:block; min-width:96px; }
-  /* The delta leads. A room reading twenty-five cells from five metres reads
-     a field of signed colour first and the numerals only if it wants them,
-     so the one number that says what happened is set three times the size of
-     the three that say how it happened. */
-  .tri .delta{ display:block; font-size:20px; font-weight:800; line-height:1.05;
-               font-variant-numeric:tabular-nums; letter-spacing:-.01em;
-               margin-bottom:3px; white-space:nowrap; }
-  .tri .delta.miss{ color:var(--miss); }
-  .tri .delta.spare{ color:var(--spare); }
-  .tri .delta.even{ color:var(--good); }
-  .tri .delta.q{ color:var(--plan); }
-  .tri .delta small{ font-size:13px; font-weight:800; }
+  /* wide enough for the outcome row's worst case - served, sent, missing and
+     spare, four figures side by side in the totals - because clipping the one
+     number that says what a cell cost is the whole failure this replaced */
+  .tri{ display:block; min-width:152px; }
+  /* Every figure is the colour of the bar it counts, and the one that costs
+     money is set large. A room reading twenty-five cells from five metres
+     reads a field of signed colour first and the small numerals only if it
+     wants them - and the large figures line up down the right edge of every
+     cell, so the table still scans as a picture. */
+  .tri em{ font-style:normal; font-variant-numeric:tabular-nums; }
+  .tri em.plan{ color:var(--plan); }
+  .tri em.real{ color:var(--real); }
+  .tri em.sold{ color:var(--real); }
+  .tri em.sent{ color:var(--sent); }
+  .tri em.miss{ color:var(--miss); }
+  .tri em.spare{ color:var(--spare); }
+  .tri em.even{ color:var(--good); }
+  .tri em.q{ color:var(--plan); }
+  .tri em.big{ font-size:18px; font-weight:800; letter-spacing:-.02em;
+               margin-left:1px; }
   /* The bars get a track of their own, and the number sits outside it.
      With the label as a flex sibling of the bars, a nowrap label that could
      not shrink pushed the whole overflow into the bars - so bar 2 ("101") and
@@ -159,9 +166,16 @@
      compared. flex:none on the segments completes it: a bar is now exactly
      the width it asks for or the scale is wrong, and a wrong scale should be
      visible rather than quietly absorbed. */
-  .tri .trow{ display:flex; align-items:center; gap:0; height:10px; margin:1.5px 0; }
-  .tri .trow .bars{ flex:0 0 66%; display:flex; align-items:center; min-width:0; }
-  .tri .trow i{ display:block; flex:none; height:6px; border-radius:2px; min-width:1px; }
+  /* 10px bars, not 6. With nothing under the grid the slide has the room, and
+     a bar made of three segments and two gaps is not readable at 6px. */
+  .tri .trow{ display:flex; align-items:center; gap:0; min-height:15px; margin:1px 0; }
+  .tri .trow.out{ min-height:13px; }
+  /* the outcome figures, on their own line and across the whole cell */
+  .onums{ display:block; text-align:right; line-height:1.1; margin-top:1px;
+          font-size:11px; font-weight:700; white-space:nowrap;
+          font-variant-numeric:tabular-nums; }
+  .tri .trow .bars{ flex:0 0 54%; display:flex; align-items:center; min-width:0; }
+  .tri .trow i{ display:block; flex:none; height:10px; border-radius:2px; min-width:1px; }
   /* 2px, not 1: the gap is what separates two segments when a viewer cannot
      tell their colours apart, so it has to be visible at 6px tall */
   .tri .trow i + i{ margin-left:2px; }
@@ -173,8 +187,8 @@
   .tri .trow i.miss{ background:var(--miss); }
   .tri .trow i.spare{ background:var(--spare); }
   .tri .trow i.sent{ background:var(--sent); }
-  .tri .trow b{ flex:1; margin-left:6px; font-size:10.5px; font-weight:700;
-                color:var(--ink-soft); overflow:hidden;
+  .tri .trow b{ flex:1 1 auto; margin-left:7px; font-size:11px; font-weight:700;
+                text-align:right; line-height:1.15;
                 font-variant-numeric:tabular-nums; white-space:nowrap; }
   .dlegend i.sw{ display:inline-block; width:12px; height:9px; border-radius:2px;
                  margin-right:6px; vertical-align:0; }
@@ -1112,34 +1126,63 @@ function renderGrid(){
      The signed delta is set above the bars and three times their size: from
      five metres a room reads a field of red and amber first, and the numerals
      only if it wants them. */
-  const dcell = function(f, d, o, open){
+  /* Every number takes its bar's colour, and the outcome row carries ONE
+     NUMBER PER SEGMENT. It used to carry a single figure beside a bar made of
+     two or three, so a reader could not tell which part it counted or why
+     there was only one of it.
+
+     There is no separate delta line any more either. The delta WAS the
+     outcome row's cost figure, printed a second time above the bars - so the
+     cost figure is simply set large where it belongs, still aligned down the
+     right edge of every cell, which is what let the room read the table as a
+     field of red and amber in the first place. */
+  const dcell = function(f, d, o, open, terse){
     const bar = function(v, cls){
       return '<i class="' + cls + '" style="width:'
            + (dScale ? Math.min(100, v / dScale * 100) : 0).toFixed(1) + '%"></i>';
     };
-    const row = function(bars, label){
-      return '<span class="trow"><span class="bars">' + bars + '</span>'
+    const row = function(bars, label, cls){
+      return '<span class="trow' + (cls ? ' ' + cls : '') + '">'
+           + '<span class="bars">' + bars + '</span>'
            + '<b>' + (label || '') + '</b></span>';
     };
+    const n = function(v, cls, sign){
+      return '<em class="' + cls + '">' + (sign || '') + fmt(v) + '</em>';
+    };
+    /* The outcome row's figures go on a line of their own, under the bars and
+       right-aligned across the whole cell. Beside the bar they had 46% of a
+       170px column to live in, and "54 +27 −20" or "−93 +42" simply does not
+       fit in eighty pixels: the numbers painted out past the edge of the
+       table and the last column lost its surplus entirely. The bar track
+       stays at 54% on all three rows, so a bar is still exactly as long as
+       the same value drawn anywhere else in the table. */
+    const outs = function(html){
+      return '<span class="onums">' + html + '</span>';
+    };
     if(!open)
-      return '<span class="tri"><span class="delta q">?</span>'
-           + row(bar(f, 'plan'), fmt(f)) + row('') + row('') + '</span>';
+      return '<span class="tri">'
+           + row(bar(f, 'plan'), n(f, 'plan'))
+           + row('', '')
+           + row('', '', 'out') + outs('<em class="q">?</em>') + '</span>';
     const miss = Math.max(0, o.ga - o.se);
-    const label = (miss && o.sp) ? '−' + fmt(miss) + ' <small>/</small> +' + fmt(o.sp)
-                : miss ? '−' + fmt(miss)
-                : o.sp ? '+' + fmt(o.sp)
-                : '✓';
-    const tone = miss ? 'miss' : o.sp ? 'spare' : 'even';
     return '<span class="tri">'
-      + '<span class="delta ' + tone + '">' + label + '</span>'
-      + row(bar(f, 'plan'), fmt(f))
-      + row(bar(d, 'real'), fmt(d))
+      + row(bar(f, 'plan'), n(f, 'plan'))
+      + row(bar(d, 'real'), n(d, 'real'))
       + row(bar(o.so, 'sold')
           + (o.se ? bar(o.se, 'sent')  : '')
           + (miss ? bar(miss, 'miss')  : '')
-          + (o.sp ? bar(o.sp, 'spare') : ''),
-          fmt(o.so + o.se)
-          + (o.se ? ' <span class="up">+' + fmt(o.se) + '</span>' : ''))
+          + (o.sp ? bar(o.sp, 'spare') : ''), '', 'out')
+      /* A total can carry a shortage AND a surplus, so it wants four figures
+         where a cell wants three. It drops the one that is not the point:
+         what a total sold is already on the row above it in every cell that
+         made it up. What the warehouse SENT stays, in every kind of cell — a
+         green segment with no green figure beside it is the exact thing this
+         line exists to fix. */
+      + outs((terse ? '' : n(o.so, 'sold') + ' ')
+           + (o.se ? n(o.se, 'sent', '+') + ' ' : '')
+           + (miss ? n(miss, 'miss big', '−') : '')
+           + (o.sp ? (miss ? ' ' : '') + n(o.sp, 'spare big', '+') : '')
+           + (!miss && !o.sp ? '<em class="even big">✓</em>' : ''))
       + '</span>';
   };
 
@@ -1155,7 +1198,7 @@ function renderGrid(){
     width(agg([].concat.apply([], OUT))));
   const dcellBig = function(f, d, o, open){
     const keep = dScale; dScale = tScale;
-    const out = dcell(f, d, o, open);
+    const out = dcell(f, d, o, open, true);
     dScale = keep;
     return out;
   };
@@ -1230,9 +1273,20 @@ function seasonWords(){
 /* Everything under the grid is REPLACED at each beat, never appended: three
    slides at least gave the room three clean resets at the top of the screen,
    and a merged slide that only grows is strictly worse than what it replaced. */
+/* Nothing under the grid until the warehouse has answered.
+
+   Beat 4 used to carry "Aveline, boutique by boutique" — given at launch,
+   demand, sold, needed from the warehouse, left on the shelf, for one bag
+   across five boutiques. The grid now says every one of those things for all
+   five bags, so the table was answering a question the picture above it had
+   already answered, and it was the only reason a 900px screen had to scroll.
+
+   Beat 5 keeps what the grid genuinely cannot show: what the two followed
+   boutiques cost in money, how much was made against how much reached a
+   shelf, and the P&L. */
 function seasonBelow(){
   const host = el('sd-out');
-  if(beats.sd < SD_REVEAL){ host.innerHTML = ''; host.classList.add('hidden'); return; }
+  if(beats.sd < SD_WAREHOUSE){ host.innerHTML = ''; host.classList.add('hidden'); return; }
   host.classList.remove('hidden');
   testCombo();
   fitBars(host);
@@ -1422,7 +1476,9 @@ function testCombo(){
   const maxProd = Math.max.apply(null, r.bags.map(function(x){ return x.production; }));
 
   let h = '<h3>' + stPick + '% sell-through · ' + spPick + '% in the boutiques</h3>';
-  h += followTable(whUsed);
+  /* the one-bag table is only worth drawing before the grid exists to say the
+     same thing; after the warehouse it is the money that is new */
+  if(!whUsed) h += followTable(false);
 
   /* Beat 4 stops here. The whole-collection roll-up and the money belong to
      the beat where the warehouse has actually been asked; before that they
