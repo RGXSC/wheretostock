@@ -1645,13 +1645,43 @@ function readMatrix(){
       const c = matrixCache[key(st, sp)];
       if(c && c.margin > was.v){ was.st = st; was.sp = sp; was.v = c.margin; } }); });
     const moved = was.st !== bm.st || was.sp !== bm.sp;
+    /* Two claims, worth very different amounts. What the POOL is worth is the
+       gap between the engines at their own best squares: +20 600 € here, and
+       the whole point of the slide. Whether it MOVES THE PLAN is the gap
+       between the flexible reading of the rigid square and the flexible best
+       square, and that is 400 € on a 220 000 € margin — under a fifth of a
+       percent. "The pool moves the answer" on 400 € is an overclaim, and this
+       sentence made it until the figure was actually computed. */
+    const moveWorth = computeFlex(bm.st, bm.sp).margin
+                    - computeFlex(was.st, was.sp).margin;
+    const material = moveWorth >= Math.abs(bm.v) * 0.005;
+    /* And WHY, from the two seasons rather than from the sell-through
+       ordering. The guess was "you can hold more back"; the board holds 455
+       back instead of 506, so it was backwards. Committed and drawn say it
+       without being guessed at. */
+    const cf = computeFlex(bm.st, bm.sp), cw = computeFlex(was.st, was.sp);
+    const comm = function(f){ return f.pushTot + f.centTot; };
+    const why = comm(cf) > comm(cw) * 1.01
+      ? 'it commits more up front and draws less late — ' + fmt(comm(cf))
+        + ' committed against ' + fmt(comm(cw)) + ', and ' + fmt(cf.used)
+        + ' drawn against ' + fmt(cw.used)
+      : comm(cf) < comm(cw) * 0.99
+        ? 'it commits less up front — ' + fmt(comm(cf)) + ' against '
+          + fmt(comm(cw)) + ' — because the insurance no longer has to be '
+          + 'manufactured to exist'
+        : 'the same production is worth placing differently at launch, because '
+          + 'what stays behind is no longer committed to one bag';
     h += '<p class="small muted" style="margin-top:8px;">Without the pool the best '
        + 'margin is <b>' + was.st + '% / ' + was.sp + '%</b> at ' + fmtE(was.v) + '. '
-       + (moved
-          ? 'The pool <b>moves the answer</b> to ' + bm.st + '% / ' + bm.sp
-            + '% — you can hold more back once holding it back stops being a bet.'
-          : 'The pool does not move the answer here; it is worth <b class="up">'
-            + fmtE(bm.v - was.v) + '</b> at the same square.')
+       + (!moved
+          ? 'The pool does not move the answer here; it is worth <b class="up">'
+            + fmtE(bm.v - was.v) + '</b> at the same square.'
+          : material
+            ? 'The pool <b>moves the answer</b> to ' + bm.st + '% / ' + bm.sp
+              + '% — ' + why + '.'
+            : 'The pool nudges the answer to ' + bm.st + '% / ' + bm.sp
+              + '%, but only by ' + fmtE(Math.round(moveWorth)) + ' — what it is '
+              + 'worth is the ' + fmtE(bm.v - was.v) + ', not the move.')
        + '</p>';
   }
   el('matrix-read').innerHTML = h;

@@ -39,14 +39,15 @@ One card, one screen, no slides. Top to bottom:
    the board.
 4. **Run** and **Stop**, a progress bar, and a line counting seasons and
    combinations.
-5. **The two prices**, in a box of their own: **cost of one bag** and **what
-   flexible capacity costs**. Always visible, filled in before the first run,
-   and captioned with the thing that makes them different from everything
-   above — neither re-runs anything.
+5. **The tick and the prices**, in a box of their own: **flexible production
+   capacity** (a tick-box, off), **cost of one bag**, and — once the tick is
+   on — **what flexible capacity costs**. Filled in before the first run, and
+   captioned with the thing that makes them different from everything above:
+   nothing in that box re-runs anything.
 6. **Two matrices**, turnover and margin, target sell-through down the side
    and launch push across the top, directly under the prices that drive them.
-7. **The read-out**: the best square, and what sharing the pool is worth at
-   the premium currently set.
+7. **The read-out**: the best square, and — depending on the tick — either
+   what ticking it would be worth, or what it is worth.
 
 Nothing else. No export, no persistence, no localStorage — the same reasoning
 as the deck: this is a thing to play with, not a game with results to collect.
@@ -289,9 +290,90 @@ shared pool, both fold into scalars and meet once after the loop:
 
 So the run costs no more than it did before flexibility existed.
 
-**The premium is a visible slider, 0 to 30% of unit cost in steps of 5,
-defaulting to +10%.** It is never hidden behind a fold: what flexibility costs
-is the whole argument, and tucking it away would make it look settled.
+### The tick
+
+**Flexible capacity is a choice on this page, and it starts off.** Every
+season is played BOTH ways and both readings are accumulated — `avgC`/`avgX`
+for the flexible engine, `avgR`/`avgRP` for the same seasons played rigidly —
+so the tick is post-processing exactly like the two prices. It re-reads a
+finished run; it never re-runs one, and it never fills a square the run did
+not play.
+
+**Off by default, because the deck argues the rigid world for four slides and
+flexibility on the fifth.** Whoever scans the QR code arrives in the world
+they were just shown and ticks their way into the other one. Shipping it on
+would have answered the question the deck spends an afternoon asking.
+
+**Both matrices switch together.** Reading the margin rigidly while the
+turnover beside it stayed flexible would put two worlds side by side under one
+tick, and the sell-through the turnover implies would not be the one the
+margin was computed from. The trap is real and asymmetric: the margin getter
+already had a rigid twin written out, and the turnover getter did not —
+`avgR` was fetched nowhere in the file — so the easy mistake is to switch the
+margin and leave the turnover alone.
+
+### Two claims, worth very different amounts
+
+**What the pool is worth** is the gap between the two engines at their own
+best squares. It is large — hundreds of thousands on a mid-sized board, +20 600 €
+on the deck's.
+
+**Whether it moves the plan** is the gap between the flexible reading of the
+*rigid* best square and the flexible best square. It is usually tiny. On a 6×6
+board the argmax shifts 90/30 → 80/30 and moving there is worth **71 € against
+a 321 736 € margin** — 0.02%, inside the rounding of the figures the matrix
+prints. The deck's own celebrated move, 90/30 → 100/30, is worth **400 € on
+220 000 €**. Calling either "the pool moves the answer" is an overclaim, and
+both files made it until the figure was computed. The move is now quoted in
+money and called what it is: *moves*, *barely moves*, or *either way*, on a
+half-a-percent threshold.
+
+**And why it moves is read off the accumulators, never inferred from the
+sell-through ordering.** The first guess was "you can hold more back", which
+was backwards — the deck's move holds 455 back instead of 506. The second was
+"reserving costs nothing until a shortage calls on it", which is worse: on the
+6×6 board committed *rises* 676 → 761 (85 more pieces paid for whatever
+happens) while what is drawn late *falls* 263 → 186. More committed, less
+drawn — the opposite story. The sentence now compares `avgC` at the two
+squares and quotes both numbers, so a reader can check it.
+
+**A run takes the whole board down with it.** `mcStart` already blanked the
+two matrices; it now blanks the read-out and hides `#mc-out` as well. Ticking
+mid-run used to leave a sentence instructing the reader to tick the box they
+had just ticked, quoting ★/◆ squares off a board that was no longer on screen,
+under two headings and a colour legend captioning nothing.
+
+**The world is named where it stays visible.** On a phone the tick sits ~900px
+above the matrices and the sentence that names the world is below them, so
+while a reader scrolls the board nothing on screen says which of the two it
+is. The run line — the page's only persistent status text — says: *read with
+the shared production capacity pool on* / *read with every bag keeping its own
+stock*. The deck names it the same way, on its matrix subtitle.
+
+**The flag is read from the DOM, never remembered.** `syncFlex()` is the one
+function that writes all three things the tick controls, and `init` calls it
+rather than assuming the box is clear. A back navigation restores every
+control's value **without firing `input` or `change`**: on a re-parsed page
+`init` has already run by then, so the tick would sit green over a rigid board
+and every slider's caption would quote its default under a thumb somewhere
+else — "200 €" over a thumb at 440. A `pageshow` listener re-runs `syncFlex`,
+`mcHints` and `renderMC`, which fires after restoration in both the bfcache
+and re-parse cases. It is invisible locally: `file://` does not restore form
+state.
+
+**Enter runs the simulation, but not from inside the prices box.** That box
+says in as many words that nothing in it re-runs anything, and it holds the
+tab stops immediately after Run — the one control on the page that advertises
+Enter. A keyboard reader tabs off Run onto the tick or the cost slider and
+presses the key the page just taught them. Space still toggles the tick and
+the arrows still move the sliders.
+
+**The premium is a slider, 0 to 30% of unit cost in steps of 5, defaulting to
++10%, and it appears only once the tick is on.** It is the price of a deal you
+only have if you take it, not a property of the world — offering it beside an
+unticked box would price something that is not switched on. It is never
+hidden behind a fold once flexibility IS on: what flexibility costs is the
+whole argument, and tucking it away would make it look settled.
 
 It sits **next to the cost of a bag, in a box of its own above the matrices**,
 and not among the controls at the top. The two belong together and neither one

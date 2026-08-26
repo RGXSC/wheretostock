@@ -474,9 +474,16 @@ than it was short.
 one combination on slide 4; on slide 5 a tick-box — *production capacity pool
 at 50% of everything not in the boutiques at launch* — re-reads every square
 that has been played. It exists because the interesting fact is not that the
-numbers go up, it is that **the best square moves, 90/30 → 100/30**: holding
-more back stops being a bet once the capacity is not committed to one bag.
-The read-out says so explicitly, naming the rigid optimum it moved away from.
+numbers go up, it is that **the best square moves, 90/30 → 100/30**. The
+read-out says so explicitly, naming the rigid optimum it moved away from.
+
+**Which way it moved is computed, not written.** Production is `F ÷
+sell-through`, so a *higher* target is *less* made: this board's move produces
+650 instead of 723 and holds back **455 instead of 506**. The first version of
+that sentence said "you can hold more back once holding it back stops being a
+bet" — exactly backwards, and it shipped. The clause is now chosen from the
+two optima, because the model goes both ways: `play.html` on a 5×5 collection
+moves 90/30 → **80/30** instead, where reserving more is what pays.
 
 The switch never plays a square nobody played. It re-reads the cache; it does
 not fill it. And there is no second cache: `computeFlex` is deterministic and

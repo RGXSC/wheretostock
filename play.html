@@ -18,10 +18,23 @@
       target sell-through  - how much gets made, = forecast / target
       launch push          - how much of it is in the boutiques on day one
 
-    Half of whatever is held back stays as that bag's own central reserve;
-    the other half joins ONE pool shared by the whole collection and is only
-    manufactured if a shortage actually calls on it. What that late capacity
-    costs is a slider.
+    Every season is played BOTH ways and both readings are accumulated:
+
+      rigid       every bag keeps everything it holds back to itself, so all
+                  of it is made and paid for whether or not it sells
+      flexible    50% of what is held back stays in that bag's own warehouse
+                  and 50% becomes a shared production capacity pool - a slot
+                  on the line, assigned to no bag, manufactured and paid for
+                  only if a shortage calls on it
+
+    A tick-box chooses which of the two the matrices show. It starts OFF,
+    because the deck argues the rigid world first and flexibility last, and
+    whoever scans the QR code arrives in the world they were just shown. What
+    the late capacity costs is a slider, and it appears only once the tick is
+    on: it is the price of a deal, not a property of the world.
+
+    Nothing in that box re-runs anything. The tick and both prices are
+    arithmetic on sums already accumulated.
 
   THIS IS NOW THE ONLY COPY OF THE MODEL
     The engine started as a verbatim lift from simulate.html. The deck has
@@ -299,15 +312,39 @@
   .runrow{ display:flex; gap:12px; margin-top:18px; flex-wrap:wrap; }
 
   /* ---------------------------------------------------------- the prices */
-  /* The only two knobs on this page that change nothing about the seasons:
-     both re-read sums already in hand. Side by side, in their own box, so
-     that is legible without having to be explained. */
+  /* The three controls on this page that change nothing about the seasons:
+     the tick that chooses which of the two accumulated worlds is drawn, and
+     the two prices it is read at. All of them re-read sums already in hand.
+     One box, so that is legible without having to be explained. Unticked the
+     bag cost takes the whole row, because the premium prices a deal that has
+     not been taken. */
   .costs{ display:grid; grid-template-columns:1fr 1fr; gap:14px 26px;
           margin-top:18px; padding:16px 20px; background:var(--accent-soft);
           border-radius:var(--radius); }
   .costs .mcfield{ min-width:0; }
   .costnote{ grid-column:1 / -1; margin:0; font-size:13px; color:var(--ink-soft); }
   @media (max-width:760px){ .costs{ grid-template-columns:1fr; } }
+
+  /* The tick, and what it does to the box.
+     The premium is not a property of the world - it is the price of a deal
+     you only have if you take it - so it appears when the deal is taken and
+     not before. Unticked, the bag cost has the row to itself rather than
+     sitting in half a box with a hole beside it. Same markup and same rule as
+     the deck's pool switch, copied rather than imported: two standalone
+     files, no build step. */
+  .switch{ grid-column:1 / -1; display:flex; align-items:center; gap:11px;
+           padding:11px 14px; border:2px solid var(--line); border-radius:10px;
+           background:var(--surface); cursor:pointer; font-size:15px;
+           color:var(--ink-soft); }
+  .switch:has(input:checked){ border-color:var(--good); background:#f2f8f4;
+                              color:var(--ink); }
+  .switch input{ width:20px; height:20px; flex:none; accent-color:var(--good);
+                 cursor:pointer; }
+  .switch b{ color:var(--ink); }
+  /* the house ring, which .slider and .fold > summary already carry. The UA
+     default is a 1px hairline on a 20px box against the checked wash. */
+  .switch:has(input:focus-visible){ outline:3px solid var(--accent); outline-offset:3px; }
+  .costs.rigid .mcfield{ grid-column:1 / -1; }
 
   /* ------------------------------------------------------------- phones */
   /* This page is reached by scanning a QR code off a slide, so most of the
@@ -325,6 +362,12 @@
     .topbar-inner{ padding:9px 12px; gap:10px; }
     .mcform{ grid-template-columns:1fr; gap:11px; }
     .mcfield label{ font-size:11px; }
+    /* at 15px against 13px notes and 12px hints, the tick was the largest
+       text in the box on the device most readers use. And the caption wraps
+       to four or five lines on a phone, where centring floats the box in the
+       middle of the paragraph - it belongs against the first line. */
+    .switch{ font-size:13.5px; padding:10px 12px; gap:9px; align-items:flex-start; }
+    .switch input{ margin-top:1px; }
     /* the concentration curves are a sanity check, not the argument */
     .shape svg{ height:42px; }
     .hint{ font-size:12px; }
@@ -436,24 +479,31 @@
     <div class="bar"><i id="mc-bar"></i></div>
     <div class="runline" id="mc-line">Not run yet.</div>
 
-    <!-- The two prices, together and always on show. They used to sit at
-         opposite ends of the card, which made the premium look like a world
-         setting - something chosen before running - when neither price
-         touches the simulation: both are arithmetic on sums already
-         accumulated, so the matrices answer while you drag. -->
-    <div class="costs">
+    <!-- The prices and the one decision, together and always on show. They
+         used to sit at opposite ends of the card, which made the premium look
+         like a world setting - something chosen before running - when nothing
+         in this box touches the simulation: every season is played BOTH ways
+         and all three controls are arithmetic on sums already accumulated, so
+         the matrices answer while you drag. -->
+    <div class="costs rigid">
+      <label class="switch" id="flex-switch">
+        <input type="checkbox" id="ck-flex">
+        <span><b>Flexible production capacity</b> — 50% of everything held back
+          joins a shared production pool, made only if a shortage calls on
+          it</span>
+      </label>
       <div class="mcfield">
         <label>Cost of one bag <span id="mc-cost-read"></span></label>
         <input class="slider" type="range" id="mc-cost" min="100" max="500" step="10" value="200">
         <div class="hint">planned a season ahead</div>
       </div>
-      <div class="mcfield">
+      <div class="mcfield hidden" id="mc-flexfield">
         <label>Flexible capacity costs <span id="mc-flex-r"></span></label>
         <input class="slider" type="range" id="mc-flexcost" min="0" max="30" step="5" value="10">
         <div class="hint" id="mc-flex-h"></div>
       </div>
-      <p class="costnote">Neither price re-runs anything — both read back the
-        seasons already played, so the answer moves as you drag.</p>
+      <p class="costnote">Nothing in this box re-runs anything — every season
+        was played both ways, so the answer moves as you tick and drag.</p>
     </div>
 
     <div id="mc-out" class="hidden" style="margin-top:20px;">
@@ -497,6 +547,13 @@ const CLR_BAD = '#8a3115';
 let gSpare = null;
 let mcAbort = false, mcRunning = false;
 let mcResult = null;
+/* Off by default, and the deck is why: it argues the rigid world for four
+   slides and flexibility on the fifth. Someone who scans the QR code arrives
+   in the world they were just shown, and ticks their way into the other one.
+   The flag never touches the simulation - every season is played both ways
+   and both readings are accumulated - so this is post-processing exactly like
+   the two price sliders. */
+let flexOn = false;
 function heat(v, lo, hi){
   const t = hi === lo ? 1 : (v - lo) / (hi - lo);
   const seg = Math.min(RAMP.length - 2, Math.floor(t * (RAMP.length - 1)));
@@ -790,6 +847,11 @@ function readMC(){
   const m = clamp(Math.round(Number(el('mc-store').value) || 1), 1, 500);
   el('mc-sku').value = n; el('mc-store').value = m;
   return { n:n, m:m,
+           /* Snapshotted at run time, and its only consumer is the per-season
+              winner above. It is the one number here taken from a control the
+              reader may never have seen: with the tick off the premium slider
+              is hidden. Harmless while win is unrendered — see the note at
+              the argmax — and a reason not to render win without fixing it. */
            flexCost:Number(el('mc-flexcost').value) / 100,
            eErr:errParams(Number(el('mc-espread').value), Number(el('mc-espike').value)),
            fErr:errParams(Number(el('mc-fspread').value), Number(el('mc-fspike').value)),
@@ -803,7 +865,13 @@ function mcStart(){
   /* the previous run's matrices are wrong the moment the board changes, and
      leaving them up for twenty seconds read as live results */
   mcResult = null;
-  ['mx-mt','mx-mm'].forEach(function(id){ el(id).textContent = ''; });
+  /* the sentence goes with them: it names a world and quotes squares off a
+     board that is no longer on screen. Ticking mid-run used to leave it
+     instructing the reader to tick the box they had just ticked. */
+  ['mx-mt','mx-mm','mc-read'].forEach(function(id){ el(id).textContent = ''; });
+  /* the headings and the colour legend go with it: three captions over an
+     empty frame describe a matrix that is not on screen */
+  el('mc-out').classList.add('hidden');
   el('mc-foot').textContent = '';
   const cfg = readMC();
   const n = cfg.n, m = cfg.m;
@@ -916,8 +984,13 @@ function mcStart(){
       sumP[c] += committed + drawn;
       sumC[c] += committed; sumX[c] += drawn;
       sumR[c] += soldR * ECON.price; sumRP[c] += prodR;
-      /* the winner of a single season is judged on the flexible reading, which
-         is the one the matrices draw */
+      /* The winner of a single season is judged on the FLEXIBLE reading. That
+         used to be "the one the matrices draw"; since the tick, the matrices
+         draw whichever world is ticked and this is the one accumulator that
+         cannot follow — a rigid per-season argmax is not recoverable from
+         avgR/avgRP after the fact, it would need a second argmax here. wins[]
+         feeds mcResult.win, which nothing renders, so nothing is wrong on
+         screen today. Render it and this has to be fixed first. */
       const margin = soldFlex * ECON.price
                    - (committed + drawn * (1 + cfg.flexCost)) * ECON.cost - fixed;
       if(margin > bestM){ bestM = margin; bestK = c; }
@@ -978,37 +1051,123 @@ function renderMC(){
   /* the premium is read here, not baked in at run time, so dragging it
      recomputes the whole board without touching the simulation */
   const prem = Number(el('mc-flexcost').value) / 100;
-  const gT = function(st, sp){ return r.avgT[key(st, sp)]; };
-  const cogs = function(st, sp){
+  /* The two readings of the same seasons. FLEX: half of what each bag holds
+     back is a shared production pool, so what was committed up front is paid
+     at the plain cost and only what was drawn late carries the premium.
+     RIGID: every bag keeps its whole pool to itself, so everything planned is
+     made and paid for whether or not it sells.
+
+     BOTH matrices switch together. Reading the margin rigidly while the
+     turnover beside it stayed flexible would put two different worlds side by
+     side under one tick, and the sell-through the turnover implies would not
+     be the one the margin was computed from. */
+  const flexT = function(st, sp){ return r.avgT[key(st, sp)]; };
+  const flexM = function(st, sp){
     const k = key(st, sp);
-    return r.avgC[k] * cost + r.avgX[k] * cost * (1 + prem);
-  };
-  const gM = function(st, sp){ return r.avgT[key(st, sp)] - cogs(st, sp) - r.fixed; };
-  /* the same seasons with every bag keeping its pool to itself, so the page
-     can say what the flexibility was worth instead of only what it produced */
-  const gR = function(st, sp){
+    return r.avgT[k] - (r.avgC[k] * cost + r.avgX[k] * cost * (1 + prem)) - r.fixed; };
+  const rigidT = function(st, sp){ return r.avgR[key(st, sp)]; };
+  const rigidM = function(st, sp){
     return r.avgR[key(st, sp)] - r.avgRP[key(st, sp)] * cost - r.fixed; };
-  const bt = best(gT), bm = best(gM), br = best(gR);
+  const gT = flexOn ? flexT : rigidT;
+  const gM = flexOn ? flexM : rigidM;
+  /* the other reading is still computed, because what the page has to say is
+     the difference between the two and not either one on its own */
+  const bt = best(gT), bm = best(gM);
+  const bf = best(flexM), br = best(rigidM);
   matrix('mx-mt', gT, fmtK, function(st, sp){ return (st === bt.st && sp === bt.sp) ? 'TR' : ''; });
   matrix('mx-mm', gM, fmtK, function(st, sp){
     return ((st === bm.st && sp === bm.sp) ? 'MR' : '') + ((st === bt.st && sp === bt.sp) ? 'T' : ''); });
   el('mc-out').classList.remove('hidden');
+  /* Which world these numbers are is not obvious from the numbers, and on a
+     phone the tick is ~900px above the matrices while the sentence that names
+     the world is below them - so while a reader scrolls the board, nothing on
+     screen says which of the two it is. The run line is the page's only
+     persistent status text, so it says. The deck names it the same way, on
+     its matrix subtitle. */
   el('mc-line').textContent = fmt(r.seasons) + ' seasons · '
     + fmt(r.seasons * r.combos) + ' combinations tested · '
-    + fmt(r.n) + ' bags × ' + fmt(r.m) + ' boutiques';
-  const gain = bm.v - br.v;
-  const drawn = r.avgX[key(bm.st, bm.sp)], held = r.avgC[key(bm.st, bm.sp)];
+    + fmt(r.n) + ' bags × ' + fmt(r.m) + ' boutiques · '
+    + (flexOn ? 'read with the shared production capacity pool on'
+              : 'read with every bag keeping its own stock');
+  /* What the pool is worth, always measured the same way: the best square
+     each engine can reach, not the flexible reading of the rigid engine's
+     square. Both are re-derived here rather than remembered, so the premium
+     and the bag cost move them. */
+  const gain = bf.v - br.v;
+  const moved = bf.st !== br.st || bf.sp !== br.sp;
+  const at = function(b){ return b.st + '% / ' + b.sp + '%'; };
+  const money = function(v){ return '<b class="' + (v >= 0 ? 'up' : 'down') + '">'
+    + (v >= 0 ? '+' : '−') + fmtE(Math.abs(Math.round(v))) + '</b>'; };
+  const premWord = prem ? 'a +' + (prem * 100).toFixed(0) + '% premium' : 'no premium at all';
+  /* Two separate claims, and they are worth very different amounts.
+
+     WHAT THE POOL IS WORTH is the gap between the two engines at their own
+     best squares. It is large: hundreds of thousands on a mid-sized board.
+
+     WHETHER IT MOVES THE PLAN is the gap between the flexible reading of the
+     rigid best square and the flexible best square. It is usually tiny. On a
+     6x6 board the argmax shifts 90/30 -> 80/30 and moving there is worth 71
+     EUR against a 321 736 EUR margin - 0.02%, inside the rounding of the
+     figures the matrix prints. Saying "the pool moves the answer" on that is
+     an overclaim, and the first version of this sentence made it. So the move
+     is quoted in money and called what it is. */
+  const moveWorth = flexM(bf.st, bf.sp) - flexM(br.st, br.sp);
+  const material = moveWorth >= Math.abs(bf.v) * 0.005;
+  /* And WHY it moves is read off the accumulators, not inferred from the
+     sell-through ordering. "Reserving costs nothing" was the guess, and on
+     that same 6x6 board it is wrong: committed rises 676 -> 761 (85 more
+     pieces paid for whatever happens) while what is drawn late FALLS 263 ->
+     186. More is committed and less is drawn, which is the opposite story. */
+  const cAt = function(b){ return r.avgC[key(b.st, b.sp)]; };
+  const xAt = function(b){ return r.avgX[key(b.st, b.sp)]; };
+  const why = cAt(bf) > cAt(br) * 1.01
+    ? 'it commits more up front and draws less late — ' + fmt(Math.round(cAt(bf)))
+      + ' committed against ' + fmt(Math.round(cAt(br))) + ', and '
+      + fmt(Math.round(xAt(bf))) + ' drawn against ' + fmt(Math.round(xAt(br)))
+    : cAt(bf) < cAt(br) * 0.99
+      ? 'it commits less up front — ' + fmt(Math.round(cAt(bf))) + ' against '
+        + fmt(Math.round(cAt(br))) + ' — because the insurance no longer has to '
+        + 'be manufactured to exist'
+      : 'the same production is worth placing differently at launch, because what '
+        + 'stays behind is no longer committed to one bag';
+  let tail;
+  /* One sentence about the move, built once so the two states cannot say
+     different things about it. Only the mood changes: unticked, the pool is
+     not on and the move has not happened. */
+  const V = function(would, does){ return flexOn ? does : would; };
+  const moveSentence = !moved
+    ? 'The best square is <b>' + at(br) + '</b> either way — the pool is worth '
+      + 'money here without changing what you would do.'
+    : material
+      ? 'It ' + V('would also move', 'also moves') + ' the best square, from <b>'
+        + at(br) + '</b> to <b>' + at(bf) + '</b>: ' + why + '.'
+      : 'It ' + V('would barely move', 'barely moves') + ' the best square — <b>'
+        + at(bf) + '</b> beats <b>' + at(br) + '</b> by only '
+        + fmtE(Math.round(moveWorth)) + ', well inside the band the matrix paints '
+        + 'as “within 5%”.';
+  if(!flexOn){
+    /* Off, the page must not describe a world it is not drawing. It says what
+       the tick would buy - including whether it would move the answer, which
+       is the only part that changes what anyone would do on Monday. The
+       premium is named as a thing you can move, because it is the number this
+       sentence turns on and it is not on screen until the box is ticked. */
+    tail = 'Every bag is keeping everything it holds back to itself. Tick '
+         + '<b>flexible production capacity</b> above and 50% of it becomes a '
+         + 'shared production pool: at ' + premWord + ' — the price of late '
+         + 'capacity, which becomes a slider once the box is ticked — that is '
+         + 'worth ' + money(gain) + '. ' + moveSentence;
+  }else{
+    const drawn = r.avgX[key(bm.st, bm.sp)], held = r.avgC[key(bm.st, bm.sp)];
+    tail = '50% of everything held back is a shared production pool. Against '
+         + 'every bag keeping its own, that is worth ' + money(gain) + ' at '
+         + premWord + ' — ' + fmt(Math.round(drawn)) + ' of the '
+         + fmt(Math.round(held + drawn)) + ' pieces made are drawn late. '
+         + moveSentence;
+  }
   el('mc-read').innerHTML =
-      '<div class="note"><b>★ Best average turnover</b> ' + bt.st + '% / ' + bt.sp + '%. &nbsp; '
-    + '<b>◆ Best average margin</b> ' + bm.st + '% / ' + bm.sp + '%.</div>'
-    + '<p class="small muted" style="margin-top:8px;">'
-    + 'With every bag keeping its central pool to itself, the best margin would be <b>'
-    + fmtE(Math.round(br.v)) + '</b> at ' + br.st + '% / ' + br.sp + '%. Sharing half of it '
-    + 'across the collection is worth <b class="' + (gain >= 0 ? 'up' : 'down') + '">'
-    + (gain >= 0 ? '+' : '−') + fmtE(Math.abs(Math.round(gain))) + '</b> at a '
-    + (prem ? '+' + (prem * 100).toFixed(0) + '% premium' : 'premium of nothing')
-    + ' — ' + fmt(Math.round(drawn)) + ' of the ' + fmt(Math.round(held + drawn))
-    + ' pieces made are drawn late.</p>';
+      '<div class="note"><b>★ Best average turnover</b> ' + at(bt) + '. &nbsp; '
+    + '<b>◆ Best average margin</b> ' + at(bm) + '.</div>'
+    + '<p class="small muted tail" style="margin-top:8px;">' + tail + '</p>';
   /* signs are taken from the numbers, not assumed: a range of ±0.4% used to
      be printed as "-0% to +0%" */
   const pc = function(v){ const x = v * 100;
@@ -1028,17 +1187,51 @@ function init(){
     el(id).addEventListener('input', mcHints);
   });
   el('mc-cost').addEventListener('input', renderMC);
-  /* both are post-processing on the accumulated sums, so neither re-runs */
+  /* all three are post-processing on the accumulated sums, so none re-runs */
   el('mc-flexcost').addEventListener('input', function(){ mcHints(); renderMC(); });
+  /* the premium only exists once the deal is taken */
+  el('ck-flex').addEventListener('change', function(){ syncFlex(); renderMC(); });
   el('btn-mc').addEventListener('click', mcStart);
   el('btn-mc-stop').addEventListener('click', function(){ mcAbort = true; });
   /* Enter runs it, the same key the deck uses to move on */
   document.addEventListener('keydown', function(e){
-    if(e.key === 'Enter' && !mcRunning && document.activeElement.tagName !== 'BUTTON'){
+    /* Not from anything in the prices box. That box says, in as many words,
+       that nothing in it re-runs anything — and the box is the tab stops
+       immediately after Run, which is the one control on the page that
+       advertises Enter. A keyboard reader tabs off Run onto the tick or the
+       cost slider and presses the key the page just taught them, and gets a
+       twenty-second re-run that blanks the board the box exists to re-read.
+       Space still toggles the tick and the arrows still move the sliders. */
+    const a = document.activeElement;
+    const inPrices = !!(a.closest && a.closest('.costs'));
+    if(e.key === 'Enter' && !mcRunning && a.tagName !== 'BUTTON' && !inPrices){
       e.preventDefault(); mcStart();
     }
   });
+  /* A checkbox is form state, and a browser may restore it across a back
+     navigation or a soft reload WITHOUT firing change. The flag would then say
+     rigid while the box says flexible, and the switch would sit there green
+     over a rigid board. Read the DOM instead of assuming it. */
+  syncFlex();
   mcHints();
+  /* A back navigation restores every control's value WITHOUT firing input or
+     change. On a re-parsed page init() has already run by then, so the tick
+     would sit green over a rigid board and every slider's caption would quote
+     the default while its thumb sat somewhere else - "200 €" under a thumb at
+     440. pageshow fires after restoration in both the bfcache and re-parse
+     cases, and all three of these read the DOM rather than remember it, so
+     running them again is free and idempotent. Only reachable over http:
+     file:// does not restore form state, which is why it survived local
+     testing. */
+  addEventListener('pageshow', function(){ syncFlex(); mcHints(); renderMC(); });
+}
+
+/* one function writes all four things the flag controls, so they cannot
+   drift: the flag, the premium field, the grid, and nothing else */
+function syncFlex(){
+  flexOn = el('ck-flex').checked;
+  el('mc-flexfield').classList.toggle('hidden', !flexOn);
+  document.querySelector('.costs').classList.toggle('rigid', !flexOn);
 }
 init();
 </script>
