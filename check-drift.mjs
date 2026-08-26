@@ -1,11 +1,16 @@
-/* Does play.html still carry the deck's engine?
+/* Do the deck and the player still draw the same chart?
 
-   play.html is the standalone player: slide 8 of simulate.html, lifted out so
-   participants can open it from one link. Both files are self-contained by
-   design - no imports, no build step - so the Monte Carlo engine exists twice
-   and nothing in the browser would ever notice the two copies disagreeing.
-   The failure that costs us is silent: the deck says one square is best, the
-   player says another, in front of a room.
+   play.html is the standalone player. It began as slide 8 of simulate.html,
+   lifted out so participants could open it from one link; the deck has since
+   dropped the Monte Carlo entirely, so the simulation engine now lives in
+   play.html alone and there is nothing left to drift about it.
+
+   What the two files still share is the MATRIX: the same grid of
+   sell-through against launch push, drawn by the same four functions. Both
+   files are self-contained by design - no imports, no build step - so those
+   four exist twice and nothing in a browser would ever notice the copies
+   disagreeing. The failure that costs us is silent: the deck's grid and the
+   player's grid shade the same number differently, in front of a room.
 
    Run it with `node check-drift.mjs` after touching either file. No
    dependencies; it reads the two HTML files as text.
@@ -31,13 +36,15 @@ function pull(src, name, file){
   return { file, name, code:('f' + body).replace(/\s+/g, ' ').trim() };
 }
 
-/* The engine: the shared maths, plus the two functions that read the controls
-   and write the read-out. Anything named here has to stay identical. */
-const SHARED = [
-  'heat', 'matrix', 'key', 'best', 'paretoShares', 'topShare', 'shapeSVG',
-  'errParams', 'gauss', 'errDraw', 'normCdf', 'errQuantile', 'errDensity',
-  'errShapeSVG', 'errHint', 'mcHints', 'readMC', 'mcStart', 'renderMC',
-];
+/* What genuinely still exists in both files. The other fifteen went with the
+   Monte Carlo when the deck dropped it - they are play.html's alone now, and
+   listing them here would only report them missing for ever.
+
+   `heat` has no caller in simulate.html and has not had one for a while. It
+   stays in both files and stays on this list on purpose: it is the colour
+   ramp the matrix would use, and letting a dead copy drift is how you get a
+   surprise the day something calls it again. */
+const SHARED = ['heat', 'matrix', 'key', 'best'];
 
 const deck = readFileSync(join(HERE, 'simulate.html'), 'utf8');
 const play = readFileSync(join(HERE, 'play.html'), 'utf8');

@@ -23,12 +23,17 @@
     manufactured if a shortage actually calls on it. What that late capacity
     costs is a slider.
 
-  KEPT IN STEP WITH simulate.html
-    The engine here is lifted verbatim from simulate.html - same constants,
-    same paretoShares, same lognormal error, same mcStart. There is no build
-    step and no imports, so the two copies can drift. If you change the model
-    in one, change it in the other, and the check in the repo will tell you
-    if you forget.
+  THIS IS NOW THE ONLY COPY OF THE MODEL
+    The engine started as a verbatim lift from simulate.html. The deck has
+    since dropped the Monte Carlo entirely, so paretoShares, the lognormal
+    error and mcStart exist HERE AND NOWHERE ELSE. Change the model and
+    nothing else in the repository needs to follow.
+
+    What the two files still share is the matrix - heat, matrix, key, best -
+    and those four ARE still duplicated, with no build step and no imports to
+    keep them honest. check-drift.mjs at the repo root pins exactly those
+    four. It cannot see the model, because there is no longer a second copy
+    of the model to compare against.
   ========================================================================= -->
 <style>
 /* =========================================================================

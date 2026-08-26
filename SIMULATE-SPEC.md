@@ -1,65 +1,176 @@
 # `simulate.html` — the fast-forward page
 
 Third standalone file, same constraints as the other two: one HTML file, no
-network, system fonts, runs from a double-clicked `file://`. Eight slides, a
-sticky stage pill and one big **Next**; ← → and Enter also move.
+network, system fonts, runs from a double-clicked `file://`. **Five slides**, a
+sticky stage pill, a dot per slide and one big **Next**; ← → and Enter also
+move. Some slides own more than one press, and the strip beside the pill shows
+how many they still owe.
 
 The order is the game's: **the strategy is set before its consequences are
-shown**, and each step gets its own slide so the before and the after are two
-pictures rather than one table changing under you.
+shown**.
 
-- **Slide 2** — the two sliders, and a table of where every piece goes: each
-  bag's launch push spread across the five boutiques on that bag's own
-  forecast row, and what stays in the warehouse.
-- **Slide 3** — the real demand revealed, and what the launch push alone
-  could serve. Nothing is called *turned away* here: before the warehouse has
-  been asked, the gap is a quantity a boutique **needs sending**, not a lost
-  sale. Nor is anything called *left over* — that is only true at the end.
-- **Slide 4** — the same boutique table, opening exactly as slide 3 left it,
-  and then *Use the warehouse stock*: **needed → sent → still missing**, three
-  lines, so the room watches the loss shrink. Only then the two followed
-  cases, and only then the whole-collection roll-up and the money.
+| | slide | presses |
+|---|---|---|
+| 1 | The board | 1 |
+| 2 | Your combination | 1 |
+| 3 | **The season** | 6 |
+| 4 | **The limit, and what flexibility can** | 2 |
+| 5 | Every combination | 1 |
 
-Every table on those slides puts the **boutiques across the top** — the axis
-they have on the board, on the demand matrix and on the placement table.
+It was eight slides. Three of them — the demand, the warehouse and the limit —
+showed three tables that were four-fifths the same picture, and a room reading
+the second one spent its first ten seconds working out whether anything had
+changed. A fourth, the Monte Carlo, has moved out of the deck entirely and now
+lives in `play.html`, which is what participants are given at the end anyway
+(`PLAY-SPEC.md`).
 
-**The demand cell is three bars**, one under the other, on one scale across
-the whole table so a big boutique looks big:
+## The season slide, beat by beat
 
-1. what was **forecast**;
+**One table is built once and transformed in place.** The block *below* the
+grid is replaced at every beat, never appended: three slides at least gave the
+room three clean resets at the top of the screen, and a merged slide that only
+grows would be strictly worse than what it replaced.
+
+| beat | what is on screen |
+|---|---|
+| 0 | **the plan** — one grey bar a cell, a grey `?` where the delta will go |
+| 1 | **spotlight**: the worst shortage on the board, opened alone |
+| 2 | **spotlight**: the biggest surplus, opened alone |
+| 3 | **spotlight**: the grand total — *the total was right* |
+| 4 | **all twenty-five**, plus the followed bag and the two followed boutiques |
+| 5 | **the warehouse answers** — green eats into red, in place |
+
+**The walk exists because a dense grid is unreadable until you can read one
+cell of it.** Three cards of about thirty words, then twenty-five cells the
+room already knows how to decode — and it then reads them as a *pattern*, an
+amber column under Paris and New York against a red one under Tokyo and
+Shanghai, instead of as a wall of numbers. That is the beat the three-slide
+version never reached, because the room was still decoding cell one.
+
+**The three cells are derived, never written down.** They are the argmax gap,
+the argmax surplus and the grand total, recomputed from the same `runBag` pass
+the grid draws. At 90/80 that resolves to Aveline in Tokyo (−47), Aveline in
+Paris (+25) and the whole board (−198 / +127) — but a facilitator who moved a
+slider on the previous slide would otherwise be walking the room through two
+cells that are no longer the story, and at 90/30 they are not.
+
+**Beat 5 draws the warehouse ON the table just read**, not as a second table.
+Every red segment splits where it stands: the covered part turns green, the
+rest stays red, the delta re-labels from −47 to −20. **Not one amber segment
+moves**, because central stock cannot un-place what has already shipped —
+which is the argument the old slide had to make in prose.
+
+## The demand cell
+
+**The delta leads.** One signed number, set three times the size of everything
+else in the cell, in the colour of what happened: from five metres a room
+reads a field of red and amber first and the numerals only if it wants them.
+
+Under it, three bars on one scale across the whole table so a big boutique
+looks big:
+
+1. what was **planned**;
 2. what the season **actually asked for**;
-3. what the **shelf could serve** — and this one alone is split in two, into
-   the part that **sold** and then either the **gap** the warehouse still has
-   to cover or the **surplus** already sitting in the boutique.
+3. **what happened to that demand** — served off the shelf, sent from the
+   warehouse, still missing — and then any **surplus** past the end of it.
 
-Only the third bar carries an outcome, so only the third bar has two colours.
-Everything above it is a plan or a fact, and the comparison the room needs is
-bar 3 against bar 2. Before the reveal, bar 1 is drawn and the other two are a
-question mark.
+Bar 3 is bar 2 recoloured. Blue + green + red always sums to exactly the
+demand above it, and amber is the only thing that can ever stick out past its
+end. That is the single rule the whole grid rests on, and it is what the first
+spotlight card teaches.
+
+## The colours
+
+Four roles, one hex each, named once in `:root` so a bar, its number, the ring
+round its cell and the legend can never disagree. The previous version wrote
+five hex codes inline inside a template string, where the legend could — and
+did — drift away from them.
+
+| | | |
+|---|---|---|
+| `--plan` | `#9aa7b3` grey | the forecast: a plan, not an outcome |
+| `--real` | `#1b3a57` navy | what the season asked for, and the part we served |
+| `--miss` | `#c0341a` red | customers who found nothing — 1 000 € each, never earned |
+| `--spare` | `#d8901f` amber | stock where nobody wants it — 200 € each, already spent |
+
+Green (`--good`) keeps its one existing meaning, *something worked*, and
+appears in the grid only at beat 5, only inside a segment that was red a
+moment earlier.
+
+**Amber and not green for surplus**, deliberately. Green already means
+*achieved* everywhere else on the page — the best square in the matrix, stock
+successfully shipped, a focus card that reads "nothing stranded" — and
+painting stranded stock green would tell the room the surplus was a success,
+which is the exact misreading the limit beat exists to destroy. Red is revenue
+never earned, amber is cash already spent: two different kinds of bad, and the
+five-fold gap between 1 000 € and 200 € is the point.
+
+It also survives colour-blind viewing and greyscale, which red-against-green
+would not: the two differ in lightness as well as hue, every delta carries a
+sign, and position disambiguates anyway — red only ever sits *inside* the
+demand bar, amber only ever extends *past* its end.
 
 **The totals add the cells; they never net one against another.** A shortage
 in Tokyo is not cancelled by a surplus in Paris, because the stock cannot walk
 there, and pretending it can is the exact error this slide exists to expose.
 Netted, the season reads *71 short* and sounds like a volume problem. Added,
-it reads **650 forecast, 650 demanded, 198 short and 127 spare** — the whole
-argument of the page in one cell. The bag rows cross-check against the panel
-underneath: Aveline's season shows −93 / +42, and the follow table below it
-says *needed from the warehouse 93, left on the shelf 42*.
+it reads **650 planned, 650 demanded, 198 short and 127 spare** — the whole
+argument of the page in one cell.
 
-**One bag and two boutiques are followed across all three**, and they are
-chosen from the setup rather than fixed, because the interesting pair moves
-with the sliders. What is wanted is one boutique sitting on stock the season
-did not want and one still missing sales after the warehouse has done all it
-can; the over-push is the requirement, the remaining shortfall a preference.
-At a light push neither exists — nothing is stranded and the warehouse covers
-every gap — and both cards then read as successes, which is the lesson rather
-than an empty slot. At 90/80 it lands on Aveline in Paris and Tokyo: given 65
-and 54, asked for 40 and 101.
+**One bag and two boutiques are followed under the grid**, chosen from the
+setup rather than fixed, because the interesting pair moves with the sliders.
+What is wanted is one boutique sitting on stock the season did not want and
+one still missing sales after the warehouse has done all it can. At a light
+push neither exists — nothing is stranded and the warehouse covers every gap —
+and both cards then read as successes, which is the lesson rather than an
+empty slot. At 90/80 it lands on Aveline in Paris and Tokyo: given 65 and 54,
+asked for 40 and 101.
 
-Every table on those slides keeps the boutique axis, because summing it away
-is exactly where the thread the room is holding breaks.
+Every table on the page puts the **boutiques across the top** — the axis they
+have on the board, on the demand grid and on the placement table — because
+summing that axis away is exactly where the thread the room is holding breaks.
+
+## The spotlight
+
+The same trick the game's step-by-step guide uses: dim the page, cut a hole
+over one cell, put a card beside it. Renamed to `.spot-mask` / `.spot-hole` /
+`.spot-card` on the way in, because `.hint` was already taken in this file and
+pasting the game's rules verbatim would have turned eight form captions into
+fixed black bubbles.
+
+Every position is measured from live rects and re-measured on a resize, a
+scroll and a `ResizeObserver` — positioning once at open time leaves the hole
+where the target used to be. `#spot-root` stays a direct child of `<body>`:
+all three layers are `position:fixed`, so any ancestor that gained a transform
+would reparent them silently and the hole would land nowhere.
+
+**Clicking the dimming advances the walk rather than dismissing it.** The mask
+is a full-viewport click target above the page; a facilitator driving with the
+mouse must never be able to leave the beat state disagreeing with what is on
+screen.
+
+**The card is placed against the viewport minus the footbar.** Treating the
+whole window as free space put the card over Back and Next at 800px tall —
+the two controls the facilitator is actually using. Checked at 1280×800,
+1366×768, 1440×900 and 1920×1080: on screen, clear of its own hole, clear of
+the footbar, hole above the fold.
+
+## Getting out of the way
+
+**Back un-beats before it leaves the slide.** With one internal step per slide
+a facilitator who overshot could live with re-entering at the end; on a
+six-beat slide they cannot, and the walk could never be replayed live.
+
+**The board slide has a way past it.** It is worth reading once; a facilitator
+running this for the fifth time wants the argument, not the introduction, so
+`Skip to the season` jumps straight there on the defaults.
+
+**A different combination is a different season.** Moving any slider resets
+the season slide to beat 0 — re-entering it half-revealed, under numbers the
+room has never seen, is worse than starting it again.
 
 ---
+
 
 ## 1. What is different from the game and the debrief
 
@@ -159,8 +270,8 @@ The **push** half is robust: some `x/30` square wins in **84%** of seasons and
 draw — which is the claim this page exists to make. The **sell-through** half
 is a coin-flip between neighbours: 90% is the modal answer but wins only about
 half the time, with 80% behind it a quarter of the time. The board's 90/30 and
-60/30 are the modal winners and agree with the Monte Carlo, so nothing on
-screen is wrong; but a room should be told the push is the finding and the
+60/30 are the modal winners and agree with the Monte Carlo in `play.html`, so
+nothing on screen is wrong; but a room should be told the push is the finding and the
 sell-through is the weaker half.
 
 ## 3. Why there is no artificial limit on central stock
@@ -173,128 +284,40 @@ season asks. The reference file hid this by never offering less than
 is more useful than a rigged optimum:
 
 - The matrix says outright that centralising wins on **allocation**.
-- The closing slide shows what it cannot fix. It is measured **where the
-  margin actually peaks** — the argmax of the matrix on both axes, found
-  rather than assumed — and says so in as many words: *"the margin peaked at
-  90% sell-through and 30% push."* Even there, with every bag placed exactly
-  where the season wanted it, **6 customers are turned away and 79 bags go
-  unsold**.
+- **The first beat of slide 4** shows what it cannot fix. It is measured
+  **where the margin actually peaks** — the argmax over both axes, found
+  rather than assumed — and says so in as many words: *"The best this board
+  allows is 90% sell-through and 30% push."* Even there, with every bag placed
+  exactly where the season wanted it, **6 customers are turned away and 79
+  bags go unsold**.
 
   Both conversions are **written out** rather than left to the reader:
   *6 × 1 000 € = 6 000 € of sales never made* and *79 × 200 € = 15 800 €
   already spent*. The heading talks money and the table underneath counts
-  bags, so a slide that prints only the two ends makes the room do the
+  bags, so a beat that prints only the two ends makes the room do the
   arithmetic in its head — at which point it has stopped making its point and
   started setting a puzzle.
 
-  The slide ends on the question it raises, and nothing follows it. Every
-  figure is computed from the two tables, so retuning the demand retunes the
-  slide — the numbers above are what the shipped board currently gives.
+  It ends on the question it raises — *how could we do better, without impact
+  on the margin?* — and the **next beat of the same slide** answers it. That
+  is why the two are no longer two slides. Every figure is computed from the
+  two tables, so retuning the demand retunes the beat; the numbers above are
+  what the shipped board currently gives.
 
 Matrix squares are drawn in three tiers rather than a gradient — the best,
 everything within 5% of it, and the rest — because what a room needs from
 that table is where the good region is, not a reading of every square.
 
-## 4. The Monte Carlo
+## 4. The Monte Carlo — moved out
 
-Any board up to **500 bags × 500 boutiques**. Forecast shares are a power law
-on each axis with a steepness slider, read back as *"the top fifth carries
-X% of the forecast"* and drawn live: one bar per bag or boutique, biggest
-first, with the cumulative share over the top. The bars alone say little once
-the curve is steep — one item towers and the rest is a flat line — so it is
-how fast the cumulative curve reaches the ceiling that shows the
-concentration. Above sixty items the bars are pooled and the caption says so.
+It was slide 8 and it is now the whole of `play.html`. A twenty-second
+simulation is the wrong thing to make a room watch when the same page is
+handed to every participant at the end, and the deck was carrying five hundred
+lines of engine to run it once.
 
-**The error.** One draw per bag and one per city, multiplied, and **lognormal**
-— a forecast is missed by a multiplier, not a subtraction: a bag can sell three
-times what was planned and can never sell less than none.
-
-It used to be a flat draw over a typed min/max. That was not neutral. Holding
-the mean and the spread fixed and swapping the flat draw for a lognormal moves
-the **margin optimum a full step, 80%/30% to 90%/30%** — fat tails make deep
-production a worse bet, because the extreme over-shoots are too big to cover
-with stock anyway while the ordinary seasons cluster tighter. What does *not*
-move under any shape tested: the push optimum stays at 30%, which is the claim
-this page exists to make, and the turnover optimum stays at 60%/30%.
-
-**Two knobs per axis, and they have to be independent or neither means
-anything.** A plain lognormal cannot give both: pin its mean — which we must,
-since the season is recentred to the same total and only relative error
-survives — and one parameter is left, whose width and skew move together. So
-the log-error is normal with a width that is itself drawn: the ordinary one
-nine times in ten, `k` times wider the tenth.
-
-| knob | what it sets |
-|---|---|
-| *typically wrong by* | the overall spread, as a coefficient of variation |
-| *spikiness* | `k`. At 0 every bag is a little off; turned up, most land close and a few miss enormously |
-
-The ordinary width is re-solved by bisection on each change so the overall
-spread stays exactly where the first slider put it — move spikiness and only
-the shape changes. Spikiness starts at 0 on both axes, a pure lognormal.
-
-**The two spreads are not the same, and that is the point.** They are set to
-what the deterministic board two slides back actually does, so the room is not
-handed two different worlds. Measured on that board, demand as a multiple of
-forecast:
-
-| | multipliers | spread |
-|---|---|---|
-| per bag | 1.10 · 1.00 · 0.90 · 0.70 · 1.31 | **20%** |
-| per boutique | 0.50 · 1.51 · 0.50 · 1.51 · 1.47 | **44%** |
-
-So the defaults are **21% on the bag axis and 44% on the boutique axis**. Both
-axes used to start at 21%, which left the placement error at half what the
-room had just been shown. That matters more than it sounds: the push decision
-is worth roughly the *square* of how wrong the placement is, so the axis read
-1.33 M€ at 21% against 4.09 M€ at the board's own 44%. The best square is
-90%/30% at every spread from 21% to 55%, so nothing else on the page moves —
-only the size of the number the slide is making its case with.
-
-One gap remains, deliberately. The board's boutique error is **polarised** —
-0.50, 1.51, 0.50, 1.51, no one in the middle — and a lognormal is unimodal, so
-it cannot reproduce that. At matched spread the polarised version costs about
-35% more (7.7 M€ against 5.4 M€ on a ±50% test). The Monte Carlo is therefore
-the conservative reading of the push decision, which is the safe direction for
-a claim the page is trying to defend.
-
-The curve is drawn live under each pair, on a **fixed** 0 to 2.6× axis: a range
-that rescaled itself would make every setting look identical, and the point is
-watching the shape move against a still axis. Its caption reads percentiles
-rather than a standard deviation — *half the bags land between −15% and +13%
-of forecast · one in a hundred is over +59%*. The far end is the 99th and not
-the 95th: with the wide draw firing one time in ten, the 95th still sits inside
-the ordinary lump and so *falls* as spikiness rises, which is the opposite of
-what the slider does.
-
-The whole block sits behind a `<details>` shut by default. Closed, the panel
-reads as two board sizes and two concentrations, which is the teaching moment;
-open, the error model is all there for whoever asks how the seasons are drawn.
-
-The season total is still kept exactly on the forecast by rescaling, and the
-range that actually resulted is reported on the slide along with the shape
-(−69% to +216% per bag at the defaults).
-
-**Speed.** The error model is separable — `d(i,j) = A(i)·B(j)` — and that
-collapses the arithmetic. A boutique runs out of bag *i* exactly when its own
-error term clears a threshold that depends on *i* alone, so sorting the
-boutiques by that term once per season and keeping two prefix sums turns each
-of the thirty combinations into a binary search instead of a sweep of the
-network. Measured, 20-second budget:
-
-| board | seasons | combinations |
-|---|---|---|
-| 500 × 500 | 31 000 | 1 240 000 |
-| 200 × 200 | 75 000 | 3 000 000 |
-| 40 × 40 | 469 000 | 18 760 000 |
-| 5 × 5 | 4 640 000 | 185 700 000 |
-
-A test checks the fast path against a plain bag-by-city loop over 480 random
-cases; worst relative gap 2 × 10⁻¹⁵.
-
-Quantities are continuous in this mode rather than whole bags — over 250 000
-lines the rounding changes nothing and costs a great deal of time. Stated on
-the slide.
+The model — the lognormal forecast error, the Pareto concentration of the
+collection and the network, the fast path, the accumulators that let both
+price sliders re-read a finished run — is specified in `PLAY-SPEC.md` §6.
 
 ## 4b. Flexible capacity
 
@@ -324,9 +347,8 @@ leaving someone to find it.
 **One thing deliberately not copied.** The original splits the launch *flat*
 across its five stores, because it has no store-level forecast to split by:
 equal placement against unequal demand is its lesson. This board does have
-one, and the concentration sliders, the matrix and the Monte Carlo are all
-built on it, so the launch is placed on each boutique's forecast share exactly
-as the rigid engine does. What is imported is the pool, not the placement.
+one, and every table on the page is built on it, so the launch is placed on
+each boutique's forecast share exactly as the rigid engine does. What is imported is the pool, not the placement.
 Copying the flat split would have made the boutique forecast meaningless and
 moved every number in the deck.
 
@@ -334,27 +356,32 @@ What it is worth, at each engine's own best combination:
 
 | | best | made | sold | turned away | unsold | margin |
 |---|---|---|---|---|---|---|
-| rigid | 90 / 30 | 723 | 644 | 6 | 79 | 207k |
-| **flexible** | **100 / 30** | **650** | **650** | **0** | **0** | **228k** |
+| rigid | 90 / 30 | 723 | 644 | 6 | 79 | 199 400 € |
+| **flexible** | **100 / 30** | **650** | **650** | **0** | **0** | **220 000 €** |
 
-**+21k, and production lands exactly on the forecast.** Rigid capacity forces
-you to over-produce as insurance; flexible capacity lets you produce the plan
-and flex the difference. It is the answer to the question the slide before it
-ends on.
+**+20 600 €, and production lands exactly on the forecast.** Rigid capacity
+forces you to over-produce as insurance; flexible capacity lets you produce
+the plan and flex the difference. It is the answer to the question the beat
+before it ends on — which is why the two share a slide.
 
-**Order.** The limit slide used to close the deck. It answers the warehouse
-slide, so it now follows it, and flexibility answers the limit slide and
-follows that; the matrix and the Monte Carlo come after, scaling an argument
-that is already finished rather than interrupting it:
+Both margins are read off the page's own `run()` and `computeFlex()`. They
+were quoted as 207k and 228k for a while: 7 500 € high on each row, which is
+exactly the fixed-cost rounding this spec documents in §2 — 45% of forecast
+sales is 292 500 € and the file rounds it up to 300 000 €. A table copied
+before a rounding change stays wrong quietly, so these are re-derived rather
+than remembered.
 
-    the board · your combination · what the season asked for · and the
-    warehouse · what central stock cannot do · what flexible capacity can ·
-    every combination · large network
+**Order.** The limit answers the warehouse, so it follows it; flexibility
+answers the limit, so it shares its slide; and the matrix comes last, scaling
+an argument that is already finished rather than interrupting it:
 
-Moving the limit slide ahead of the matrix cost it one line of copy: it used
-to say the margin *"peaked at 90% / 30%"*, crediting a matrix nobody had seen
-yet. It now states the best the board allows, and the matrix proves it two
-slides later.
+    the board · your combination · the season · the limit and what
+    flexibility can · every combination
+
+Moving the limit ahead of the matrix cost it one line of copy: it used to say
+the margin *"peaked at 90% / 30%"*, crediting a matrix nobody had seen yet. It
+now states the best the board allows, and the matrix proves it on the screen
+after.
 
 **UI.** One slide, no new control. The engine needs none — the existing push
 slider already sets the pool — so the deck's sell-through and push sliders
@@ -363,99 +390,19 @@ them, one table per bag (made · to the boutiques · its own reserve · into the
 shared pool · real demand · still short) and two boxes side by side, rigid
 against flexible, carrying the same four numbers each.
 
-## 4c. Flexible capacity in the Monte Carlo
-
-Slide 6 puts flexibility on the deterministic board. Slide 8 now carries the
-same idea at scale, on any board up to 500 × 500.
-
-The Monte Carlo has its **own** season loop — nothing to do with `computeFlex`
-— so the pool logic is folded into it rather than called. Per bag the central
-pool splits in half: the bag's own reserve, and a share of one pool held by the
-whole collection.
-
-**It needs no second pass over the bags.** Only the TOTAL sold matters, so what
-is still short after each bag has drawn on its own reserve, and the size of the
-shared pool, both fold into scalars and meet once after the loop:
-
-    drawn      = min(still short after own reserves, the shared pool)
-    sold       = shelf + own reserves + drawn
-    production = pushed + own reserves + drawn
-
-So the run costs no more than it did before flexibility existed.
-
-**The premium is a visible slider, 0 to 30% of unit cost in steps of 5,
-defaulting to +10%.** It is never hidden behind a fold: what flexibility costs
-is the whole argument, and tucking it away would make it look settled.
-
-It sits **next to the cost of a bag, in a box of its own above the matrices**,
-and not among the controls at the top. The two belong together and neither one
-belongs with the rest: every other knob on the page describes the world and
-changes what has to be simulated, while these two are read back off seasons
-already played. Apart, the premium looked like a world setting — something you
-choose before pressing Run — and the fact that it costs nothing to drag was
-invisible. The box says so in one line.
-
-Both read out **before the first run**, so the prices are legible while the
-page is still being explained, and the premium is quoted **off the cost the
-slider is actually set to**: at 380 € a bag, +10% is 418 € against 380 €, not
-220 € against 200 €. That error was harmless while the two sliders were at
-opposite ends of the card and is not once they are side by side.
-
-Four sums are accumulated per square rather than two — committed, drawn, and
-the same seasons played rigidly with their production. That keeps **both** the
-unit-cost slider and the premium slider free: margin at any pair of values is
-arithmetic on numbers already in hand, with nothing to re-run. The premium
-changes the *cost* of flex and never the decision to draw it — a drawn unit
-serves demand worth 1 000 € against at most 260 € at the top of the slider — so
-the allocation is premium-independent and the accumulators stay valid as it
-moves.
-
-Measured on the default 40 × 40 board, from a single run re-read at each stop:
-
-| premium | best square | margin | flexibility is worth | drawn late |
-|---|---|---|---|---|
-| +0% | 90/30 | 14.53M | +2.46M | 28% of production |
-| **+10%** | **90/30** | **14.29M** | **+2.22M** | **28%** |
-| **+15%** | **80/30** | 14.19M | +2.12M | 20% |
-| +30% | 80/30 | 13.94M | +1.87M | 20% |
-
-Two things the table is for. **The best square moves at +15%**, from 90/30 to
-80/30: as late capacity gets dearer you commit more up front instead of relying
-on it. The default sits one step below that switch, so a single nudge changes
-the answer rather than merely changing a number. And flexibility never stops
-paying inside the range — at +30% a late piece costs 260 € against 1 000 € of
-revenue — which is honest rather than convenient, and worth saying if a room
-asks where the break-even is.
-
-Alongside the two matrices the slide states what the same seasons would have
-earned rigidly, so the gain is a comparison and not an assertion.
-
-**This slide also ships on its own**, as `play.html`, for participants to take
-away — the slide ends with a QR code to it, inline SVG so the deck stays
-self-contained, and the URL is spelled out underneath for anyone whose phone
-will not scan from the back of the room. Regenerate the code if the URL moves — same engine, same sliders, no deck around it. See `PLAY-SPEC.md`, and
-run `node check-drift.mjs` after any change to the model here: there is no
-build step, so the engine exists twice and only that check notices when the
-two copies disagree.
-
-## 5. Cost of the bag
-
-One slider, on the Monte Carlo panel, paired with the flexibility premium in
-the prices box above the matrices (§4c). It had a slide of its own; that slide
-is gone, because the same lesson is already one drag away on a board the room
-is looking at anyway.
-
-Only the **margin** optimum can move: turnover does not contain the cost, so
-its best square is fixed — which is the point worth making.
-
-The slider costs nothing to move: average production per combination is kept
-alongside average turnover, so margin at any other cost is arithmetic on
-results already in hand. No re-run.
-
 ## 6. Deliberately absent
 
 - ~~**Production flexibility.**~~ Now simulated — see §4b.
+- ~~**The Monte Carlo.**~~ Moved to `play.html` — see §4.
 - **Any export or persistence.** This page is a demonstration, not a game with
   results to collect; the other two files own that.
 - **Any counterfactual.** Every square is a season actually played out under
   the stated rules.
+- **A way to skip the spotlight walk in one press.** A facilitator behind
+  schedule will want one. They cannot have it: the whole point of the walk is
+  that the twenty-five-cell grid is unreadable until you can read one cell,
+  and landing a room on it un-taught is worse than the three slides this
+  replaced. The beat strip in the topbar shows the cost up front instead.
+- **Auto-playing reveals.** Considered and dropped. Animating the demand and
+  the warehouse over two seconds each would save presses, but it takes the
+  pacing away from the person who can see the room.
