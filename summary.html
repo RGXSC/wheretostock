@@ -1680,17 +1680,18 @@ function drawTeamZoom(){
 
 /* --- panel 1: turnover, costs, margin, and the two leaks underneath ----- */
 function bridgePanel(g, e, m, dead, sc){
-    /* the same four steps as the game's own P&L: what the season earned on
-       what it sold, and then, separately, what it paid for what nobody
-       bought. Charging every bag made against the bags sold hid the second
-       inside the first. */
+    /* the same order as the game's own P&L, which is the order the notes move
+       in the room: turnover in, then the fixed cost back, then what the sold
+       bags cost to make, then what the unsold ones cost. Three separate piles
+       going back rather than one, so the last of them stands alone - it is
+       the only line of the five a team could have changed. */
   const leftover = Math.max(0, g.producedTotal - g.sold);
   const rows = [
     { lab:'Sold ' + fmt(g.sold) + ' bags', v:g.turnover, cls:'pos', sign:'+' },
-    { lab:'Cost of the ' + fmt(g.sold) + ' sold', v:-g.sold * e.cost, cls:'neg', sign:'−' },
-    { lab:'Written off — ' + fmt(leftover) + ' nobody bought',
-      v:-leftover * e.cost, cls:'neg', sign:'−' },
     { lab:'Fixed costs', v:-e.fixed, cls:'neg', sign:'−' },
+    { lab:'Cost of the ' + fmt(g.sold) + ' sold', v:-g.sold * e.cost, cls:'neg', sign:'−' },
+    { lab:'Cost of the ' + fmt(leftover) + ' nobody bought',
+      v:-leftover * e.cost, cls:'neg', sign:'−' },
     { lab:'Margin', v:m, cls:m > 0 ? 'pos' : 'bad', sign:'=', rule:true }
   ];
   let html = '<div class="bridge">';

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Running the money — facilitator sheet</title>
+
+<!-- =========================================================================
+  ONE standalone file, no network. Two pages, print double-sided.
+  The numbers are the game's own: 260 forecast, 260 demanded, 1 000 € a bag,
+  200 € to make one, 120 000 € fixed. If index.html changes, this changes.
+  ========================================================================= -->
+
+<style>
+  @page{ size:A4; margin:14mm 16mm; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  :root{ --ink:#12161b; --soft:#525c68; --line:#c6ced7; --accent:#12557f;
+         --bad:#8a3115; --good:#0f6b45; }
+  body{ font-family:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+        color:var(--ink); font-size:10.2pt; line-height:1.38;
+        -webkit-font-smoothing:antialiased; }
+  @media screen{
+    body{ background:#eef1f4; }
+    .page{ width:210mm; min-height:297mm; background:#fff; margin:18px auto;
+           padding:14mm 16mm; box-shadow:0 2px 14px rgba(10,16,24,.18); }
+  }
+  /* @page already supplies the margin in print; the padding is only there to
+     make the on-screen sheet look like a sheet. Leaving both on doubled it. */
+  /* width:auto too - the 210mm is the on-screen sheet. In print the @page box
+     is already 178mm wide, and leaving the element at 210 made every
+     measurement of "does this fit" come out short. */
+  @media print{ .page{ width:auto; padding:0; min-height:0;
+                       page-break-after:always; break-after:page; }
+                .page:last-child{ page-break-after:auto; break-after:auto; } }
+
+  .wordmark{ font-size:9pt; font-weight:800; letter-spacing:.22em; }
+  .wordmark em{ font-style:normal; color:var(--accent); }
+  h1{ font-size:19pt; letter-spacing:-.01em; margin:2mm 0 1mm; }
+  h2{ font-size:11.5pt; margin:5mm 0 1.5mm; padding-bottom:1.2mm;
+      border-bottom:1.5px solid var(--line); }
+  .lede{ color:var(--soft); max-width:150mm; }
+  p{ margin:1.6mm 0; }
+  ul{ margin:2mm 0 2mm 5mm; }
+  li{ margin:.8mm 0; }
+  b.num{ font-variant-numeric:tabular-nums; }
+
+  /* the four steps, as four blocks with the money moving one way then back */
+  .steps{ margin-top:3mm; }
+  .step{ display:flex; gap:4mm; padding:2mm 0; border-top:1px solid #e2e7ec; }
+  .step:first-child{ border-top:0; }
+  .step .n{ flex:none; width:7mm; height:7mm; border-radius:50%;
+            background:var(--accent); color:#fff; font-weight:800;
+            font-size:9pt; display:flex; align-items:center;
+            justify-content:center; }
+  .step.out .n{ background:var(--good); }
+  .step.back .n{ background:var(--bad); }
+  .step h3{ font-size:10.5pt; margin-bottom:.8mm; }
+  .step .amount{ float:right; font-weight:800; font-variant-numeric:tabular-nums; }
+  .step .say{ color:var(--soft); font-style:italic; }
+
+  table{ border-collapse:collapse; width:100%; margin-top:2mm; font-size:9.4pt; }
+  th,td{ text-align:right; padding:0.9mm 2mm; border-bottom:1px solid #e2e7ec;
+         font-variant-numeric:tabular-nums; }
+  th:first-child, td:first-child{ text-align:left; }
+  th{ font-size:8pt; text-transform:uppercase; letter-spacing:.06em;
+      color:var(--soft); border-bottom:1.5px solid var(--line); }
+  tfoot td{ font-weight:800; border-top:1.5px solid var(--line); border-bottom:0; }
+
+  .box{ border:1.5px solid var(--line); border-radius:2mm; padding:3mm 3.5mm;
+        margin-top:2.5mm; }
+  .box.warn{ border-color:#d9b48a; background:#fdf8f2; }
+  .box h3{ font-size:10pt; margin-bottom:1mm; }
+  .foot{ margin-top:4mm; font-size:8pt; color:#98a0a9; }
+</style>
+
+<body>
+
+<div class="page">
+  <div class="wordmark">Where to <em>Stock</em></div>
+  <h1>Running the money</h1>
+  <p class="lede">Cash goes out to the tables while they sell, and comes back
+    in three pieces once the season is over. What is left in front of a team at
+    the end is its margin — the same five lines the screen shows, in the same
+    order, done with paper first.</p>
+
+  <h2>Setup — before week 1</h2>
+  <ul>
+    <li>Each table <b>draws a card face down</b> and types its two numbers into
+      the setup screen: target sell-through, and how much of production goes to
+      the boutiques at launch.</li>
+    <li>The cards guarantee the rule: no two tables play the same sell-through,
+      no two the same push. Nothing to police.</li>
+    <li>Say what production means before they lock it in: <b>200 € leaves the
+      company for every bag made</b>, sold or not. They are not paying it yet.
+      They will.</li>
+  </ul>
+
+  <h2>During the season — pay them as they sell</h2>
+  <p>After each week's <b>Sell</b> step, pay the table <b class="num">1 000 €</b>
+    for every bag it sold that week. The screen has the number.</p>
+  <table>
+    <thead><tr><th>Week</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th>
+      <th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>11</th><th>12</th>
+      <th>13</th></tr></thead>
+    <tbody><tr><td>Bags the season asks for</td><td>9</td><td>19</td><td>26</td>
+      <td>37</td><td>34</td><td>29</td><td>18</td><td>14</td><td>15</td>
+      <td>16</td><td>14</td><td>14</td><td>15</td></tr></tbody>
+  </table>
+  <p class="lede" style="font-size:9pt;margin-top:2mm;">Every table plays the
+    same thirteen weeks, so that is what each of them can sell if it has the
+    stock on the shelf — between <b>9&nbsp;000&nbsp;€</b> and
+    <b>37&nbsp;000&nbsp;€</b> a week. A table that serves every one of them
+    ends holding <b>260&nbsp;000&nbsp;€</b>. Nobody does.</p>
+
+  <h2>The reckoning — after week 13</h2>
+  <p>The table is holding its turnover. Take it back in this order, out loud,
+    and let them count it out themselves.</p>
+
+  <div class="steps">
+    <div class="step out"><div class="n">1</div><div style="flex:1;">
+      <h3>What you took<span class="amount">their pile</span></h3>
+      <span class="say">“That is your turnover. Every bag you sold.”</span>
+    </div></div>
+    <div class="step back"><div class="n">2</div><div style="flex:1;">
+      <h3>The fixed cost<span class="amount">− 120 000 €</span></h3>
+      <span class="say">“The boutiques, the people, the campaign. Due whether
+        you sold one bag or four hundred.”</span>
+    </div></div>
+    <div class="step back"><div class="n">3</div><div style="flex:1;">
+      <h3>The cost of what sold<span class="amount">− 200 € × sold</span></h3>
+      <span class="say">“Making the bags that found a customer. Money well
+        spent.”</span>
+    </div></div>
+    <div class="step back"><div class="n">4</div><div style="flex:1;">
+      <h3>The cost of what did not<span class="amount">− 200 € × unsold</span></h3>
+      <span class="say">“And this is the pile you made for nobody. It is gone.
+        It was gone the day you decided how many to produce.”</span>
+    </div></div>
+  </div>
+  <p style="margin-top:3mm;"><b>What is still on the table is the margin.</b>
+    Ask them to push it to the middle before you show the screen — the biggest
+    pile in the room is the winner, and everyone can already see which it is.</p>
+
+  <div class="box">
+    <h3>The screen tells the same story, in the same order</h3>
+    <p style="margin:0;color:var(--soft);">The game's P&amp;L and the debrief's
+      bridge both read turnover → fixed cost → cost of what sold → cost of what
+      did not → margin. The last deduction is the line the whole session is
+      about, and by the time it appears on screen they have already handed
+      those notes back across the table.</p>
+  </div>
+
+  <p class="foot">Where to stock · facilitator sheet · page 1 of 2</p>
+</div>
+
+<div class="page">
+  <div class="wordmark">Where to <em>Stock</em></div>
+  <h1>What to print</h1>
+  <p class="lede"><b>Before the room arrives:</b> print and cut both PDFs, sort
+    the notes into six banks — one per table — and keep the change (100 / 200 /
+    500) in a pile of your own: every payout is a multiple of 1 000 €, so the
+    small notes only appear at the end, when the tables pay 200 € a bag.
+    Sized for six tables playing to the end. Every note is on its
+    own sheet pair — fronts on one side, backs on the other — so print
+    <b>double-sided</b> and cut along the shared edges. There is nothing to trim
+    between notes.</p>
+
+  <h2>money.pdf — 12 pages, 6 denominations</h2>
+  <table>
+    <thead><tr><th>Note</th><th>Pages</th><th>Per sheet</th><th>Sheets</th>
+      <th>Notes</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>100 €</td><td>1–2</td><td>40</td><td>2</td><td>80</td><td>8 000</td></tr>
+      <tr><td>200 €</td><td>3–4</td><td>27</td><td>3</td><td>81</td><td>16 200</td></tr>
+      <tr><td>500 €</td><td>5–6</td><td>24</td><td>1</td><td>24</td><td>12 000</td></tr>
+      <tr><td>1 000 €</td><td>7–8</td><td>14</td><td>7</td><td>98</td><td>98 000</td></tr>
+      <tr><td>2 000 €</td><td>9–10</td><td>12</td><td>3</td><td>36</td><td>72 000</td></tr>
+      <tr><td>5 000 €</td><td>11–12</td><td>10</td><td>29</td><td>290</td><td>1 450 000</td></tr>
+    </tbody>
+    <tfoot><tr><td>Six tables, everything sold</td><td></td><td></td><td>45</td>
+      <td>609</td><td>1 656 200</td></tr></tfoot>
+  </table>
+  <p class="lede" style="font-size:9pt;margin-top:2mm;">Print a denomination by
+    selecting its two pages and asking for N copies, double-sided. Two guillotine
+    passes: the vertical cut, then the horizontals. The 5 000 is twice the 100
+    in both dimensions — the piles sort themselves.</p>
+
+  <div class="box warn">
+    <h3>Twenty-nine of the forty-five sheets are 5 000 € notes</h3>
+    <p style="margin:0;color:var(--soft);">Six tables ending on 260 000 € each
+      is 1.56 M€, and 5 000 is the biggest note in the set. A <b>10 000 €
+      note</b> would take the run under thirty; one line in the file.</p>
+  </div>
+
+  <h2>cards.pdf — 2 pages, 7 cards</h2>
+  <table>
+    <thead><tr><th>Card</th><th>Sell-through</th><th>Launch push</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>100%</td><td>30%</td><td></td></tr>
+      <tr><td>2</td><td>90%</td><td>50%</td><td></td></tr>
+      <tr><td>3</td><td>80%</td><td>90%</td><td></td></tr>
+      <tr><td>4</td><td>70%</td><td>40%</td><td></td></tr>
+      <tr><td>5</td><td>60%</td><td>70%</td><td></td></tr>
+      <tr><td>6</td><td>80%</td><td>60%</td><td>spare</td></tr>
+      <tr><td>7</td><td>90%</td><td>80%</td><td>spare</td></tr>
+    </tbody>
+  </table>
+  <p class="lede" style="font-size:9pt;margin-top:2mm;">Five sell-through levels
+    and seven pushes exist, so <b>five tables</b> can be distinct on both axes and
+    no more. Cards 6 and 7 keep a unique push and repeat a sell-through, and say
+    so on the face. Hand out 1–5 first.</p>
+
+  <div class="box">
+    <h3>If a table asks whether the cards are fair</h3>
+    <p style="margin:0;color:var(--soft);">They are not meant to be. The five
+      pairs are scattered on purpose: the tidy set, highest sell-through against
+      lowest push, would build a correlation into the room's results that the
+      game never put there. Five strategies get played at once and compared —
+      nobody starts even.</p>
+  </div>
+
+  <p class="foot">Where to stock · facilitator sheet · page 2 of 2</p>
+</div>

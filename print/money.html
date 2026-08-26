@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Banque du Merchandising — training money</title>
+
+<!-- =========================================================================
+  ONE standalone file, same rules as the games: no network, no build step,
+  opens from a double-clicked file://. Print it, or run print/build.mjs to
+  turn it into money.pdf.
+
+  WHAT IT PRINTS
+    Six denominations - 100, 200, 500, 1000, 2000, 5000 - each on its own
+    pair of pages: page 1 the fronts, page 2 the backs. Print DOUBLE-SIDED
+    and the backs land on the right notes.
+
+  THE LAYOUT IS A BANKNOTE'S, NOT A POSTER'S
+    Portrait centred in an engraved vignette, the issuing bank above it, the
+    value in all four corners, the words along the bottom. Type is small and
+    tracked - a note carries a lot of information quietly, and the first
+    version shouted a 15 mm numeral across the face of a 26 mm card.
+
+  THE FACES
+    Drawn rather than cartooned: skull, brow, orbit, nose, mouth, jaw, neck,
+    collar and lapels, with the vignette hatched behind them. Six of them,
+    differing by hair, glasses, beard and collar. They are invented job
+    titles, not portraits of anybody.
+
+  WHY THE SIZES ARE WHAT THEY ARE
+    The 5 000 is exactly twice the 100 in both dimensions - 98 x 52 against
+    49 x 26 - stepping through a geometric progression, so every note is
+    1.149x its neighbour and holds the same 1.885 proportion.
+
+    The top of the range is capped at 98 mm because two columns of it fill an
+    A4 exactly. Going wider would drop the 5 000 - by far the most printed
+    note - to one column and half a wasted sheet.
+
+  WHY THE GRID IS CENTRED
+    Duplex printers flip on the long edge by default, which mirrors the sheet
+    left to right; some flip on the short edge, which mirrors it top to
+    bottom. A grid centred on BOTH axes lands in the same place either way,
+    so the backs line up whatever the driver is set to. That is the only
+    reason for the outer margin - inside the block the notes butt edge to
+    edge with nothing to trim between them.
+
+  NOT MONEY, AND NOT ANYBODY'S
+    Nothing here imitates the layout, colour or imagery of any real note, and
+    both sides are marked TRAINING MONEY. The issuing bank and the six faces
+    are invented; no real company is named anywhere on the sheet.
+  ========================================================================= -->
+
+<style>
+  /* --------------------------------------------------------------- page */
+  @page{ size:A4; margin:0; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ background:#f4f5f7; }
+  body{ font-family:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+        -webkit-font-smoothing:antialiased; }
+
+  .sheet{ width:210mm; height:297mm; background:#fff; position:relative;
+          display:flex; align-items:center; justify-content:center;
+          page-break-after:always; break-after:page; }
+  .sheet:last-child{ page-break-after:auto; break-after:auto; }
+  .grid{ display:grid; }
+
+  @media screen{
+    body{ padding:18px; display:flex; flex-direction:column; gap:18px;
+          align-items:center; }
+    .sheet{ box-shadow:0 2px 14px rgba(10,16,24,.18); }
+    .sheetlabel{ position:absolute; top:-14px; left:0; font-size:11px;
+                 font-weight:800; letter-spacing:.08em; color:#6b7480;
+                 text-transform:uppercase; }
+  }
+  @media print{ .sheetlabel{ display:none; } body{ background:#fff; } }
+
+  /* --------------------------------------------------------------- note */
+  /* Notes butt against each other, so the frame is drawn INSIDE the cell and
+     two neighbours share one visible line - that line is the cut guide. The
+     second, finer rule inside it is the note's own border, the way an
+     engraved one has two. Everything is sized off --h, the note's height. */
+  .note{ position:relative; overflow:hidden; background:#fff;
+         border:0.3mm solid var(--c); }
+  .note .inner{ position:absolute; inset:calc(var(--h) * .035);
+                border:0.16mm solid var(--c); opacity:.55; pointer-events:none; }
+  .note .plate{ position:absolute; inset:calc(var(--h) * .07);
+                display:flex; flex-direction:column; align-items:center; }
+
+  /* the value, in all four corners */
+  .corner{ position:absolute; font-weight:700; color:var(--c);
+           font-variant-numeric:tabular-nums; letter-spacing:-.01em;
+           line-height:1; }
+  .corner.tl{ top:calc(var(--h) * .08); left:calc(var(--h) * .085);
+              font-size:calc(var(--h) * .085); }
+  .corner.tr{ top:calc(var(--h) * .08); right:calc(var(--h) * .085);
+              font-size:calc(var(--h) * .085); }
+  .corner.bl{ bottom:calc(var(--h) * .08); left:calc(var(--h) * .085);
+              font-size:calc(var(--h) * .058); }
+  .corner.br{ bottom:calc(var(--h) * .08); right:calc(var(--h) * .085);
+              font-size:calc(var(--h) * .058); }
+
+  .bank{ font-size:calc(var(--h) * .05); font-weight:700; letter-spacing:.22em;
+         line-height:1.1; text-transform:uppercase; color:var(--c);
+         white-space:nowrap; }
+  .house{ font-size:calc(var(--h) * .035); letter-spacing:.3em; line-height:1.1;
+          text-transform:uppercase; color:#9aa2ab; white-space:nowrap;
+          margin-top:calc(var(--h) * .01); }
+
+  .vignette{ margin-top:auto; margin-bottom:auto; }
+  /* .52, not .60: the plate is .86 of the note and the header, the name, the
+     motto and the footer take .30 of it between them. At .60 the portrait
+     pushed the footer off the paper. */
+  .vignette svg{ height:calc(var(--h) * .52); width:auto; display:block;
+                 color:var(--c); }
+
+  .who{ font-size:calc(var(--h) * .042); font-weight:700; letter-spacing:.16em;
+        line-height:1.1; text-transform:uppercase; color:#39414a;
+        white-space:nowrap; margin-top:calc(var(--h) * .018); }
+  .motto{ font-size:calc(var(--h) * .04); font-style:italic; line-height:1.1;
+          color:#8a929b; white-space:nowrap; margin-top:calc(var(--h) * .018); }
+  .foot{ margin-top:calc(var(--h) * .022); display:flex; align-items:baseline;
+         line-height:1.1; gap:calc(var(--h) * .05); white-space:nowrap; }
+  .words{ font-size:calc(var(--h) * .046); font-weight:700; letter-spacing:.14em;
+          text-transform:uppercase; color:var(--c); }
+  .training{ font-size:calc(var(--h) * .038); font-weight:700;
+             letter-spacing:.14em; text-transform:uppercase; color:#a8b0b8; }
+
+  /* ---------------------------------------------------------- note back */
+  .note.back{ background:var(--tint); }
+  .note.back .season{ margin-top:auto; width:62%; }
+  .note.back .season svg{ width:100%; height:calc(var(--h) * .30);
+                          display:block; color:var(--c); }
+  .note.back .cap{ font-size:calc(var(--h) * .035); letter-spacing:.14em;
+                   line-height:1.1; text-transform:uppercase; color:#9aa2ab;
+                   margin-top:calc(var(--h) * .018); white-space:nowrap; }
+  .note.back .foot{ margin-top:auto; }
+  /* in the flow, not pinned to the bottom: absolutely positioned it landed
+     straight on top of the footer line and printed one word over another */
+  .sig{ text-align:center; margin-top:calc(var(--h) * .03); }
+  .sig svg{ width:calc(var(--h) * .58); height:calc(var(--h) * .13);
+            display:block; color:#39414a; margin:0 auto; }
+  .sig .role{ font-size:calc(var(--h) * .033); letter-spacing:.1em;
+              line-height:1.1; text-transform:uppercase; color:#9aa2ab;
+              white-space:nowrap; margin-top:calc(var(--h) * .012); }
+</style>
+
+<body>
+<script>
+"use strict";
+
+/* ---------------------------------------------------------------- sizes */
+/* 49 x 26 up to 98 x 52 - the top note is exactly twice the bottom one in
+   both dimensions. Six steps of 2^(1/5) = 1.1487, so the jump between
+   neighbours is 15%, comfortably above the ~10% where a size difference
+   stops being noticeable. Proportion is 1.885 throughout: one family. */
+const W0 = 49, H0 = 26, STEP = Math.pow(2, 1 / 5);
+
+/* Six people, and the denomination is their seniority. The line under each
+   is where a real note carries its motto: a plain statement about the trade,
+   not a joke at the job's expense. */
+const NOTES = [
+  { v:100,  c:'#1f7a4d', tint:'#f5faf7', words:'one hundred',
+    who:'the forecaster',        motto:'A forecast is a hypothesis' },
+  { v:200,  c:'#8a6a12', tint:'#fbf9f2', words:'two hundred',
+    who:'the merchandiser',      motto:'Placed is not sold' },
+  { v:500,  c:'#6b3f8f', tint:'#f9f6fc', words:'five hundred',
+    who:'the buyer',             motto:'Choice is paid for in advance' },
+  { v:1000, c:'#12557f', tint:'#f4f8fb', words:'one thousand',
+    who:'the warehouse manager', motto:'Stock in the wrong place is not stock' },
+  { v:2000, c:'#a8541b', tint:'#fdf8f3', words:'two thousand',
+    who:'the boutique director', motto:'Demand does not travel' },
+  { v:5000, c:'#8a2f2f', tint:'#fcf6f6', words:'five thousand',
+    who:'the chief financial officer', motto:'Margin is what remains' }
+];
+NOTES.forEach(function(n, i){
+  const k = Math.pow(STEP, i);
+  n.w = +(W0 * k).toFixed(1); n.h = +(H0 * k).toFixed(1);
+});
+
+/* ============================================================== the faces */
+/* A banknote portrait is an engraving: the head is built from a skull, a brow
+   ridge, orbits, a nose with a real bridge, lips with two lines, a jaw and a
+   neck inside a collar - and it sits in a hatched oval. Everything below is
+   one 100 x 128 drawing with the hair, glasses and collar swapped out. */
+
+const VIGNETTE_ID = 'vg';
+
+/* the engraved ground: horizontal rules inside the oval, tighter at the
+   bottom, so the head sits ON something instead of floating */
+function hatching(){
+  let out = '';
+  for(let y = 6; y < 128; y += 4.5){
+    const o = (0.16 + 0.10 * (y / 128)).toFixed(3);
+    out += '<path d="M2 ' + y + 'H98" stroke="currentColor" stroke-width=".6"'
+         + ' opacity="' + o + '"/>';
+  }
+  return out;
+}
+
+const SKULL =
+    'M50 25.5c-12.8 0-21 9.6-21 22.8 0 5.6.8 11.2 2.4 16.1 1.3 4 3.1 7.5 5.2'
+  + ' 10.3 3.5 4.6 8.2 7.8 13.4 7.8s9.9-3.2 13.4-7.8c2.1-2.8 3.9-6.3 5.2-10.3'
+  + ' 1.6-4.9 2.4-10.5 2.4-16.1 0-13.2-8.2-22.8-21-22.8z';
+const COAT =
+    'M9 128c0-16.4 9-25.6 23.2-29.6l8.2-2.3 9.6 9 9.6-9 8.2 2.3C82 102.4 91'
+  + ' 111.6 91 128z';
+const EARS =
+    '<path d="M29.4 47.6c-2.8-.7-4.7 1.4-4.5 4.4.2 3.1 2.4 5.9 5.1 6.4"/>'
+  + '<path d="M70.6 47.6c2.8-.7 4.7 1.4 4.5 4.4-.2 3.1-2.4 5.9-5.1 6.4"/>';
+
+/* At 5 mm across, outlines vanish and masses survive. So the eyes are solid
+   pupils under a lid line rather than drawn almonds - the first version
+   outlined the whole eye and at note size it read as a pair of goggles - the
+   brows are short filled strokes, and the hair and the coat are filled rather
+   than described. Everything that has to be legible on a 49 mm note is a
+   shape; everything that is only there at 98 mm is a line. */
+const FEATURES =
+    /* Brows LEVEL. An inner end lower than the outer reads as worry and an
+       inner end higher reads as anger; both ends on the same line reads as
+       nothing at all, which is what a portrait on a banknote does. */
+    '<path d="M39.2 46.7c2.8-1.3 6-1.3 8.6 0" stroke-width="1.6" opacity=".85"/>'
+  + '<path d="M52.2 46.7c2.6-1.3 5.8-1.3 8.6 0" stroke-width="1.6" opacity=".85"/>'
+  + '<path d="M39.4 52.4c2.5-2.1 6.7-2.1 9.2.2"/>'
+  + '<path d="M51.4 52.6c2.5-2.3 6.7-2.3 9.2-.2"/>'
+  + '<circle cx="44" cy="54.2" r="1.6" fill="currentColor" stroke="none"/>'
+  + '<circle cx="56" cy="54.2" r="1.6" fill="currentColor" stroke="none"/>'
+    /* nose: the bridge on one side and a nostril, not a full-length rule
+       down the middle of the face ending in a hook */
+  + '<path d="M48.6 53v8.4c0 1.2-.7 2-1.9 2.5" opacity=".85"/>'
+  + '<path d="M46.8 64c2.1 1 4.3 1 6.4 0" opacity=".7"/>'
+    /* One mouth line, corners a third of a millimetre above the middle. A
+       cupid's bow drawn as two curves put the corners BELOW it and six people
+       who had just been given bad news looked out of the sheet; a flat dash
+       with a second line under it only made them look like they were bearing
+       it. This is the smallest curve that stops reading as either. */
+  + '<path d="M44.4 74.8c1.9.28 3.7.42 5.6.42s3.7-.14 5.6-.42"'
+  + ' stroke-width="1.6"/>'
+    /* cheekbone, not a fold. Long strokes running from the cheek to the jaw
+       framed every mouth in a pair of brackets. */
+  + '<path d="M36.6 59.2c.6 2.1 1.4 3.9 2.4 5.4" opacity=".25"/>'
+  + '<path d="M63.4 59.2c-.6 2.1-1.4 3.9-2.4 5.4" opacity=".25"/>';
+const NECK =
+    '<path d="M41.8 83.4c.3 5.4 0 8.6-1.4 10.6"/>'
+  + '<path d="M58.2 83.4c-.3 5.4 0 8.6 1.4 10.6"/>';
+
+/* collars - the one piece of clothing that changes with the character */
+const COLLAR = {
+  shirt:   '<path d="M40.4 96.1 50 105.1l9.6-9"/><path d="M40.4 96.1 44.6 128"/>'
+         + '<path d="M59.6 96.1 55.4 128"/>',
+  round:   '<path d="M40.4 96.1c3.4 4.6 15.8 4.6 19.2 0"/>'
+         + '<path d="M38.4 99.6c4.8 6.2 18.4 6.2 23.2 0" opacity=".5"/>',
+  high:    '<path d="M40.4 96.1 50 106.9l9.6-10.8"/>'
+         + '<path d="M43.2 94.7 50 111.1l6.8-16.4" opacity=".5"/>',
+  work:    '<path d="M40.4 96.1 50 105.1l9.6-9"/>'
+         + '<path d="M35.6 101.4 44.6 128"/><path d="M64.4 101.4 55.4 128"/>',
+  bow:     '<path d="M40.4 96.1 50 105.1l9.6-9"/><path d="M40.4 96.1 44.6 128"/>'
+         + '<path d="M59.6 96.1 55.4 128"/>'
+         + '<path d="M50 105.8 42.4 101.9v7.8zM50 105.8l7.6-3.9v7.8z"'
+         + ' fill="currentColor" fill-opacity=".85"/>'
+};
+
+const SPECTACLES =
+    '<path d="M37.8 52.6a5.5 5.5 0 1 0 11 0 5.5 5.5 0 1 0-11 0z"/>'
+  + '<path d="M51.2 52.6a5.5 5.5 0 1 0 11 0 5.5 5.5 0 1 0-11 0z"/>'
+  + '<path d="M48.8 52.6h2.4"/><path d="M37.8 51.8 30.2 50"/>'
+  + '<path d="M62.2 51.8 69.8 50"/>';
+
+/* hair as a filled mass - the one thing that tells six people apart at 5 mm */
+const HAIR = [
+  /* the forecaster - short, parted, combed back on one side */
+    'M29 51.4c-1.7-18.6 7.4-29 21-29s22.7 10.4 21 29c-1.9-9.4-5.4-15.2-11.2'
+  + '-17.1-6.2-2.1-10.6 1-17.9.7-5.8-.2-10.7 3.4-12.9 16.4z',
+  /* the merchandiser - a bob, blunt at the jaw, drawn symmetrically: the
+     first attempt grew a lobe on one side and read as a bad haircut */
+    'M28.6 76c-2-22-1.4-36 3-44 3.8-7 10.4-10.4 18.4-10.4s14.6 3.4 18.4 10.4'
+  + 'c4.4 8 5 22 3 44-1.6-1-2.4-12-2.6-22-.2-8-1.4-14.2-3.4-17.6-3.8 5-9.4 7.4'
+  + '-15.4 7.4s-11.6-2.4-15.4-7.4c-2 3.4-3.2 9.6-3.4 17.6-.2 10-1 21-2.6 22z',
+  /* the buyer - centre part, tucked behind the ears */
+    'M29.2 52.6c-1.3-18.8 8.2-30 20.8-30s22.1 11.2 20.8 30c-1.6-10.2-4.9-16.6'
+  + '-9.7-19.4-3.6-2.1-7.5-2.8-11.1-2.8s-7.5.7-11.1 2.8c-4.8 2.8-8.1 9.2-9.7'
+  + ' 19.4z',
+  /* the warehouse manager - flat cap and a short beard */
+    'M29.6 44.6c0-14.6 8.8-22.4 20.4-22.4s20.4 7.8 20.4 22.4h2.2l10 2.4c1.4.4'
+  + ' 1.2 2.4-.4 2.4l-11.8.4H27.4z',
+  /* the boutique director - hair up, chignon */
+    'M29.4 52.6c-1.4-19.4 8.2-29.2 20.6-29.2s22 9.8 20.6 29.2c-1.8-10.6-5.2'
+  + '-16.8-10.4-19-3.4-1.4-6.8-2-10.2-2s-6.8.6-10.2 2c-5.2 2.2-8.6 8.4-10.4 19z',
+  /* the chief financial officer - receding at the temples */
+    'M30.4 50.6c-.8-16.6 7.6-26.2 19.8-26.2 8.8 0 15.8 4.8 19.4 13-3.2-4.4-8.4'
+  + '-6.6-14.6-6.6-6.4 0-12.2 1.8-16.4 5.8-3.6 3.4-6.6 8.2-8.2 14z'
+];
+/* the two that carry something extra on top of the hair mass */
+const EXTRA = [
+  '', '', '<path d="M50 23.4v9.6" opacity=".45"/>',
+  /* beard, drawn as a mass under the jaw */
+  '<path d="M31.8 59.6c.8 13.4 8.4 24.6 18.2 24.6s17.4-11.2 18.2-24.6c-1.8 7.6'
+  + '-5.4 12-8.8 13.2-3.4 1.2-6.4 1.8-9.4 1.8s-6-.6-9.4-1.8c-3.4-1.2-7-5.6-8.8'
+  + '-13.2z" fill="currentColor" fill-opacity=".78" stroke-width="1.2"/>',
+  '<ellipse cx="50" cy="19.4" rx="8.8" ry="6.6" fill="currentColor"'
+  + ' fill-opacity=".85"/>', ''
+];
+const SPECS_ON = [true, false, false, false, false, true];
+const COLLARS = ['shirt', 'round', 'high', 'work', 'high', 'bow'];
+
+function portrait(i){
+  return '<svg viewBox="0 0 100 128" fill="none" stroke="currentColor"'
+    + ' stroke-width="1.25" stroke-linejoin="round" stroke-linecap="round">'
+    + '<defs><clipPath id="' + VIGNETTE_ID + '">'
+    + '<ellipse cx="50" cy="66" rx="48" ry="62"/></clipPath></defs>'
+    + '<g clip-path="url(#' + VIGNETTE_ID + ')">'
+    +   '<g stroke="none">' + hatching() + '</g>'
+    +   '<path d="' + COAT + '" fill="currentColor" fill-opacity=".10"/>'
+    +   '<path d="' + COAT + '"/>'
+    +   COLLAR[COLLARS[i]]
+    +   '<path d="' + SKULL + '" fill="#fff"/>'
+    +   NECK + EARS
+    +   '<path d="' + HAIR[i] + '" fill="currentColor" fill-opacity=".85"'
+    +     ' stroke-width="1.2"/>'
+    +   EXTRA[i]
+    +   FEATURES
+    +   (SPECS_ON[i] ? SPECTACLES : '')
+    + '</g>'
+    + '<ellipse cx="50" cy="66" rx="48" ry="62" stroke-width="1.5" opacity=".75"/>'
+    + '</svg>';
+}
+
+/* ------------------------------------------------- the season, on the back */
+/* The thirteen weeks the game actually plays, from index.html. They are
+   holding the answer all session and will not notice until the debrief. */
+const SEASON = [9, 19, 26, 37, 34, 29, 18, 14, 15, 16, 14, 14, 15];
+function seasonSVG(){
+  const W = 100, H = 26, max = Math.max.apply(null, SEASON);
+  const x = function(i){ return (i / (SEASON.length - 1)) * W; };
+  const y = function(v){ return H - (v / max) * (H - 2) - 1; };
+  let bars = '';
+  const bw = W / SEASON.length * .5;
+  SEASON.forEach(function(v, i){
+    bars += '<rect x="' + (x(i) - bw / 2).toFixed(2) + '" y="' + y(v).toFixed(2)
+          + '" width="' + bw.toFixed(2) + '" height="' + (H - 1 - y(v)).toFixed(2)
+          + '" fill="currentColor" opacity=".16"/>';
+  });
+  const line = SEASON.map(function(v, i){
+    return (i ? 'L' : 'M') + x(i).toFixed(2) + ' ' + y(v).toFixed(2); }).join('');
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none"'
+    + ' fill="none">' + bars + '<path d="' + line + '" stroke="currentColor"'
+    + ' stroke-width="1.1" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>';
+}
+
+/* a signature: one stroke, deliberately illegible, as they all are */
+const SIGNATURE = '<svg viewBox="0 0 100 26" fill="none" stroke="currentColor"'
+  + ' stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">'
+  + '<path d="M6 20c6-13 9-14 10-6.5s-1 11.5 3 11.5 5-8.5 3-13.5 1-5.5 4-1 3 9.5'
+  + ' 7 8.5 4-7.5 2-10.5 2-4 5 1 5 8.5 9 6.5 12-1"'
+  + ' vector-effect="non-scaling-stroke"/></svg>';
+
+const PAGE_W = 210, PAGE_H = 297, MARGIN = 7;
+const fmt = function(n){ return n.toLocaleString('en').replace(/,/g, ' '); };
+
+function noteHTML(n, i, back){
+  const style = '--c:' + n.c + ';--tint:' + n.tint + ';--h:' + n.h + 'mm;'
+              + 'width:' + n.w + 'mm;height:' + n.h + 'mm;';
+  const corners = '<span class="corner tl">' + fmt(n.v) + '</span>'
+                + '<span class="corner tr">' + fmt(n.v) + '</span>'
+                + '<span class="corner bl">' + fmt(n.v) + '</span>'
+                + '<span class="corner br">' + fmt(n.v) + '</span>';
+  if(!back){
+    return '<div class="note" style="' + style + '"><div class="inner"></div>'
+      + corners
+      + '<div class="plate">'
+      +   '<div class="bank">Banque du Merchandising</div>'
+      +   '<div class="house">Where to Stock</div>'
+      +   '<div class="vignette">' + portrait(i) + '</div>'
+      +   '<div class="who">' + n.who + '</div>'
+      +   '<div class="motto">' + n.motto + '</div>'
+      +   '<div class="foot"><span class="words">' + n.words + '</span>'
+      +     '<span class="training">training money</span></div>'
+      + '</div></div>';
+  }
+  return '<div class="note back" style="' + style + '"><div class="inner"></div>'
+    + corners
+    + '<div class="plate">'
+    +   '<div class="bank">Banque du Merchandising</div>'
+    +   '<div class="season">' + seasonSVG()
+    +     '<div class="cap">the thirteen weeks</div></div>'
+    +   '<div class="sig">' + SIGNATURE
+    +     '<div class="role">The Chief Forecasting Officer</div></div>'
+    +   '<div class="foot"><span class="words">' + n.words + '</span>'
+    +     '<span class="training">training money</span></div>'
+    + '</div></div>';
+}
+
+function sheet(n, i, back){
+  const cols = Math.floor((PAGE_W - 2 * MARGIN) / n.w);
+  const rows = Math.floor((PAGE_H - 2 * MARGIN) / n.h);
+  let cells = '';
+  for(let k = 0; k < cols * rows; k++) cells += noteHTML(n, i, back);
+  return '<div class="sheet"><div class="sheetlabel">' + fmt(n.v) + ' € — '
+    + (back ? 'backs' : 'fronts') + ' — ' + cols * rows + ' notes · '
+    + n.w + '×' + n.h + ' mm</div>'
+    + '<div class="grid" style="grid-template-columns:repeat(' + cols + ','
+    + n.w + 'mm);grid-template-rows:repeat(' + rows + ',' + n.h + 'mm);">'
+    + cells + '</div></div>';
+}
+
+document.body.insertAdjacentHTML('beforeend',
+  NOTES.map(function(n, i){ return sheet(n, i, false) + sheet(n, i, true); }).join(''));
+</script>

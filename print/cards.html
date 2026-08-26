@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Pick cards — target sell-through and launch push</title>
+
+<!-- =========================================================================
+  ONE standalone file, no network, no build step. Print DOUBLE-SIDED.
+
+  WHAT IT PRINTS
+    Seven cards, each carrying one pair of decisions a team types into the
+    setup screen. Page 1 the fronts, page 2 the backs - the backs are all
+    identical, so the cards can be shuffled and drawn face down.
+
+  WHY THESE SEVEN PAIRS
+    The rule asked for is that no two teams play the same sell-through and no
+    two the same push. The game offers five sell-through levels (60 to 100 in
+    tens) and seven pushes (30 to 90), so five teams can be distinct on both
+    axes and no more. Cards 1-5 are that set. Cards 6 and 7 exist for a sixth
+    and seventh table: their pushes are still unique, their sell-through
+    repeats, and they say so on the face.
+
+    The five are deliberately NOT a diagonal. Distinctness on both axes forces
+    a permutation, and the tidy one - highest sell-through with lowest push -
+    would build a correlation into the room's results that the game did not
+    put there. These five scatter across the grid instead.
+  ========================================================================= -->
+
+<style>
+  @page{ size:A4; margin:0; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ background:#f4f5f7; }
+  body{ font-family:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+        -webkit-font-smoothing:antialiased; }
+  .sheet{ width:210mm; height:297mm; background:#fff; position:relative;
+          display:flex; align-items:center; justify-content:center;
+          page-break-after:always; break-after:page; }
+  .sheet:last-child{ page-break-after:auto; break-after:auto; }
+  /* 2 x 4 of 99 x 70 mm, centred: the block lands in the same place whichever
+     edge the printer flips on, so fronts and backs meet */
+  .grid{ display:grid; grid-template-columns:repeat(2,99mm);
+         grid-template-rows:repeat(4,70mm); }
+  @media screen{
+    body{ padding:18px; display:flex; flex-direction:column; gap:18px;
+          align-items:center; }
+    .sheet{ box-shadow:0 2px 14px rgba(10,16,24,.18); }
+    .sheetlabel{ position:absolute; top:-14px; left:0; font-size:11px;
+                 font-weight:800; letter-spacing:.08em; color:#6b7480;
+                 text-transform:uppercase; }
+  }
+  @media print{ .sheetlabel{ display:none; } body{ background:#fff; } }
+
+  .card{ border:0.35mm solid #12557f; padding:7mm 8mm; position:relative;
+         display:flex; flex-direction:column; background:#fff; overflow:hidden; }
+  .card .wordmark{ font-size:3mm; font-weight:800; letter-spacing:.22em;
+                   color:#1a1f26; }
+  .card .wordmark em{ font-style:normal; color:#12557f; }
+  .card .no{ position:absolute; top:6mm; right:8mm; font-size:3mm;
+             font-weight:800; color:#98a0a9; letter-spacing:.1em; }
+
+  /* the two decisions sit on one baseline. The labels are set to fit on ONE
+     line at the widest of them - wrapped, "target sell-through" dropped its
+     numeral half a line below "launch push" and the pair stopped reading as
+     a pair. */
+  .pair{ margin:auto 0; display:flex; gap:7mm; }
+  .dec{ flex:1; min-width:0; }
+  .dec .lab{ font-size:2.2mm; font-weight:800; letter-spacing:.07em;
+             text-transform:uppercase; color:#525c68; white-space:nowrap; }
+  .dec .val{ font-size:15mm; font-weight:800; color:#12557f; line-height:1.05;
+             letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+  .card .note{ margin-top:auto; font-size:2.4mm; line-height:1.45;
+               color:#6b7480; }
+  .card.extra{ border-color:#8a6a12; }
+  .card.extra .dec .val, .card.extra .wordmark em{ color:#8a6a12; }
+
+  /* ---------------------------------------------------------- card back */
+  /* every back identical, so a shuffled deck gives nothing away */
+  /* a light frame, not a matching one: butted against each other the dark
+     backs merge into one rectangle and there is nothing to cut along */
+  .card.back{ background:#12557f; border-color:#7fb0d4; align-items:center;
+              justify-content:center; text-align:center; }
+  .card.back .wordmark{ color:#fff; font-size:4mm; }
+  .card.back .wordmark em{ color:#9fc6e2; }
+  .card.back .sub{ margin-top:3mm; font-size:2.6mm; letter-spacing:.14em;
+                   text-transform:uppercase; color:#9fc6e2; }
+  .card.back .bag{ width:22mm; height:22mm; color:#2f6ea8; margin-bottom:4mm; }
+  .card.back .bag svg{ width:100%; height:100%; display:block; }
+</style>
+
+<body>
+<script>
+"use strict";
+/* Five distinct on both axes, scattered rather than diagonal; then two spares
+   whose pushes are still unique. st = target sell-through, sp = launch push -
+   the two sliders on the setup screen, both in tens. */
+const CARDS = [
+  { st:100, sp:30 },
+  { st:90,  sp:50 },
+  { st:80,  sp:90 },
+  { st:70,  sp:40 },
+  { st:60,  sp:70 },
+  { st:80,  sp:60, extra:true },
+  { st:90,  sp:80, extra:true }
+];
+const BAG = 'M4 9h16l-1.6 11H5.6L4 9Zm4 0V7a4 4 0 0 1 8 0v2';
+
+function front(c, i){
+  return '<div class="card' + (c.extra ? ' extra' : '') + '">'
+    + '<div class="wordmark">Where to <em>Stock</em></div>'
+    + '<div class="no">' + (i + 1) + ' / ' + CARDS.length + '</div>'
+    + '<div class="pair">'
+    +   '<div class="dec"><div class="lab">Target sell-through</div>'
+    +     '<div class="val">' + c.st + '%</div></div>'
+    +   '<div class="dec"><div class="lab">Launch push</div>'
+    +     '<div class="val">' + c.sp + '%</div></div>'
+    + '</div>'
+    + '<div class="note">Type both into the setup screen before week 1. '
+    + (c.extra
+        ? 'Spare card — its push is unique, its sell-through repeats another table’s.'
+        : 'No other table has either of these numbers.')
+    + '</div></div>';
+}
+function back(){
+  return '<div class="card back">'
+    + '<div class="bag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+    + ' stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">'
+    + '<path d="' + BAG + '"/></svg></div>'
+    + '<div class="wordmark">Where to <em>Stock</em></div>'
+    + '<div class="sub">where to stock</div></div>';
+}
+/* Seven cards in a 2 x 4 grid leaves one cell over. The FRONT sheet leaves it
+   blank; the BACK sheet fills it anyway.
+
+   Which cell is the spare one moves when the sheet is flipped, and which way
+   it moves depends on whether the printer turns on the long edge or the short
+   one. A blank on the back sheet would land on a real card under one setting
+   and not the other. Printing an eighth back costs a card-sized piece of
+   paper and takes the question away. */
+document.body.insertAdjacentHTML('beforeend',
+    '<div class="sheet"><div class="sheetlabel">pick cards — fronts</div>'
+  + '<div class="grid">' + CARDS.map(front).join('') + '<div></div></div></div>'
+  + '<div class="sheet"><div class="sheetlabel">pick cards — backs</div>'
+  + '<div class="grid">' + CARDS.map(back).join('') + back() + '</div></div>');
+</script>

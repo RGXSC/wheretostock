@@ -203,10 +203,18 @@ against 116px.
 Opened from the **Zoom on margin** button beside the team chips, under
 **Overview by team**. Four beats, in order:
 
-1. **Where the money went.** Turnover, production, fixed cost, margin — then
-   two leaks stated as facts: *sales it could not serve* and *bags nobody
-   bought*. This is what separates two teams on the same margin: one lost
-   sales, the other drowned in stock.
+1. **Where the money went.** Five lines, in the order the notes move on the
+   table: turnover, then the fixed cost back, then what the sold bags cost to
+   make, then what the unsold ones cost, then the margin. Three deductions
+   rather than one, so the last stands alone — it is the only line of the five
+   a team could have changed. Then two leaks stated as facts: *sales it could
+   not serve* and *bags nobody bought*. This is what separates two teams on the
+   same margin: one lost sales, the other drowned in stock.
+
+   The order is not a presentation choice. The facilitator pays each table its
+   turnover week by week and takes it back in exactly these three pieces at
+   the end (`PRINT-SPEC.md` §1), and a screen that reordered them would
+   contradict what the room had just done with its hands.
 2. **Which bag, which boutique.** The game board as a grid — five bags by
    Paris / Tokyo / warehouse, one unit scale shared across every team loaded, so
    stepping ‹ › between teams compares like with like.
