@@ -190,6 +190,13 @@
   .tri .trow b{ flex:1 1 auto; margin-left:7px; font-size:11px; font-weight:700;
                 text-align:right; line-height:1.15;
                 font-variant-numeric:tabular-nums; white-space:nowrap; }
+  /* a heading that carries a mark: the icon sizes off the heading and never
+     wraps away from the first word */
+  /* a bag's mark and its name are one line. Squeezed by a wide neighbouring
+     column, "Calanque" wrapped under its own icon and the row grew 20px. */
+  td.bagcell{ white-space:nowrap; }
+  h2.withmark{ display:flex; align-items:center; gap:10px; }
+  h2.withmark svg{ width:1.15em; height:1.15em; flex:none; color:var(--accent); }
   .dlegend i.sw{ display:inline-block; width:12px; height:9px; border-radius:2px;
                  margin-right:6px; vertical-align:0; }
   /* The walk card used to name the colours in words ("Grey is the plan"),
@@ -304,20 +311,6 @@
   table.flip tr.need th, table.flip tr.miss th{ color:var(--bad); }
   table.flip tr.sent th{ color:var(--good); }
   table.flip tr.tot td, table.flip tr.tot th{ border-top:2px solid var(--line-soft); }
-  .focuscard.good{ border-color:#8fc2a2; }
-  .focuscard.good .big{ color:var(--good); }
-  #demand-table{ overflow-x:auto; }
-  .focusbox{ display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
-             gap:18px; margin-top:16px; }
-  .focuscard{ border:2px solid var(--line-soft); border-radius:var(--radius); padding:16px 18px; }
-  .focuscard.left{ border-color:var(--spare); }
-  .focuscard.away{ border-color:var(--miss); }
-  .focuscard h4{ font-size:15px; font-weight:800; color:var(--ink-soft);
-                 text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
-  .focuscard .big{ font-size:34px; font-weight:800; line-height:1.05; }
-  .focuscard.left .big{ color:#9a6410; }
-  .focuscard.away .big{ color:var(--miss); }
-  .focuscard p{ font-size:15px; margin-top:8px; }
 
   /* ------------------------------------------------------------- matrix */
   /* "safe center" so a matrix wider than the card scrolls from its first
@@ -551,7 +544,14 @@
     <div id="limit-body"></div>
   </div>
   <div class="card hidden" id="flex-card">
-    <h2>What flexible production capacity can</h2>
+    <h2 class="withmark"><svg viewBox="0 0 24 24" aria-hidden="true"
+      ><!-- a factory line, because the room keeps hearing "pool" as a
+             warehouse full of stock. This is line time, not shelves. -->
+      <path d="M3 20V11l5 3V11l5 3V11l5 3V6h3v14H3Z" fill="none"
+            stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M6 20v-3M11 20v-3M16 20v-3" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round"/>
+    </svg>What flexible production capacity can</h2>
     <p class="small muted" style="margin-top:0;" id="flex-lead"></p>
     <div class="picks" style="margin-top:14px;">
       <div class="pick">
@@ -961,7 +961,7 @@ function renderBoard(){
         + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
         + '<th>Season</th></tr></thead><tbody>';
   BAGS.forEach(function(b, i){
-    h += '<tr><td>' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
+    h += '<tr><td class="bagcell">' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
        + FORECAST[i].map(function(v){ return '<td>' + cell(v, maxCell, b.color) + '</td>'; }).join('')
        + '<td><b class="num">' + fmt(F_BAG[i]) + '</b></td></tr>';
   });
@@ -1287,7 +1287,7 @@ function renderGrid(){
      + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
      + '<th>Season</th></tr></thead><tbody>';
   BAGS.forEach(function(b, i){
-    h += '<tr><td>' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>';
+    h += '<tr><td class="bagcell">' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>';
     BOUTIQUES.forEach(function(c, j){
       const hit = w && w.i === i ? (w.lo.j === j ? ' class="hit-left"'
                                   : w.hi.j === j ? ' class="hit-away"' : '') : '';
@@ -1365,53 +1365,6 @@ function seasonBelow(){
   fitBars(host);
 }
 
-/* The two followed cases, drawn the same way on both slides so the change
-   between them is the only thing that moves. `after` adds what the warehouse
-   sent and what that leaves. */
-function followCards(after){
-  const i = FOLLOW.i, x = runBag(i, stPick, spPick);
-  /* Every state gets a sentence that is true in it. At a light push nothing
-     is stranded and the warehouse covers every gap, and BOTH cards then read
-     as successes — which is exactly the lesson, not an empty slot. */
-  const card = function(j, kind){
-    const given = x.push[j], want = DEMAND[i][j], shelf = x.sold[j];
-    const sent = after ? x.servedBy[j] : 0;
-    const away = after ? x.lostBy[j] : x.short[j];
-    const left = given - shelf;
-    let tone, big, note;
-    if(kind === 'left'){
-      if(left > 0){
-        tone = 'left'; big = fmt(left) + ' left over';
-        note = fmtE(left * ECON.cost) + ' of stock'
-             + (after ? ' — the warehouse cannot take it back' : '');
-      }else{
-        tone = 'good'; big = 'nothing stranded';
-        note = 'all ' + fmt(given) + ' sold where they were placed';
-      }
-    }else{
-      if(away > 0){
-        tone = 'away'; big = fmt(away) + ' turned away';
-        note = (sent ? fmt(sent) + ' sent from the warehouse, ' : '')
-             + fmtE(away * ECON.price) + ' still lost';
-      }else if(sent > 0){
-        tone = 'good'; big = 'nothing lost';
-        note = 'all ' + fmt(sent) + ' shipped from the warehouse as it ran out';
-      }else if(x.short[j] > 0){
-        tone = 'away'; big = fmt(x.short[j]) + ' short on the shelf';
-        note = fmtE(x.short[j] * ECON.price) + ' waiting on the warehouse';
-      }else{
-        tone = 'good'; big = 'never ran out';
-        note = 'the shelf covered all ' + fmt(want) + ' on its own';
-      }
-    }
-    return '<div class="focuscard ' + tone + '">'
-         + '<h4>' + esc(BOUTIQUES[j]) + ' · given ' + fmt(given)
-         + ', asked for ' + fmt(want) + '</h4>'
-         + '<div class="big">' + big + '</div><p>' + note + '</p></div>';
-  };
-  return '<div class="focusbox">' + card(FOLLOW.a, 'left') + card(FOLLOW.b, 'away') + '</div>';
-}
-
 /* =========================================================================
    5. YOUR COMBINATION — one season, played out
    ========================================================================= */
@@ -1474,7 +1427,7 @@ function renderPlacement(){
   BAGS.forEach(function(b, i){
     const x = rows[i];
     h += '<tr>'
-       + '<td>' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
+       + '<td class="bagcell">' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
        + '<td><b class="num">' + fmt(x.production) + '</b></td>'
        + x.push.map(function(v){
            return '<td>' + cell(v, maxCell, b.color) + '</td>'; }).join('')
@@ -1566,9 +1519,6 @@ function testCombo(){
     fitBars(host0);
     return;
   }
-  h += '<h3 style="margin-top:22px;">' + esc(BAGS[FOLLOW.i].name)
-     + ', the two we have been following</h3>' + followCards(true);
-
   h += '<h3 style="margin-top:22px;">All five bags, summed across the five boutiques</h3>';
   h += '<table class="grid" style="margin-top:10px;"><thead><tr><th>Bag</th>'
      + '<th>Made</th><th>To boutiques</th><th>Warehouse</th><th>Demand</th>'
@@ -1584,7 +1534,7 @@ function testCombo(){
     const x = r.bags[i];
     const away = whUsed ? x.lost : x.shortTot;
     const left = whUsed ? x.left : x.production - x.soldAtLaunch;
-    h += '<tr><td>' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
+    h += '<tr><td class="bagcell">' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
        + '<td>' + cell(x.production, maxProd, '#9aa7b3') + '</td>'
        + '<td>' + cell(x.pushTotal, maxProd, b.color) + '</td>'
        + '<td>' + cell(x.central, maxProd, '#9aa7b3') + '</td>'
@@ -1735,7 +1685,7 @@ function renderLimit(){
     const sold = Math.min(prod, D_BAG[i]);
     const l = D_BAG[i] - sold, o = prod - sold;
     lost += l; left += o; made += prod;
-    h += '<tr><td>' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
+    h += '<tr><td class="bagcell">' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
        + '<td>' + cell(F_BAG[i], maxV, '#9aa7b3') + '</td>'
        + '<td>' + fmt(prod) + '</td>'
        + '<td>' + cell(D_BAG[i], maxV, b.color) + '</td>'
@@ -1793,10 +1743,11 @@ function renderFlexSlide(){
 function renderFlex(){
   const f = computeFlex(stPick, spPick), r = rigidTotals(stPick, spPick);
   el('flex-lead').innerHTML =
-      'Everything you hold back splits in two. <b>50%</b> stays as that bag\'s own '
-    + 'central reserve. The other <b>50%</b> joins a <b>shared capacity pool</b> — '
-    + 'production capacity assigned to no bag in advance, that any of the five can '
-    + 'call on. Reserved capacity is only made, and only paid for, if a shortage '
+      'Everything you hold back splits in two. <b>50%</b> stays in that bag\'s own '
+    + '<b>warehouse</b>. The other <b>50%</b> becomes a <b>shared production '
+    + 'capacity pool</b> — a slot on the production line, assigned to no bag in '
+    + 'advance, that any of the five can call on. It is not stock sitting '
+    + 'anywhere: it is only manufactured, and only paid for, if a shortage '
     + 'actually calls on it.';
 
   const unit = Math.max(1, Math.max.apply(null, f.rows.map(function(x){
@@ -1811,11 +1762,12 @@ function renderFlex(){
      drew 43 of the 80 and Doriane drew none. In and out, side by side, and
      the last column is what was still lost after both. */
   let h = '<table class="grid"><thead><tr><th>Bag</th><th>Committed</th>'
-        + '<th>To the boutiques</th><th>Its own reserve</th>'
-        + '<th>Into the shared pool</th><th>Drawn from the pool</th>'
+        + '<th>To the boutiques</th><th>Its own warehouse</th>'
+        + '<th>Into the production pool</th><th>Drawn from the pool</th>'
         + '<th>Real demand</th><th>Still lost</th></tr></thead><tbody>';
   f.rows.forEach(function(x, i){
-    h += '<tr><td>' + bagIcon(i, 16) + ' <b>' + esc(x.name) + '</b></td>'
+    h += '<tr><td class="bagcell">' + bagIcon(i, 16)
+       + ' <b>' + esc(x.name) + '</b></td>'
        + '<td><b class="num">' + fmt(x.production) + '</b></td>'
        + '<td>' + cell(x.pushed, unit, x.colour) + '</td>'
        + '<td>' + cell(x.central, unit, '#9aa7b3') + '</td>'
@@ -1849,16 +1801,17 @@ function renderFlex(){
   const gain = f.margin - r.margin;
   el('flex-vs').innerHTML = '<div class="vs">'
     + box('Rigid capacity — today', r, false)
-    + box('With a shared capacity pool', f, gain > 0)
+    + box('With a shared production capacity pool', f, gain > 0)
     + '</div>'
     + '<p class="small muted" style="margin-top:10px;">'
     + (f.capTot
-        ? 'The shared capacity pool held <b>' + fmt(f.capTot) + '</b> pieces, assigned to '
-          + 'no bag. <b>' + fmt(f.used) + '</b> were called on and made — '
+        ? 'The shared production capacity pool held <b>' + fmt(f.capTot) + '</b> pieces '
+          + 'of line time, assigned to no bag. <b>' + fmt(f.used) + '</b> were called on and made — '
           + f.rows.filter(function(x){ return x.drawn; })
               .map(function(x){ return esc(x.name) + ' took ' + fmt(x.drawn); }).join(', ')
           + ' — and <b>' + fmt(spare) + '</b> never existed and cost nothing. '
-        : 'Everything went to the boutiques at launch, so there was nothing left to keep flexible. ')
+        : 'Everything went to the boutiques at launch, so there was no warehouse and no '
+          + 'production left to keep flexible. ')
     + (gain > 0 ? '<b class="up">' + fmtE(gain) + ' better</b> than committing the same production up front.'
                 : 'No better than committing it up front here.')
     + '</p>';

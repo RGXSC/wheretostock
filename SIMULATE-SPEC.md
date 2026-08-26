@@ -178,14 +178,13 @@ Netted, the season reads *71 short* and sounds like a volume problem. Added,
 it reads **650 planned, 650 demanded, 198 short and 127 spare** — the whole
 argument of the page in one cell.
 
-**One bag and two boutiques are followed under the grid**, chosen from the
-setup rather than fixed, because the interesting pair moves with the sliders.
-What is wanted is one boutique sitting on stock the season did not want and
-one still missing sales after the warehouse has done all it can. At a light
-push neither exists — nothing is stranded and the warehouse covers every gap —
-and both cards then read as successes, which is the lesson rather than an
-empty slot. At 90/80 it lands on Aveline in Paris and Tokyo: given 65 and 54,
-asked for 40 and 101.
+**Nothing follows the grid but the roll-up and the P&L.** A pair of focus
+cards used to sit there, restating one bag's two interesting boutiques in
+words and a big number. Once the grid taught the room to read a cell — the
+spotlight walk, the figures per segment, the taller bars — the cards were
+saying in prose what two cells of the table above were already saying in
+colour. `FOLLOW` survives: it still picks which row the walk teaches and which
+two cells are ringed in the grid.
 
 Every table on the page puts the **boutiques across the top** — the axis they
 have on the board, on the demand grid and on the placement table — because
@@ -442,17 +441,23 @@ everything else. There is **no premium**. That is the original's model, and it
 is why the gain is as large as it is — worth saying out loud rather than
 leaving someone to find it.
 
-**The vocabulary is fixed.** It is *flexible production capacity*, and the
-thing the five bags share is the **shared capacity pool**. The split is
-written **50%**, never "half": a room hears "half" as a rough proportion and
-"50%" as a rule, and this one is a rule.
+**The vocabulary is fixed, and it says *production*.** What a bag keeps for
+itself is its **warehouse** — a real place with real stock in it. What the
+five share is the **shared production capacity pool**: a slot on the line,
+assigned to no bag, holding nothing. Called just "the pool" or "its reserve",
+a room hears a second warehouse full of stock, which is the one thing it is
+not. The heading carries a small factory mark for the same reason.
+
+The split is written **50%**, never "half": a room hears "half" as a rough
+proportion and "50%" as a rule, and this one is a rule.
 
 **The pool is attributed per bag, not just totalled.** The table said what
 each bag put *into* the pool and what it was *still short* — which left the
 pool itself invisible, since nothing on screen showed it being used. It now
-carries two columns, **Into the shared pool** and **Drawn from the pool**, and
-the last column is **Still lost**: what the pool could not cover. The summary
-line names who took what.
+carries two columns, **Into the production pool** and **Drawn from the pool**,
+and the last column is **Still lost**: what the pool could not cover. The
+column before them is **Its own warehouse**. The summary line names who took
+what.
 
 The pool is drawn against total shortage, so a bag's share of it is
 apportioned by **largest remainder**:
