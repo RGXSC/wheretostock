@@ -131,9 +131,14 @@ surplus — four figures where a cell wants three. What the warehouse **sent**
 is never dropped: a green segment with no green figure beside it is exactly
 the failure this line exists to fix.
 
-**The bars are 10px**, and there is nothing under the grid to make room for
-(below). At 6px a bar made of three segments and two gaps is not a bar, it is
-a smudge.
+**The bars are 16px and the three of them sit flush**, with the whitespace
+between cells rather than between the bars inside one cell. There is nothing
+under the grid to make room for (below), and the slide had 150px of unused
+space beneath the table at 1400×940. At 6px a bar made of three segments and
+two gaps is not a bar, it is a smudge; at 10px it was legible and no more.
+Flush rows also group the three bars as one reading, which is what they are.
+The cost: the grid needs 929px of page instead of 869, so a 1280×800 screen
+scrolls ~130px on this slide. 1400×940 and 1920×1080 still fit whole.
 
 ## The colours
 
@@ -185,6 +190,25 @@ asked for 40 and 101.
 Every table on the page puts the **boutiques across the top** — the axis they
 have on the board, on the demand grid and on the placement table — because
 summing that axis away is exactly where the thread the room is holding breaks.
+
+## The spotlight card shows the colour, it does not name it
+
+The cards used to say *"Grey is the plan … Navy is what the season actually
+asked for … 40 red"*, which asks a room looking at a bar to translate a colour
+word back into that bar. Each card now carries **a swatch of the segment
+itself**, built from the same class names as the bars, so there is one palette
+and no second list of hexes to drift.
+
+The swatches are 26×11px — bar-shaped, not dots — and each carries a 1px
+hairline, because the card sits on near-black `--ink` and `--real` navy would
+otherwise be invisible on it.
+
+The trap here is a swatch that is *not* the colour on screen: the first
+version offered green for "served off the shelf" while the third bar is still
+navy at that beat — green only appears once the warehouse ships, two beats
+later. `swatch.mjs` checks all 268 swatches across the three cards of all
+forty combinations against the classes actually drawn in the cells each card
+points at, and checks no card names a colour in words any more.
 
 ## The spotlight
 
@@ -364,7 +388,15 @@ Matrix squares are drawn in three tiers rather than a gradient — the best,
 everything within 5% of it, and the rest — because what a room needs from
 that table is where the good region is, not a reading of every square.
 
-## 4. The Monte Carlo — moved out
+## 4. The Monte Carlo — moved out, and handed over
+
+**The last slide ends by giving the player away.** A QR code and the URL, under
+*"Play a full season yourself"* — an instruction, not a label. It used to sit
+on its own slide; it belongs at the end of the matrix, because the matrix is
+where a room starts wanting to change something the deck cannot change.
+
+It is read off a phone, so `play.html` has a phone layout — `PLAY-SPEC.md` §1.
+
 
 It was slide 8 and it is now the whole of `play.html`. A twenty-second
 simulation is the wrong thing to make a room watch when the same page is
@@ -384,7 +416,7 @@ Per bag, everything held back from the launch splits in two:
 
     pool    = production − pushed to the boutiques
     central = ceil(pool / 2)     this bag's OWN reserve
-    flex    = pool − central     joins ONE pool shared by all five
+    flex    = pool − central     joins the SHARED CAPACITY POOL
 
 Sales resolve in three waves: shelf stock, then the bag's own reserve, then
 the shared pool — which serves whichever bag turns out to need it, because it
@@ -399,6 +431,42 @@ paid for**. Reserving costs nothing; only using it does, at the same 200 € as
 everything else. There is **no premium**. That is the original's model, and it
 is why the gain is as large as it is — worth saying out loud rather than
 leaving someone to find it.
+
+**The vocabulary is fixed.** It is *flexible production capacity*, and the
+thing the five bags share is the **shared capacity pool**. The split is
+written **50%**, never "half": a room hears "half" as a rough proportion and
+"50%" as a rule, and this one is a rule.
+
+**The pool is attributed per bag, not just totalled.** The table said what
+each bag put *into* the pool and what it was *still short* — which left the
+pool itself invisible, since nothing on screen showed it being used. It now
+carries two columns, **Into the shared pool** and **Drawn from the pool**, and
+the last column is **Still lost**: what the pool could not cover. The summary
+line names who took what.
+
+The pool is drawn against total shortage, so a bag's share of it is
+apportioned by **largest remainder**:
+
+    drawn_i = floor(short_i × used / short_total), then the leftover units go
+              to the largest fractional parts
+
+Integer floors alone lose units and the columns stop summing. `poolswitch.mjs`
+checks, over all forty combinations, that the drawn column sums to exactly the
+pool used, that `drawn + lost = short` per bag, and that no bag draws more
+than it was short.
+
+**A switch on the last slide, over the whole field.** The pool is argued on
+one combination on slide 4; on slide 5 a tick-box — *production capacity pool
+at 50% of everything not in the boutiques at launch* — re-reads every square
+that has been played. It exists because the interesting fact is not that the
+numbers go up, it is that **the best square moves, 90/30 → 100/30**: holding
+more back stops being a bet once the capacity is not committed to one bag.
+The read-out says so explicitly, naming the rigid optimum it moved away from.
+
+The switch never plays a square nobody played. It re-reads the cache; it does
+not fill it. And there is no second cache: `computeFlex` is deterministic and
+costs a few hundred operations, so forty squares re-read instantly and there
+is nothing to fall out of step with the rigid cache.
 
 **One thing deliberately not copied.** The original splits the launch *flat*
 across its five stores, because it has no store-level forecast to split by:

@@ -296,6 +296,7 @@
   .bar i{ display:block; height:100%; background:var(--accent); width:0; transition:width .1s linear; }
   .runline{ font-size:15px; font-weight:700; color:var(--ink-soft); margin-top:8px;
             font-variant-numeric:tabular-nums; }
+  .runrow{ display:flex; gap:12px; margin-top:18px; flex-wrap:wrap; }
 
   /* ---------------------------------------------------------- the prices */
   /* The only two knobs on this page that change nothing about the seasons:
@@ -307,6 +308,52 @@
   .costs .mcfield{ min-width:0; }
   .costnote{ grid-column:1 / -1; margin:0; font-size:13px; color:var(--ink-soft); }
   @media (max-width:760px){ .costs{ grid-template-columns:1fr; } }
+
+  /* ------------------------------------------------------------- phones */
+  /* This page is reached by scanning a QR code off a slide, so most of the
+     people who ever open it will open it on a phone. Desktop type at 17px and
+     desktop spacing made the controls 990px tall before the Run button - you
+     scrolled past a screen and a half of sliders to reach the thing that
+     starts it - and after a run the 520px matrix pushed the whole PAGE
+     sideways instead of scrolling inside its own frame. */
+  @media (max-width:620px){
+    body{ font-size:15px; }
+    h1{ font-size:22px; } h2{ font-size:18px; } h3{ font-size:15px; }
+    .wrap{ padding:0 12px; }
+    main.wrap{ padding:14px 12px 90px; }
+    .card{ padding:14px 14px; }
+    .topbar-inner{ padding:9px 12px; gap:10px; }
+    .mcform{ grid-template-columns:1fr; gap:11px; }
+    .mcfield label{ font-size:11px; }
+    /* the concentration curves are a sanity check, not the argument */
+    .shape svg{ height:42px; }
+    .hint{ font-size:12px; }
+    .btn-xl{ font-size:17px; padding:12px 18px; }
+    .costs{ padding:12px 13px; gap:10px; }
+    /* ONE column, and min-width:0 so the grid cell may be narrower than the
+       table inside it - without that the track keeps the matrix's full width
+       and the page scrolls sideways instead of the frame */
+    .matrices{ grid-template-columns:1fr; gap:14px; }
+    .matrices > div{ min-width:0; }
+    .mwrap{ justify-content:flex-start; -webkit-overflow-scrolling:touch; }
+    table.matrix{ border-spacing:3px; }
+    table.matrix td{ min-width:58px; height:38px; }
+    .mcell .v{ font-size:12.5px; }
+    table.matrix th{ font-size:11px; }
+    .axis-y{ font-size:10px; }
+    .mlegend{ font-size:12px; gap:10px; }
+    .runline{ font-size:13.5px; }
+    /* Run sticks to the bottom of the screen. Even tightened, the controls
+       are 800px tall on a phone and the button that starts the thing was
+       below all of them: you set a slider, then scrolled a screen to find
+       Run, then scrolled back to see what you had changed. */
+    .runrow{ position:sticky; bottom:0; z-index:5; margin:14px -14px 0;
+             padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+             background:rgba(255,255,255,.94);
+             backdrop-filter:blur(6px);
+             border-top:2px solid var(--line-soft); }
+    .runrow .btn-xl{ flex:1; max-width:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -382,7 +429,7 @@
         land close and a few miss enormously. The overall error stays where the first
         slider put it, so only the shape moves.</p>
     </details>
-    <div style="display:flex;gap:12px;margin-top:18px;flex-wrap:wrap;">
+    <div class="runrow">
       <button class="btn-primary btn-xl" id="btn-mc" style="max-width:300px;">Run</button>
       <button class="btn-ghost" id="btn-mc-stop" disabled>Stop</button>
     </div>

@@ -52,6 +52,24 @@ Nothing else. No export, no persistence, no localStorage — the same reasoning
 as the deck: this is a thing to play with, not a game with results to collect.
 `index.html` and `summary.html` own that.
 
+**It has to work on a phone.** The deck hands this page out as a QR code on
+its last slide, so most of the people who ever open it open it on a phone held
+in one hand. Under 620px:
+
+- the four world controls and the two matrices **stack** instead of sitting
+  side by side;
+- the matrices keep their real column widths and **scroll inside their own
+  frame** — `.matrices > div { min-width: 0 }` is what stops a 700px table
+  pushing the whole *page* sideways, which it did;
+- **Run is sticky to the bottom** of the viewport, over a translucent bar with
+  `env(safe-area-inset-bottom)` padding, so it is reachable while the inputs
+  at the top of the page are being set rather than after a scroll back down.
+
+`phonefit.mjs` checks all of that at 390×844 and 360×740: no page-level
+horizontal scroll before or after a run, no element reaching past the viewport
+that has no scrolling ancestor to absorb it, the matrix scrolling inside its
+frame, the matrices stacked, and Run on screen while the inputs are in view.
+
 ## 2. Why the flex cost is a slider, and why it sits where it does
 
 It was asked for as *"always visible, 0 to 30% of product cost, step of 5%"*,

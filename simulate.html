@@ -168,14 +168,14 @@
      visible rather than quietly absorbed. */
   /* 10px bars, not 6. With nothing under the grid the slide has the room, and
      a bar made of three segments and two gaps is not readable at 6px. */
-  .tri .trow{ display:flex; align-items:center; gap:0; min-height:15px; margin:1px 0; }
-  .tri .trow.out{ min-height:13px; }
+  .tri .trow{ display:flex; align-items:center; gap:0; min-height:19px; margin:0; }
+  .tri .trow.out{ min-height:18px; }
   /* the outcome figures, on their own line and across the whole cell */
   .onums{ display:block; text-align:right; line-height:1.1; margin-top:1px;
           font-size:11px; font-weight:700; white-space:nowrap;
           font-variant-numeric:tabular-nums; }
   .tri .trow .bars{ flex:0 0 54%; display:flex; align-items:center; min-width:0; }
-  .tri .trow i{ display:block; flex:none; height:10px; border-radius:2px; min-width:1px; }
+  .tri .trow i{ display:block; flex:none; height:16px; border-radius:2px; min-width:1px; }
   /* 2px, not 1: the gap is what separates two segments when a viewer cannot
      tell their colours apart, so it has to be visible at 6px tall */
   .tri .trow i + i{ margin-left:2px; }
@@ -192,6 +192,18 @@
                 font-variant-numeric:tabular-nums; white-space:nowrap; }
   .dlegend i.sw{ display:inline-block; width:12px; height:9px; border-radius:2px;
                  margin-right:6px; vertical-align:0; }
+  /* The walk card used to name the colours in words ("Grey is the plan"),
+     which asks the room to translate a word into a bar while looking at the
+     bar. It shows the colour instead. On the near-black card the navy would
+     vanish, so every swatch carries a hairline so it reads as a block whatever
+     colour is inside it. */
+  .spot-card i.sw{ display:inline-block; width:26px; height:11px; border-radius:2px;
+                   vertical-align:-1px; margin-right:2px;
+                   box-shadow:inset 0 0 0 1px rgba(255,255,255,.55); }
+  i.sw.plan{ background:var(--plan); }
+  i.sw.real, i.sw.sold{ background:var(--real); }
+  i.sw.miss{ background:var(--miss); }  i.sw.spare{ background:var(--spare); }
+  i.sw.sent{ background:var(--sent); }
   /* the parts of a cell, named once above the table */
   .dlegend{ display:flex; gap:18px; flex-wrap:wrap; margin:0 0 12px; font-size:13px;
             font-weight:700; color:var(--ink-soft); }
@@ -206,6 +218,16 @@
   /* Once the answer is on screen the question stops competing for attention
      without disappearing - the room can still point at it. */
   .card.dim{ opacity:.62; }
+
+  /* ------------------------------------------------------------- switch */
+  .switch{ display:flex; align-items:center; gap:11px; margin-top:14px;
+           padding:11px 14px; border:2px solid var(--line); border-radius:10px;
+           cursor:pointer; font-size:15px; color:var(--ink-soft); }
+  .switch:has(input:checked){ border-color:var(--good); background:#f2f8f4;
+                              color:var(--ink); }
+  .switch input{ width:20px; height:20px; flex:none; accent-color:var(--good);
+                 cursor:pointer; }
+  .switch b{ color:var(--ink); }
 
   /* ------------------------------------------------------- the spotlight */
   /* Lifted from the game's step-by-step guide, renamed on the way in. The
@@ -486,6 +508,14 @@
       <button class="btn-primary" id="btn-test2">Test another combination</button>
       <button class="btn-ghost hidden" id="btn-fill">Test all combinations</button>
     </div>
+    <!-- The pool was argued on one combination two slides ago. Here it can be
+         switched on and off over the whole field, which is the only way to see
+         that it moves the BEST square and not just the numbers in it. -->
+    <label class="switch" id="pool-switch">
+      <input type="checkbox" id="ck-pool">
+      <span>Production capacity pool — <b>50%</b> of everything not in the
+        boutiques at launch, shared across the five bags</span>
+    </label>
     <div style="margin-top:12px;" class="matrices">
       <div><h3 style="margin-bottom:8px;">Turnover</h3><div class="mwrap" id="mx-t"></div></div>
       <div><h3 style="margin-bottom:8px;">Margin</h3><div class="mwrap" id="mx-m"></div></div>
@@ -500,9 +530,10 @@
   <div class="takeaway">
     <svg class="qr" viewBox="-4 -4 41 41" width="150" height="150" role="img" aria-label="QR code linking to the standalone simulator" shape-rendering="crispEdges"><rect x="-4" y="-4" width="41" height="41" fill="#fff"/><path fill="#12161b" d="M0 0h7v1h-7zM8 0h4v1h-4zM15 0h5v1h-5zM21 0h4v1h-4zM26 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM8 1h2v1h-2zM15 1h1v1h-1zM17 1h3v1h-3zM22 1h3v1h-3zM26 1h1v1h-1zM32 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM8 2h2v1h-2zM11 2h1v1h-1zM13 2h3v1h-3zM19 2h1v1h-1zM23 2h2v1h-2zM26 2h1v1h-1zM28 2h3v1h-3zM32 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM8 3h1v1h-1zM15 3h2v1h-2zM18 3h1v1h-1zM22 3h2v1h-2zM26 3h1v1h-1zM28 3h3v1h-3zM32 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM13 4h1v1h-1zM17 4h3v1h-3zM21 4h1v1h-1zM23 4h2v1h-2zM26 4h1v1h-1zM28 4h3v1h-3zM32 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM9 5h1v1h-1zM12 5h2v1h-2zM16 5h2v1h-2zM19 5h1v1h-1zM22 5h3v1h-3zM26 5h1v1h-1zM32 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM24 6h1v1h-1zM26 6h7v1h-7zM8 7h1v1h-1zM13 7h1v1h-1zM15 7h1v1h-1zM17 7h5v1h-5zM1 8h2v1h-2zM4 8h1v1h-1zM6 8h2v1h-2zM9 8h1v1h-1zM11 8h3v1h-3zM16 8h2v1h-2zM20 8h2v1h-2zM23 8h2v1h-2zM26 8h1v1h-1zM28 8h5v1h-5zM0 9h6v1h-6zM7 9h1v1h-1zM12 9h1v1h-1zM15 9h2v1h-2zM21 9h1v1h-1zM24 9h4v1h-4zM31 9h2v1h-2zM1 10h1v1h-1zM5 10h2v1h-2zM9 10h2v1h-2zM13 10h2v1h-2zM16 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM25 10h1v1h-1zM27 10h1v1h-1zM30 10h3v1h-3zM0 11h1v1h-1zM4 11h2v1h-2zM8 11h2v1h-2zM11 11h3v1h-3zM17 11h1v1h-1zM21 11h1v1h-1zM26 11h1v1h-1zM28 11h1v1h-1zM32 11h1v1h-1zM1 12h2v1h-2zM5 12h4v1h-4zM10 12h1v1h-1zM12 12h3v1h-3zM18 12h1v1h-1zM21 12h1v1h-1zM24 12h3v1h-3zM29 12h1v1h-1zM31 12h2v1h-2zM3 13h3v1h-3zM8 13h1v1h-1zM10 13h2v1h-2zM13 13h1v1h-1zM15 13h1v1h-1zM17 13h1v1h-1zM20 13h2v1h-2zM24 13h1v1h-1zM26 13h1v1h-1zM29 13h2v1h-2zM32 13h1v1h-1zM1 14h4v1h-4zM6 14h4v1h-4zM12 14h1v1h-1zM17 14h2v1h-2zM20 14h2v1h-2zM25 14h1v1h-1zM28 14h1v1h-1zM30 14h3v1h-3zM0 15h4v1h-4zM7 15h1v1h-1zM9 15h1v1h-1zM13 15h2v1h-2zM16 15h1v1h-1zM18 15h2v1h-2zM21 15h2v1h-2zM26 15h1v1h-1zM31 15h1v1h-1zM0 16h1v1h-1zM6 16h1v1h-1zM13 16h3v1h-3zM19 16h3v1h-3zM25 16h2v1h-2zM0 17h1v1h-1zM2 17h1v1h-1zM4 17h1v1h-1zM7 17h1v1h-1zM9 17h3v1h-3zM13 17h6v1h-6zM20 17h1v1h-1zM24 17h1v1h-1zM26 17h2v1h-2zM32 17h1v1h-1zM1 18h2v1h-2zM5 18h7v1h-7zM15 18h2v1h-2zM24 18h1v1h-1zM26 18h1v1h-1zM30 18h3v1h-3zM1 19h3v1h-3zM13 19h1v1h-1zM15 19h2v1h-2zM19 19h3v1h-3zM23 19h1v1h-1zM26 19h3v1h-3zM32 19h1v1h-1zM0 20h1v1h-1zM3 20h1v1h-1zM5 20h2v1h-2zM8 20h3v1h-3zM12 20h7v1h-7zM20 20h2v1h-2zM23 20h5v1h-5zM29 20h1v1h-1zM31 20h1v1h-1zM2 21h1v1h-1zM4 21h2v1h-2zM8 21h1v1h-1zM11 21h1v1h-1zM13 21h2v1h-2zM17 21h1v1h-1zM20 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM31 21h2v1h-2zM0 22h1v1h-1zM2 22h1v1h-1zM5 22h2v1h-2zM9 22h1v1h-1zM16 22h2v1h-2zM20 22h1v1h-1zM22 22h1v1h-1zM26 22h7v1h-7zM1 23h5v1h-5zM7 23h3v1h-3zM11 23h1v1h-1zM15 23h2v1h-2zM20 23h3v1h-3zM24 23h3v1h-3zM31 23h2v1h-2zM0 24h1v1h-1zM4 24h3v1h-3zM10 24h1v1h-1zM12 24h1v1h-1zM14 24h3v1h-3zM18 24h2v1h-2zM21 24h1v1h-1zM23 24h7v1h-7zM31 24h1v1h-1zM8 25h2v1h-2zM11 25h2v1h-2zM14 25h2v1h-2zM17 25h2v1h-2zM20 25h3v1h-3zM24 25h1v1h-1zM28 25h2v1h-2zM31 25h2v1h-2zM0 26h7v1h-7zM8 26h2v1h-2zM12 26h1v1h-1zM15 26h1v1h-1zM17 26h2v1h-2zM20 26h1v1h-1zM22 26h3v1h-3zM26 26h1v1h-1zM28 26h1v1h-1zM30 26h1v1h-1zM32 26h1v1h-1zM0 27h1v1h-1zM6 27h1v1h-1zM10 27h3v1h-3zM14 27h1v1h-1zM17 27h3v1h-3zM21 27h2v1h-2zM24 27h1v1h-1zM28 27h1v1h-1zM32 27h1v1h-1zM0 28h1v1h-1zM2 28h3v1h-3zM6 28h1v1h-1zM8 28h2v1h-2zM13 28h1v1h-1zM17 28h5v1h-5zM24 28h6v1h-6zM31 28h1v1h-1zM0 29h1v1h-1zM2 29h3v1h-3zM6 29h1v1h-1zM10 29h1v1h-1zM12 29h5v1h-5zM21 29h2v1h-2zM24 29h1v1h-1zM28 29h2v1h-2zM31 29h2v1h-2zM0 30h1v1h-1zM2 30h3v1h-3zM6 30h1v1h-1zM8 30h3v1h-3zM12 30h7v1h-7zM23 30h2v1h-2zM28 30h1v1h-1zM32 30h1v1h-1zM0 31h1v1h-1zM6 31h1v1h-1zM8 31h1v1h-1zM10 31h3v1h-3zM15 31h3v1h-3zM19 31h1v1h-1zM21 31h1v1h-1zM23 31h2v1h-2zM28 31h1v1h-1zM31 31h1v1h-1zM0 32h7v1h-7zM9 32h1v1h-1zM11 32h2v1h-2zM14 32h3v1h-3zM18 32h4v1h-4zM23 32h2v1h-2zM26 32h1v1h-1zM28 32h1v1h-1zM31 32h2v1h-2z"/></svg>
     <div>
-      <h3>Play it yourself</h3>
-      <p>This page on its own — same sliders, same seasons, plus a price on
-        flexible capacity you can move. Nothing to install, works on a phone.</p>
+      <h3>Play a full season yourself</h3>
+      <p>Any collection, any network, as many seasons as it takes — plus a
+        price on flexible production capacity you can move. Nothing to
+        install, and it fits a phone.</p>
       <code>rgxsc.github.io/wheretostock/play.html</code>
     </div>
   </div>
@@ -520,7 +551,7 @@
     <div id="limit-body"></div>
   </div>
   <div class="card hidden" id="flex-card">
-    <h2>What flexible capacity can</h2>
+    <h2>What flexible production capacity can</h2>
     <p class="small muted" style="margin-top:0;" id="flex-lead"></p>
     <div class="picks" style="margin-top:14px;">
       <div class="pick">
@@ -814,8 +845,23 @@ function computeFlex(stPct, spPct){
     pushTot += pushed; centTot += central; capTot += cap;
     shelfTot += shelf; resTot += fromOwn; shortTot += short;
   });
-  /* the pool is blind to which bag calls on it — that is the whole point */
+  /* The pool is blind to which bag calls on it — that is the whole point.
+     But a table that only prints the total tells a room the pool exists and
+     never where it acted, so what each bag drew is attributed back in
+     proportion to what it was still short of, largest remainder first, and
+     the parts add up to the whole exactly. */
   const used = Math.min(shortTot, capTot);
+  if(shortTot > 0){
+    const raw = rows.map(function(r){ return r.short * used / shortTot; });
+    rows.forEach(function(r, i){ r.drawn = Math.floor(raw[i]); });
+    let left = used - rowSum(rows.map(function(r){ return r.drawn; }));
+    raw.map(function(v, i){ return [v - Math.floor(v), i]; })
+       .sort(function(a, b){ return b[0] - a[0]; })
+       .forEach(function(x, k){ if(k < left) rows[x[1]].drawn++; });
+  }else{
+    rows.forEach(function(r){ r.drawn = 0; });
+  }
+  rows.forEach(function(r){ r.lost = r.short - r.drawn; });
   const made = pushTot + centTot + used;
   const sold = shelfTot + resTot + used;
   return { rows:rows, pushTot:pushTot, centTot:centTot, capTot:capTot,
@@ -1581,9 +1627,22 @@ function testCombo(){
    6. EVERY COMBINATION — the matrix
    ========================================================================= */
 const matrixCache = {};
+/* The cache holds the RIGID season for every square the room has played. The
+   pool is not cached: computeFlex is deterministic and costs a few hundred
+   operations, so flipping the switch re-reads forty squares instantly and
+   there is no second cache to fall out of step with the first. A square still
+   only shows a number once it has been played, switch or no switch. */
+let poolOn = false;
 function key(st, sp){ return st + '/' + sp; }
-function getT(st, sp){ const c = matrixCache[key(st, sp)]; return c ? c.turnover : null; }
-function getM(st, sp){ const c = matrixCache[key(st, sp)]; return c ? c.margin : null; }
+function played(st, sp){ return !!matrixCache[key(st, sp)]; }
+function getT(st, sp){
+  if(!played(st, sp)) return null;
+  return poolOn ? computeFlex(st, sp).sold * ECON.price : matrixCache[key(st, sp)].turnover;
+}
+function getM(st, sp){
+  if(!played(st, sp)) return null;
+  return poolOn ? computeFlex(st, sp).margin : matrixCache[key(st, sp)].margin;
+}
 
 function renderMatrices(){
   const marks = function(st, sp){
@@ -1594,7 +1653,9 @@ function renderMatrices(){
   const n = Object.keys(matrixCache).length;
   const all = ST_LEVELS.length * SP_LEVELS.length;
   el('matrix-sub').textContent = n + ' of ' + all + ' combinations played. '
-    + 'Sell-through across, share placed at launch down the side.';
+    + 'Sell-through across, share placed at launch down the side.'
+    + (poolOn ? ' Every square is read with the shared capacity pool on.' : '');
+  el('pool-switch').classList.toggle('hidden', n < 2);
   /* held back until two squares have been played by hand: the point is to
      try a couple and form an expectation before the whole field appears */
   el('btn-fill').classList.toggle('hidden', n < 2 || n === all);
@@ -1622,10 +1683,28 @@ function best(getter){
 
 function readMatrix(){
   const bt = best(getT), bm = best(getM);
-  el('matrix-read').innerHTML =
-      '<div class="note"><b>Best turnover</b> ' + bt.st + '% / ' + bt.sp + '% at '
-    + fmtE(bt.v) + '. &nbsp; <b>Best margin</b> ' + bm.st + '% / ' + bm.sp + '% at '
-    + fmtE(bm.v) + '.</div>';
+  let h = '<div class="note"><b>Best turnover</b> ' + bt.st + '% / ' + bt.sp + '% at '
+        + fmtE(bt.v) + '. &nbsp; <b>Best margin</b> ' + bm.st + '% / ' + bm.sp + '% at '
+        + fmtE(bm.v) + '.</div>';
+  /* The pool is only interesting if it moves the ANSWER, so say whether it
+     did. Comparing like with like: the same square, both engines, and the
+     rigid optimum found the same way rather than remembered. */
+  if(poolOn){
+    const was = { st:ST_LEVELS[0], sp:SP_LEVELS[0], v:-Infinity };
+    ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
+      const c = matrixCache[key(st, sp)];
+      if(c && c.margin > was.v){ was.st = st; was.sp = sp; was.v = c.margin; } }); });
+    const moved = was.st !== bm.st || was.sp !== bm.sp;
+    h += '<p class="small muted" style="margin-top:8px;">Without the pool the best '
+       + 'margin is <b>' + was.st + '% / ' + was.sp + '%</b> at ' + fmtE(was.v) + '. '
+       + (moved
+          ? 'The pool <b>moves the answer</b> to ' + bm.st + '% / ' + bm.sp
+            + '% — you can hold more back once holding it back stops being a bet.'
+          : 'The pool does not move the answer here; it is worth <b class="up">'
+            + fmtE(bm.v - was.v) + '</b> at the same square.')
+       + '</p>';
+  }
+  el('matrix-read').innerHTML = h;
 }
 
 /* =========================================================================
@@ -1714,9 +1793,10 @@ function renderFlexSlide(){
 function renderFlex(){
   const f = computeFlex(stPick, spPick), r = rigidTotals(stPick, spPick);
   el('flex-lead').innerHTML =
-      'Everything you hold back splits in two: half stays as that bag\'s own central '
-    + 'reserve, half joins <b>one pool shared by all five</b>, assigned to nothing in '
-    + 'advance. Reserved capacity is only made — and only paid for — if a shortage '
+      'Everything you hold back splits in two. <b>50%</b> stays as that bag\'s own '
+    + 'central reserve. The other <b>50%</b> joins a <b>shared capacity pool</b> — '
+    + 'production capacity assigned to no bag in advance, that any of the five can '
+    + 'call on. Reserved capacity is only made, and only paid for, if a shortage '
     + 'actually calls on it.';
 
   const unit = Math.max(1, Math.max.apply(null, f.rows.map(function(x){
@@ -1726,22 +1806,31 @@ function renderFlex(){
      that sums pushed + reserve + pool is what was SET ASIDE. The box below
      reports what was actually made, and the two used to print different
      numbers under the same word. */
+  /* Two columns for the pool, not one. "Into the shared pool" alone said the
+     pool exists and never where it acted; the room could not see that Aveline
+     drew 43 of the 80 and Doriane drew none. In and out, side by side, and
+     the last column is what was still lost after both. */
   let h = '<table class="grid"><thead><tr><th>Bag</th><th>Committed</th>'
-        + '<th>To the boutiques</th><th>Its own reserve</th><th>Into the shared pool</th>'
-        + '<th>Real demand</th><th>Still short</th></tr></thead><tbody>';
+        + '<th>To the boutiques</th><th>Its own reserve</th>'
+        + '<th>Into the shared pool</th><th>Drawn from the pool</th>'
+        + '<th>Real demand</th><th>Still lost</th></tr></thead><tbody>';
   f.rows.forEach(function(x, i){
     h += '<tr><td>' + bagIcon(i, 16) + ' <b>' + esc(x.name) + '</b></td>'
        + '<td><b class="num">' + fmt(x.production) + '</b></td>'
        + '<td>' + cell(x.pushed, unit, x.colour) + '</td>'
        + '<td>' + cell(x.central, unit, '#9aa7b3') + '</td>'
-       + '<td>' + cell(x.cap, unit, '#0f6b45') + '</td>'
+       + '<td>' + cell(x.cap, unit, '#7fb59a') + '</td>'
+       + '<td>' + (x.drawn ? cell(x.drawn, unit, '#0f6b45') : '—') + '</td>'
        + '<td>' + cell(x.demand, unit, x.colour) + '</td>'
-       + '<td>' + (x.short ? '<span class="down">' + fmt(x.short) + '</span>' : '—') + '</td></tr>';
+       + '<td>' + (x.lost ? '<span class="down">' + fmt(x.lost) + '</span>' : '—') + '</td></tr>';
   });
   h += '<tr class="tot"><td>All five</td><td>' + fmt(f.pushTot + f.centTot + f.capTot) + '</td>'
      + '<td>' + fmt(f.pushTot) + '</td><td>' + fmt(f.centTot) + '</td>'
-     + '<td>' + fmt(f.capTot) + '</td><td>' + fmt(rowSum(D_BAG)) + '</td>'
-     + '<td>' + fmt(f.away + f.used) + '</td></tr></tbody></table>';
+     + '<td>' + fmt(f.capTot) + '</td>'
+     + '<td>' + (f.used ? '<b class="up">' + fmt(f.used) + '</b>' : '—') + '</td>'
+     + '<td>' + fmt(rowSum(D_BAG)) + '</td>'
+     + '<td>' + (f.away ? '<span class="down">' + fmt(f.away) + '</span>' : '—')
+     + '</td></tr></tbody></table>';
   el('flex-table').innerHTML = h;
   fitBars('flex-table');
 
@@ -1760,12 +1849,15 @@ function renderFlex(){
   const gain = f.margin - r.margin;
   el('flex-vs').innerHTML = '<div class="vs">'
     + box('Rigid capacity — today', r, false)
-    + box('With flexible capacity', f, gain > 0)
+    + box('With a shared capacity pool', f, gain > 0)
     + '</div>'
     + '<p class="small muted" style="margin-top:10px;">'
     + (f.capTot
-        ? '<b>' + fmt(f.capTot) + '</b> pieces were left unassigned; <b>' + fmt(f.used)
-          + '</b> were called on and made, <b>' + fmt(spare) + '</b> never existed and cost nothing. '
+        ? 'The shared capacity pool held <b>' + fmt(f.capTot) + '</b> pieces, assigned to '
+          + 'no bag. <b>' + fmt(f.used) + '</b> were called on and made — '
+          + f.rows.filter(function(x){ return x.drawn; })
+              .map(function(x){ return esc(x.name) + ' took ' + fmt(x.drawn); }).join(', ')
+          + ' — and <b>' + fmt(spare) + '</b> never existed and cost nothing. '
         : 'Everything went to the boutiques at launch, so there was nothing left to keep flexible. ')
     + (gain > 0 ? '<b class="up">' + fmtE(gain) + ' better</b> than committing the same production up front.'
                 : 'No better than committing it up front here.')
@@ -1822,6 +1914,10 @@ function spotPlace(box, avoid){
   return { left:clampX(avoid.left), top:clampY(avoid.bottom + M), side:'clamped' };
 }
 
+/* A swatch of the bar itself, in place of a colour word. Same class names as
+   the bars in the cell, so there is one palette and no second list of hexes. */
+function sw(cls){ return '<i class="sw ' + cls + '"></i>'; }
+
 /* what the card says, built from the live board rather than written out */
 function spotCard(k){
   const runs = BAGS.map(function(b, i){ return runBag(i, stPick, spPick); });
@@ -1834,11 +1930,14 @@ function spotCard(k){
     return { title:esc(BAGS[i].name) + ', all five boutiques',
       text:'One bag, one season. Planned <b>' + fmt(F_BAG[i]) + '</b>, asked for <b>'
         + fmt(D_BAG[i]) + '</b>' + (ga && sp
-        ? '. Underneath that: <b>' + fmt(ga) + '</b> nobody could buy and <b>'
-          + fmt(sp) + '</b> sitting where nobody wants them — in the same bag, at '
+        ? '. Underneath that: ' + sw('miss') + ' <b>' + fmt(ga)
+          + '</b> nobody could buy and ' + sw('spare') + ' <b>' + fmt(sp)
+          + '</b> sitting where nobody wants them — in the same bag, at '
           + 'the same moment. The stock cannot walk from one boutique to another.'
-        : ga ? ' — and <b>' + fmt(ga) + '</b> nobody could buy, spread across the row.'
-             : ' — and <b>' + fmt(sp) + '</b> sitting where nobody wants them.') };
+        : ga ? ' — and ' + sw('miss') + ' <b>' + fmt(ga)
+               + '</b> nobody could buy, spread across the row.'
+             : ' — and ' + sw('spare') + ' <b>' + fmt(sp)
+               + '</b> sitting where nobody wants them.') };
   }
   if(k === 'tot'){
     let ga = 0, sp = 0;
@@ -1847,9 +1946,10 @@ function spotCard(k){
       sp += Math.max(0, runs[i].push[j] - DEMAND[i][j]); }); });
     return { title:'Now the whole board',
       text:'<b>' + fmt(F_TOTAL) + '</b> planned. <b>' + fmt(rowSum(D_BAG))
-        + '</b> asked for. The total was right. Underneath it, <b>' + fmt(ga)
-        + '</b> nobody could buy'
-        + (sp ? ' and <b>' + fmt(sp) + '</b> sitting where nobody wants them. '
+        + '</b> asked for. The total was right. Underneath it, ' + sw('miss')
+        + ' <b>' + fmt(ga) + '</b> nobody could buy'
+        + (sp ? ' and ' + sw('spare') + ' <b>' + fmt(sp)
+                + '</b> sitting where nobody wants them. '
                 + 'Every mistake on this board is a mistake of place, not of '
                 + 'volume.'
               : ' — and nothing stranded at all, because at a ' + spPick
@@ -1867,17 +1967,18 @@ function spotCard(k){
                          : 'Somewhere else, the opposite problem'),
     text:'<b>' + fmt(given) + '</b> ' + esc(BAGS[i].name) + 's went to '
       + esc(BOUTIQUES[j]) + '. It asked for <b>' + fmt(d) + '</b>. <b>' + fmt(sp)
-      + '</b> are sitting there while another boutique turns people away. Amber '
-      + 'is not a cushion — it is ' + fmtE(ECON.cost) + ' each, already spent, in '
-      + 'the wrong city.' };
+      + '</b> are sitting there while another boutique turns people away. '
+      + 'The ' + sw('spare') + ' is not a cushion — it is ' + fmtE(ECON.cost)
+      + ' each, already spent, in the wrong city.' };
   if(k === first.i + ',' + first.j || ga >= first.v) return {
     title:esc(BOUTIQUES[j]) + ' asked for more than we planned',
-    text:'Grey is the plan for ' + esc(BAGS[i].name) + ' in ' + esc(BOUTIQUES[j])
-      + ': <b>' + fmt(f) + '</b>. Navy is what the season actually asked for: <b>'
-      + fmt(d) + '</b>. The third bar is that same demand, coloured by what '
-      + 'happened — <b>' + fmt(given) + '</b> served off the shelf and <b>'
-      + fmt(ga) + '</b> red, ' + fmt(ga) + ' customers who found nothing. Red is '
-      + fmtE(ECON.price) + ' each.' };
+    text:sw('plan') + ' the plan for ' + esc(BAGS[i].name) + ' in '
+      + esc(BOUTIQUES[j]) + ': <b>' + fmt(f) + '</b>.<br>'
+      + sw('real') + ' what the season actually asked for: <b>' + fmt(d)
+      + '</b>.<br>The third bar is that same demand, coloured by what happened: '
+      + sw('sold') + ' <b>' + fmt(given) + '</b> served off the shelf, '
+      + sw('miss') + ' <b>' + fmt(ga) + '</b> who found nothing — '
+      + fmtE(ECON.price) + ' of sales each, walking out of the door.' };
   /* the no-surplus board: the cell the forecast came closest to getting right */
   return { title:'The one we very nearly got right',
     text:'Planned <b>' + fmt(f) + '</b> for ' + esc(BAGS[i].name) + ' in '
@@ -2138,6 +2239,10 @@ function init(){
      square already cached and nothing visibly happens - which is fair, since
      nothing has been asked for.) */
   el('btn-test2').addEventListener('click', function(){ whUsed = true; testCombo(); });
+  /* the switch re-reads the squares already played; it never plays new ones */
+  el('ck-pool').addEventListener('change', function(){
+    poolOn = this.checked; renderMatrices();
+  });
   el('btn-fill').addEventListener('click', fillAll);
   el('btn-next').addEventListener('click', advance);
   el('btn-prev').addEventListener('click', retreat);
