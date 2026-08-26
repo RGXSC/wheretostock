@@ -328,6 +328,23 @@ both files made it until the figure was computed. The move is now quoted in
 money and called what it is: *moves*, *barely moves*, or *either way*, on a
 half-a-percent threshold.
 
+**The move is quoted against the margin, not against the matrix's 5% band.**
+It said *"well inside the band the matrix paints as within 5%"* — but the band
+is computed from whichever board is **drawn**, and with the tick off that is
+the rigid one. At 5×5 with the bag cost at 240 the sentence claimed two
+squares were within 5% of each other beside a matrix painting 90/30 at 166k
+"the best" and 80/30 at 157k "the rest", the one tier the legend defines as
+*not* within 5%. Both numbers in the sentence belong to the flexible board in
+either mood, so it now says so: *"80% / 30% is worth only 127 € more than
+90% / 30%, against a margin of 196 771 €."*
+
+**A pool worth nothing is not called worth money.** The no-move sentence
+hard-coded "the pool is worth money here". One bag against twenty boutiques
+has no other bag to share with, so at a high enough unit cost the premium eats
+the gain: at 430 € a bag the gain is exactly zero, above it negative. The
+sentence branches on the rounded figure, and `money()` renders a rounded zero
+as "nothing at all" rather than a green "+0 €".
+
 **And why it moves is read off the accumulators, never inferred from the
 sell-through ordering.** The first guess was "you can hold more back", which
 was backwards — the deck's move holds 455 back instead of 506. The second was
@@ -360,6 +377,16 @@ else — "200 €" over a thumb at 440. A `pageshow` listener re-runs `syncFlex`
 `mcHints` and `renderMC`, which fires after restoration in both the bfcache
 and re-parse cases. It is invisible locally: `file://` does not restore form
 state.
+
+**Unticking at the very foot of the page shifts the switch, and that is worn
+rather than papered over.** Removing the premium row shortens the document; at
+the bottom of the page the browser clamps `scrollY` and the switch slides down
+under the reader's thumb — 114px before the first run at 320px wide, 51px
+after one. Compensating with `scrollBy` was tried and removed: everywhere else
+the switch does not move at all (the content below it shifts up instead), and
+at the foot there is no longer enough document to scroll back into. The only
+real fix is not to shrink, which means reserving ~90px of empty box for a
+control that is not there. The switch stays on screen in every case measured.
 
 **Enter runs the simulation, but not from inside the prices box.** That box
 says in as many words that nothing in it re-runs anything, and it holds the

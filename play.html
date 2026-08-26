@@ -1096,8 +1096,13 @@ function renderMC(){
   const gain = bf.v - br.v;
   const moved = bf.st !== br.st || bf.sp !== br.sp;
   const at = function(b){ return b.st + '% / ' + b.sp + '%'; };
-  const money = function(v){ return '<b class="' + (v >= 0 ? 'up' : 'down') + '">'
-    + (v >= 0 ? '+' : '−') + fmtE(Math.abs(Math.round(v))) + '</b>'; };
+  /* A rounded zero is neither a gain nor a loss, and "+0 €" in green read as
+     one. Signs come from the rounded figure, so the word and the number can
+     never disagree. */
+  const money = function(v){ const r = Math.round(v);
+    if(r === 0) return '<b>nothing at all</b>';
+    return '<b class="' + (r > 0 ? 'up' : 'down') + '">'
+      + (r > 0 ? '+' : '−') + fmtE(Math.abs(r)) + '</b>'; };
   const premWord = prem ? 'a +' + (prem * 100).toFixed(0) + '% premium' : 'no premium at all';
   /* Two separate claims, and they are worth very different amounts.
 
@@ -1135,16 +1140,31 @@ function renderMC(){
      different things about it. Only the mood changes: unticked, the pool is
      not on and the move has not happened. */
   const V = function(would, does){ return flexOn ? does : would; };
+  /* "worth money" was hard-coded into this arm, and the gain is not always
+     positive: one bag against twenty boutiques has no other bag to share
+     with, so at a high enough unit cost the premium eats the whole gain and
+     the pool is worth nothing, or less than nothing. */
   const moveSentence = !moved
-    ? 'The best square is <b>' + at(br) + '</b> either way — the pool is worth '
-      + 'money here without changing what you would do.'
+    ? 'The best square is <b>' + at(br) + '</b> either way'
+      + (Math.round(gain) > 0
+         ? ' — the pool is worth money here without changing what you would do.'
+         : Math.round(gain) === 0
+           ? ', and at this price the pool is worth nothing either.'
+           : ', and at this price the pool costs more than it saves.')
     : material
       ? 'It ' + V('would also move', 'also moves') + ' the best square, from <b>'
         + at(br) + '</b> to <b>' + at(bf) + '</b>: ' + why + '.'
+      /* Quote the move against the margin it moves, not against the matrix's
+         5% band. The band is computed from whichever board is DRAWN, and with
+         the tick off that is the rigid one: at 5x5, cost 240, the sentence
+         said "well inside within 5%" beside a matrix painting 90/30 at 166k
+         "the best" and 80/30 at 157k "the rest". Both numbers here belong to
+         the flexible board in either mood, so say so and let the reader do
+         the division. */
       : 'It ' + V('would barely move', 'barely moves') + ' the best square — <b>'
-        + at(bf) + '</b> beats <b>' + at(br) + '</b> by only '
-        + fmtE(Math.round(moveWorth)) + ', well inside the band the matrix paints '
-        + 'as “within 5%”.';
+        + at(bf) + '</b> is worth only ' + fmtE(Math.round(moveWorth))
+        + ' more than <b>' + at(br) + '</b>, against a margin of '
+        + fmtE(Math.round(bf.v)) + '.';
   if(!flexOn){
     /* Off, the page must not describe a world it is not drawing. It says what
        the tick would buy - including whether it would move the answer, which
@@ -1190,6 +1210,15 @@ function init(){
   /* all three are post-processing on the accumulated sums, so none re-runs */
   el('mc-flexcost').addEventListener('input', function(){ mcHints(); renderMC(); });
   /* the premium only exists once the deal is taken */
+  /* Removing the premium row shortens the document, and at the very foot of
+     the page the browser then clamps scrollY and the switch slides down under
+     the reader's thumb - 114px before the first run at 320px wide, 51px after
+     one. Compensating with scrollBy was tried and is useless: everywhere else
+     the switch does not move at all (the content below it shifts up instead),
+     and at the foot there is no longer enough document to scroll back into.
+     The only real fix is not to shrink, which means reserving ~90px of empty
+     box for a control that is not there. The switch stays on screen in every
+     case measured, so the shift is worn rather than papered over. */
   el('ck-flex').addEventListener('change', function(){ syncFlex(); renderMC(); });
   el('btn-mc').addEventListener('click', mcStart);
   el('btn-mc-stop').addEventListener('click', function(){ mcAbort = true; });
