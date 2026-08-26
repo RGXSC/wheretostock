@@ -13,7 +13,7 @@ shown**.
 |---|---|---|
 | 1 | The board | 1 |
 | 2 | Your combination | 1 |
-| 3 | **The season** | 6 |
+| 3 | **The season** | 7 |
 | 4 | **The limit, and what flexibility can** | 2 |
 | 5 | Every combination | 1 |
 
@@ -36,9 +36,23 @@ grows would be strictly worse than what it replaced.
 | 0 | **the plan** — one grey bar a cell, a grey `?` where the outcome will go |
 | 1 | **spotlight**: the worst shortage on the board, opened alone |
 | 2 | **spotlight**: the biggest surplus, opened alone |
-| 3 | **spotlight**: the grand total — *the total was right* |
+| 3 | **spotlight**: that bag's **whole row** — five boutiques and its season |
 | 4 | **all twenty-five**, and nothing else on the screen |
-| 5 | **the warehouse answers** — green eats into red, in place |
+| 5 | **spotlight**: the grand total, over a board already filled in |
+| 6 | **the warehouse answers** — green eats into red, in place |
+
+**The order of the last three is the whole argument in miniature.** The grand
+total used to be stop 3 of the walk, spotlit while every other cell still read
+`?` — a sum on screen before any of the detail that makes it, which is exactly
+the reasoning the slide exists to attack. The board is filled first now, and
+the total is read off it.
+
+**Stop 3 is a row, not a cell**, because two single cells do not settle it. A
+shortage in one boutique and a surplus in another are only obviously the same
+problem once they are seen in **one bag, at one moment** — Aveline planned 244,
+asked for 268, and underneath that 93 nobody could buy and 42 sitting where
+nobody wants them. The stock cannot walk from Paris to Tokyo. That is the
+sentence the grand total then generalises.
 
 **Nothing sits under the grid until beat 5.** Beat 4 used to carry the
 followed bag boutique by boutique — given at launch, demand, sold, needed from
@@ -56,14 +70,20 @@ amber column under Paris and New York against a red one under Tokyo and
 Shanghai, instead of as a wall of numbers. That is the beat the three-slide
 version never reached, because the room was still decoding cell one.
 
-**The three cells are derived, never written down.** They are the argmax gap,
-the argmax surplus and the grand total, recomputed from the same `runBag` pass
-the grid draws. At 90/80 that resolves to Aveline in Tokyo (−47), Aveline in
-Paris (+25) and the whole board (−198 / +127) — but a facilitator who moved a
-slider on the previous slide would otherwise be walking the room through two
-cells that are no longer the story, and at 90/30 they are not.
+**The stops are derived, never written down.** The argmax gap, the argmax
+surplus, and then the whole row of whichever bag the first stop landed in. At
+90/80 that resolves to Aveline in Tokyo (−47), Aveline in Paris (+25) and the
+Aveline row — but a facilitator who moved a slider on the previous slide would
+otherwise be walking the room through cells that are no longer the story, and
+at 90/30 they are not.
 
-**Beat 5 draws the warehouse ON the table just read**, not as a second table.
+Each card also names **where the next press goes**, and it is a different
+place three times: another cell, then all twenty-five, then the warehouse.
+Saying "the next one" on the last stop sent the room hunting for a fourth
+cell; saying "for all twenty-five" on the grand total promised something
+already on the screen behind it.
+
+**The last beat draws the warehouse ON the table just read**, not as a second table.
 Every red segment splits where it stands: the covered part turns green, the
 rest stays red, the delta re-labels from −47 to −20. **Not one amber segment
 moves**, because central stock cannot un-place what has already shipped —
