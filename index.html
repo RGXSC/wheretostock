@@ -18,7 +18,10 @@
         reveal demand -> sell -> allocate from warehouse -> next week.
     Stock shipped in week N arrives at the start of week N+1, and at most
     SHIP_CAP pieces can leave in one week, counted across all five bags.
-    P&L = (1000 x sold) - (200 x produced) - 117 000 fixed, revealed at the end.
+    P&L = (1000 x sold) - (200 x produced) - fixed cost, revealed at the end.
+    The fixed cost is 45% of forecast sales rounded UP to a round number:
+    117 000 becomes 120 000. Quote 120 000, not 117 000 - the rounding below
+    is part of the game.
     Leftover stock is worth nothing: it is paid for and never recovered. Zero
     salvage is what makes over-producing expensive, so the briefing says it
     outright rather than leaving it to be inferred from the P&L.
@@ -444,6 +447,7 @@
   .btrack i{ position:absolute; left:0; top:0; bottom:0; border-radius:3px; display:block; }
   .btrack i.pos{ background:var(--live); }
   .btrack i.neg{ background:#8b96a1; }
+  .btrack i.bad{ background:var(--warn); }
   .btrack i.ghost{ background:none; border:2px dashed #8b96a1; }
   .btrack i.ghost.bad{ border-color:var(--warn); }
   .bval{ font-size:13px; font-weight:800; color:var(--ink-soft); white-space:nowrap;
@@ -681,9 +685,11 @@ const FORECAST_PER_BAG = 2 * WEEKS * 2;   /* 2 per week per store, 2 stores = 52
 /* One truck a week: at most this many pieces can leave the warehouse in a
    round, counted across all five bags together, so a heavy week forces a
    choice between them. Measured against five plausible ways of playing: it
-   never binds on a team that ships to demand, appears three or four weeks in
-   twelve for one that keeps a fat shelf, and moves the best strategy not at
-   all. It buys realism and a decision, not a different answer. */
+   binds in the two peak weeks even for a team that ships exactly what sold -
+   demand is 37 and 34 against a cap of 30 in weeks 4 and 5 - appears three
+   or four weeks in twelve for one that keeps a fat shelf, and moves the best
+   strategy not at all. It buys realism and a decision, not a different
+   answer. */
 const SHIP_CAP = 30;
 
 const ECON = {
@@ -713,8 +719,9 @@ const BAGS = [
    game — forecast, production and the fixed cost stay consistent. */
 const FORECAST_TOTAL = FORECAST_PER_BAG * BAGS.length;
 /* rounded up to the nearest 10 000 so the briefing carries a round number:
-   45% of forecast sales is 117 000 in the game and 292 500 here, which read
-   like the output of a spreadsheet rather than a budget. Safe to round: the
+   45% of forecast sales is 117 000, which reads like the output of a
+   spreadsheet rather than a budget, so the game charges 120 000. (The deck
+   does the same to its own 292 500.) Safe to round: the
    fixed cost is a constant in the objective, so it moves the LEVEL of every
    square and the CHOICE of none - swept from 0 to 90% of forecast sales, the
    best combination never budged. */
@@ -1066,13 +1073,17 @@ function renderSteps(){
   host.textContent = '';
   const cur = STEPS.findIndex(function(s){ return s.key === state.step; });
   STEPS.forEach(function(s, i){
-    /* the shipping step is skipped outright when the warehouse is empty */
+    /* The shipping step is skipped for two different reasons, and the chip
+       has to say which: an empty warehouse, or week 13 - a shipment sent now
+       would arrive in a week that does not exist. It said "Warehouse empty"
+       for both, over a panel showing 138 pieces still in it. */
     const skipped = (s.key === 'allocate' && state.skippedAlloc && cur >= 3);
+    const skipLabel = state.lastWeekNoShip ? 'Too late to ship' : 'Warehouse empty';
     const d = document.createElement('div');
     d.className = 'step' + (skipped ? ' skipped' : (i === cur ? ' active' : (i < cur ? ' done' : '')));
     d.id = 'step-' + s.key;
     d.innerHTML = '<span class="num">' + (skipped ? '–' : (i < cur ? '✓' : (i + 1))) + '</span>'
-                + '<span>' + (skipped ? 'Warehouse empty' : s.label) + '</span>';
+                + '<span>' + (skipped ? skipLabel : s.label) + '</span>';
     host.appendChild(d);
   });
 }
@@ -1242,7 +1253,7 @@ function confirmShipment(){
     h.style.fontSize = '21px';
     h.textContent = total === 0
       ? 'Send nothing out of the warehouse?'
-      : 'Send ' + fmt(total) + ' units out of the warehouse?';
+      : 'Send ' + fmt(total) + (total === 1 ? ' unit' : ' units') + ' out of the warehouse?';
     box.appendChild(h);
 
     const p = document.createElement('p');
@@ -1277,7 +1288,14 @@ function confirmShipment(){
     const back = document.createElement('button');
     back.id = 'btn-ship-back';
     back.textContent = 'Go back and change it';
-    back.addEventListener('click', closeModal);
+    back.addEventListener('click', function(){
+      closeModal();
+      /* the button promises editing, so focus the first shipping input -
+         landing back on "Confirm shipment" would make the next Enter reopen
+         the dialog just dismissed */
+      const first = document.querySelector('table.alloc input');
+      if(first){ first.focus(); if(first.select) first.select(); }
+    });
     const go = document.createElement('button');
     go.className = 'btn-primary btn-xl';
     go.id = 'btn-ship-confirm';
@@ -2015,7 +2033,7 @@ function openExport(){
     const h = document.createElement('h2'); h.textContent = 'Export results'; box.appendChild(h);
     const p = document.createElement('p'); p.className = 'muted';
     p.textContent = state.team + ' · ' + state.game + ' · ' + state.log.length
-                  + ' rows (' + (state.finished ? WEEKS : state.week - 1) + ' completed weeks).';
+                  + ' rows (' + (function(w){ return w + (w === 1 ? ' completed week' : ' completed weeks'); })(state.finished ? WEEKS : state.week - 1) + ').';
     box.appendChild(p);
 
     const r1 = document.createElement('div'); r1.className = 'row-buttons';
@@ -2308,7 +2326,10 @@ function panelBridge(t, euro){
     { lab:'Cost of the ' + fmt(t.sold) + ' sold', v:-t.sold * ECON.cost, cls:'neg', sign:'−' },
     { lab:'Cost of the ' + fmt(t.leftover) + ' nobody bought',
       v:-t.leftover * ECON.cost, cls:'neg', sign:'−' },
-    { lab:'Margin', v:t.margin, cls:t.margin > 0 ? 'pos' : 'bad', sign:'=', rule:true }
+    /* "= 34 000" for a margin of -34 000 read as a profit under a red
+       headline; the sign travels with the figure */
+    { lab:'Margin', v:t.margin, cls:t.margin > 0 ? 'pos' : 'bad',
+      sign:t.margin < 0 ? '= −' : '=', rule:true }
   ];
   let html = '<div class="bridge">';
   rows.forEach(function(r){
@@ -2455,13 +2476,28 @@ function panelCauses(d, missed){
 /* =========================================================================
    10. MODAL / TOAST
    ========================================================================= */
-function closeModal(){ el('modal-root').textContent = ''; }
+let modalOpener = null;
+function closeModal(){
+  el('modal-root').textContent = '';
+  /* focus fell to <body> when the modal was emptied, and the global Enter
+     handler then clicked the action panel's primary button - reopening the
+     modal that had just been dismissed. Put focus back where it came from. */
+  if(modalOpener && modalOpener.isConnected) modalOpener.focus();
+  modalOpener = null;
+}
 function openModal(build, opts){
   closeModal();
+  modalOpener = document.activeElement && document.activeElement !== document.body
+              ? document.activeElement : null;
   const back = document.createElement('div'); back.className = 'modal-back';
   const box = document.createElement('div'); box.className = 'modal';
   build(box); back.appendChild(box);
-  back.addEventListener('click', function(e){ if(e.target === back) closeModal(); });
+  /* A double-click on the button that OPENS a modal delivers its second
+     click to the backdrop that has just appeared, closing it in the same
+     instant. Ignore the backdrop for the length of a double-click. */
+  const born = performance.now();
+  back.addEventListener('click', function(e){
+    if(e.target === back && performance.now() - born > 400) closeModal(); });
   el('modal-root').appendChild(back);
 
   /* "beside" keeps the board readable: the panel sits over the decision

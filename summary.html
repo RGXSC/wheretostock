@@ -347,7 +347,7 @@
     <p class="muted small" style="margin-top:0;" id="econ-why"></p>
     <div class="econ-fields">
       <div><label for="in-cost">Cost per bag</label><input id="in-cost" type="number" value="200"></div>
-      <div><label for="in-fixed">Fixed cost</label><input id="in-fixed" type="number" value="117000"></div>
+      <div><label for="in-fixed">Fixed cost</label><input id="in-fixed" type="number" value="120000"></div>
     </div>
   </div>
 
@@ -600,7 +600,10 @@ let games = [];                 /* loaded team-games            */
 let conflicts = [];             /* awaiting a keep/replace call */
 let messages = [];              /* one-off import feedback      */
 let peeking = false;            /* results shown on the import screen */
-let fallbackCost = 200, fallbackFixed = 117000;
+/* the game charges 45% of forecast sales rounded UP to a round number -
+   120 000, not the unrounded 117 000 this used to assume. Only reached when
+   an export has no FixedCost column. */
+let fallbackCost = 200, fallbackFixed = 120000;
 
 const el = function(id){ return document.getElementById(id); };
 const fmt  = function(n){ return Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' '); };
@@ -1692,7 +1695,8 @@ function bridgePanel(g, e, m, dead, sc){
     { lab:'Cost of the ' + fmt(g.sold) + ' sold', v:-g.sold * e.cost, cls:'neg', sign:'−' },
     { lab:'Cost of the ' + fmt(leftover) + ' nobody bought',
       v:-leftover * e.cost, cls:'neg', sign:'−' },
-    { lab:'Margin', v:m, cls:m > 0 ? 'pos' : 'bad', sign:'=', rule:true }
+    { lab:'Margin', v:m, cls:m > 0 ? 'pos' : 'bad',
+      sign:m < 0 ? '= −' : '=', rule:true }
   ];
   let html = '<div class="bridge">';
   rows.forEach(function(r){
@@ -1806,7 +1810,7 @@ function causesPanel(st, missed, sc){
 function init(){
   load();
   /* the saved costs drive every margin on the page, so the two fields must
-     show them: after a reload they still read 200 / 117 000 while the figures
+     show them: after a reload they still read 200 / 120 000 while the figures
      underneath had been computed at whatever was actually typed */
   el('in-cost').value = fallbackCost;
   el('in-fixed').value = fallbackFixed;
