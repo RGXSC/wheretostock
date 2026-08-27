@@ -24,6 +24,9 @@
     --line:#c6ced7; --line-soft:#e2e7ec;
     --accent:#12557f; --accent-soft:#e7f0f7;
     --good:#0f6b45; --bad:#8a3115; --warn-bg:#fdf7e8; --warn-line:#dcc389;
+    /* .mrow.negative reaches for this; without it a losing room's bar lost
+       both its outline and its colour and read as an ordinary short bar */
+    --warn:#c0341a;
     --radius:10px;
   }
   *{ box-sizing:border-box; }
@@ -566,6 +569,15 @@ function buildDetail(key, rows, at, sourceName){
     g.issues.push('unrecognised location: ' + strange.join(', ')
       + ' — this file was not written by the current game');
   g.demandHash = fnv(demandKeys.sort().join(';'));
+  /* The hash covers the whole file, so a game that stops at week 5 can never
+     match one that ran to 13 - it has fewer keys by construction. Comparing
+     versions on it accused every part game of running a different build. The
+     map lets two games be compared on the weeks they actually share. */
+  g.demandMap = {};
+  demandKeys.forEach(function(k){
+    const cut = k.lastIndexOf('|');
+    g.demandMap[k.slice(0, cut)] = k.slice(cut + 1);
+  });
   g.contentHash = fnv(rows.map(function(c){ return c.join(''); }).join('\n'));
   if(broken) g.issues.push(broken + ' row(s) do not add up — the file may have been edited');
   if(g.rowCount !== maxWeek * bags.size * locs.size)
@@ -609,14 +621,25 @@ const el = function(id){ return document.getElementById(id); };
 const fmt  = function(n){ return Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' '); };
 const fmtE = function(n){ return fmt(n) + ' €'; };
 
-/* Season length is taken from the data, not assumed: the longest game
-   loaded defines a full season, and anything shorter is a part game. */
+/* Season length is the longest game loaded, floored at the length the game
+   actually ships. Taking it purely from the data broke two ways, both
+   measured: a part game loaded ALONE was the longest thing present, so it
+   defined its own season and was ranked as if finished; and a full 13-week
+   export arriving after that game's one-line summary was judged against a
+   max of 0 - a summary carries no week count - so the richer file was
+   rejected as a part game and silently discarded.
+
+   SEASON_FLOOR must track WEEKS in index.html. It is the one assumption this
+   file makes about the game that wrote its input; a future export should
+   carry the season length in a column and retire it. */
+const SEASON_FLOOR = 13;
 function seasonWeeks(){
-  return games.reduce(function(m, g){ return Math.max(m, g.weeks || 0); }, 0);
+  return games.reduce(function(m, g){ return Math.max(m, g.weeks || 0); }, SEASON_FLOOR);
 }
 function isComplete(g){
   if(g.source === 'summary') return true;
-  return g.weeks === seasonWeeks() && !g.issues.length;
+  /* against its own length too: an incoming game is not in `games` yet */
+  return g.weeks === Math.max(seasonWeeks(), g.weeks || 0) && !g.issues.length;
 }
 function economics(g){
   return { cost: g.unitCost !== null && g.unitCost !== undefined ? g.unitCost : fallbackCost,
@@ -752,13 +775,28 @@ function renderImport(){
     host.appendChild(n);
   });
 
-  /* version mismatch: every room must have played the same demand */
-  const hashes = {};
-  games.forEach(function(g){ if(g.demandHash) (hashes[g.demandHash] = hashes[g.demandHash] || []).push(g); });
-  const keys = Object.keys(hashes);
-  if(keys.length > 1){
-    keys.sort(function(a, b){ return hashes[b].length - hashes[a].length; });
-    const odd = keys.slice(1).reduce(function(a, k){ return a.concat(hashes[k]); }, []);
+  /* Version mismatch: every room must have played the same demand - but only
+     where the two files overlap. A part game has fewer weeks and so a
+     different whole-file hash by construction; judging it on that called
+     every truncated export a different build of the game. Two games disagree
+     only if a week/bag/boutique they BOTH recorded carries a different
+     demand. */
+  const withDemand = games.filter(function(g){ return g.demandMap; });
+  const agrees = function(a, b){
+    for(const k in a.demandMap)
+      if(b.demandMap[k] !== undefined && b.demandMap[k] !== a.demandMap[k]) return false;
+    return true;
+  };
+  /* group by mutual agreement; the largest group is taken as the real game */
+  const groups = [];
+  withDemand.forEach(function(g){
+    const home = groups.find(function(gr){
+      return gr.every(function(o){ return agrees(g, o); }); });
+    if(home) home.push(g); else groups.push([g]);
+  });
+  if(groups.length > 1){
+    groups.sort(function(a, b){ return b.length - a.length; });
+    const odd = groups.slice(1).reduce(function(a, gr){ return a.concat(gr); }, []);
     const n = document.createElement('div');
     n.className = 'note stop';
     n.innerHTML = '<h3>These rooms did not play the same game</h3>'
@@ -767,6 +805,8 @@ function renderImport(){
       + '<b>' + odd.map(function(g){ return esc(g.team + ' · ' + g.game); }).join(', ') + '</b></p>';
     host.appendChild(n);
   }
+  /* the accusation is only worth making about a real disagreement, so a run
+     where every pair agrees on its overlap prints nothing at all */
 
   /* part games */
   const parts = games.filter(function(g){ return !isComplete(g); });

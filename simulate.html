@@ -998,8 +998,11 @@ function renderBoard(){
    every reveal on that slide is a function of it - not of a pile of booleans
    that can disagree with each other. Beat 0 is what you see on arrival.
 
-     sd  0 the plan   1-3 the spotlight walk   4 all of it   5 the warehouse
+     sd  0 the plan   1-3 the spotlight walk   4 all of it
+         5 the grand total, spotlit over the filled board   6 the warehouse
      sf  0 the limit  1 flexible capacity
+   (SD_REVEAL 4, SD_TOTAL 5, SD_WAREHOUSE 6 - the constants below are the
+   authority; this map lost a line when the walk gained its third stop.)
 
    demandShown and whUsed survive as DERIVED values because a dozen render
    functions read them; nothing outside setBeat may write them. */
@@ -1392,14 +1395,17 @@ function buildSegs(){
 }
 
 function sayTrial(){
-  const prod = BAGS.map(function(b, i){ return Math.round(F_BAG[i] / (stPick / 100)); });
-  const total = rowSum(prod);
-  const pushed = Math.round(total * spPick / 100);
+  /* Read the totals off the SAME engine the table below sums, rather than
+     rounding the collection total. Rounding 723 x 80% gives 578 and leaves
+     145, while the five per-bag figures in the table come to 579 and 144 -
+     two numbers a centimetre apart, disagreeing. Taken from run(), they
+     cannot: it is the same arithmetic, once. "About" goes with them. */
+  const t = run(stPick, spPick).t;
   el('trial-say').innerHTML =
-      'Targeting <b>' + stPick + '%</b> means making <b class="num">' + fmt(total)
+      'Targeting <b>' + stPick + '%</b> means making <b class="num">' + fmt(t.production)
     + '</b> bags against a forecast of ' + fmt(F_TOTAL) + '. '
-    + 'Placing <b>' + spPick + '%</b> sends about <b class="num">' + fmt(pushed)
-    + '</b> to the five boutiques and leaves <b class="num">' + fmt(total - pushed)
+    + 'Placing <b>' + spPick + '%</b> sends <b class="num">' + fmt(t.pushTotal)
+    + '</b> to the five boutiques and leaves <b class="num">' + fmt(t.central)
     + '</b> central.';
   renderPlacement();
 }
@@ -1604,7 +1610,7 @@ function renderMatrices(){
   const all = ST_LEVELS.length * SP_LEVELS.length;
   el('matrix-sub').textContent = n + ' of ' + all + ' combinations played. '
     + 'Sell-through across, share placed at launch down the side.'
-    + (poolOn ? ' Every square is read with the shared capacity pool on.' : '');
+    + (poolOn ? ' Every square is read with the shared production capacity pool on.' : '');
   el('pool-switch').classList.toggle('hidden', n < 2);
   /* held back until two squares have been played by hand: the point is to
      try a couple and form an expectation before the whole field appears */

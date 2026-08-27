@@ -44,9 +44,15 @@ Two levels, because they mean different things:
 Each game is checked and badged, never silently dropped:
 
 - Expect `13 × 5 × 3 = 195` rows. Fewer → **incomplete**, badged with the week
-  it reached, and **excluded from the ranking stages by default** (toggle to
-  include). A room that crashed still has data worth looking at, but it must
-  not be ranked against rooms that finished.
+  it reached, and **excluded from the ranking stages**. A room that crashed
+  still has data worth looking at, but it must not be ranked against rooms
+  that finished. (An earlier draft promised a toggle to include them; there
+  is none, and the exclusion is unconditional.)
+
+  Completeness is measured against the longest game loaded, floored at the
+  13 weeks the game ships (`SEASON_FLOOR`). Without the floor a part game
+  loaded on its own was the longest thing present, so it defined its own
+  season and was ranked as finished.
 - Row identities re-checked: `opening + received − sold = closing` on boutique
   rows, `sold + missed = demand`. A failure means a hand-edited file; badge it
   loudly.
@@ -65,8 +71,9 @@ for this purpose), so margin is computed from the file alone:
     margin = Σ Revenue − ProducedTotal × UnitCost − FixedCost
 
 Older exports without those columns fall back to editable fields defaulting
-to 200 € and 117 000 €, with a visible warning that the numbers were assumed
-rather than read.
+to 200 € and 120 000 €, with a visible warning that the numbers were assumed
+rather than read. 120 000 is what the game actually charges: 45% of forecast
+sales (117 000) rounded up to a round number.
 
 ---
 
@@ -318,8 +325,9 @@ documentation of it.
 - Everything persists to `localStorage`, so a reload mid-debrief loses
   nothing. Same resume/reset discipline as the game.
 - Per-entry **remove**; a global **Clear all** behind a confirmation.
-- **Export the comparison**: CSV and clipboard of the one-row-per-team table
-  (team, game, setup, turnover, margin, margin %, sell-through, missed).
+- **Export the comparison** — *not built.* A CSV and clipboard copy of the
+  one-row-per-team table (team, game, setup, turnover, margin, margin %,
+  sell-through, missed) was specified and never implemented.
 - A **facilitator sheet**: print stylesheet so stage 5 and the matrix print
   onto one page.
 

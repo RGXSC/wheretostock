@@ -215,7 +215,9 @@ them in the grid; nothing separates them in prose. The card now says what bar 3
 is — *"the third bar is that one again, cut where the shelf ran out"* — and
 carries the red chip only. **One colour, one chip, per card.**
 
-`swatch.mjs` checks all 228 swatches across the three cards of all forty
+`swatch.mjs` (a Playwright harness in the session scratchpad, not shipped in
+the repository — as with every `*.mjs` named in this spec) checks all 228
+swatches across the three cards of all forty
 combinations against the classes actually drawn in the cells each card points
 at, that no card repeats a colour, and that no card names a colour in words.
 
@@ -329,7 +331,7 @@ Per boutique it is ±50% with **no one in the middle** — Paris and New York
 halve, Tokyo and Shanghai run 50% over, London 45% over, and Tokyo overtakes
 Paris. That width is not decoration. With a mild boutique error the warehouse
 covers every gap and the launch push is worth nothing until it reaches 100%;
-at ±50% it is worth 123 000 €, and the optimum narrows from twenty-one
+at ±50% it is worth 122 000 €, and the optimum narrows from twenty-one
 squares to three.
 
 **"Three" is this draw, not this design.** The matrix is one hard-coded
@@ -474,8 +476,11 @@ than it was short.
 one combination on slide 4; on slide 5 a tick-box — *production capacity pool
 at 50% of everything not in the boutiques at launch* — re-reads every square
 that has been played. It exists because the interesting fact is not that the
-numbers go up, it is that **the best square moves, 90/30 → 100/30**. The
-read-out says so explicitly, naming the rigid optimum it moved away from.
+numbers go up, it is what happens to the best square. The read-out names the
+rigid optimum and then quotes the move **in money**: on this board 90/30 →
+100/30 is worth 400 € against a 220 000 € margin, so it says the pool
+*nudges* the answer and that the value is the 20 600 €, not the move. See
+"Two claims, worth very different amounts" in `PLAY-SPEC.md`.
 
 **Which way it moved is computed, not written.** Production is `F ÷
 sell-through`, so a *higher* target is *less* made: this board's move produces
@@ -532,8 +537,9 @@ after.
 **UI.** One slide, no new control. The engine needs none — the existing push
 slider already sets the pool — so the deck's sell-through and push sliders
 simply appear a third time and stay in step with the other two copies. Under
-them, one table per bag (made · to the boutiques · its own reserve · into the
-shared pool · real demand · still short) and two boxes side by side, rigid
+them, one table per bag (committed · to the boutiques · its own warehouse ·
+into the production pool · drawn from the pool · real demand · still lost)
+and two boxes side by side, rigid
 against flexible, carrying the same four numbers each.
 
 ## 6. Deliberately absent
