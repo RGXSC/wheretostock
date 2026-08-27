@@ -285,6 +285,17 @@
   .btrack i{ position:absolute; left:0; top:0; bottom:0; border-radius:3px; display:block; }
   .btrack i.pos{ background:#0f6b45; }
   .btrack i.neg{ background:#8b96a1; }
+  /* Same switch as the deck's pool tick and the player's flex tick, copied
+     rather than imported: three standalone files, no build step. */
+  .switch{ display:flex; align-items:flex-start; gap:11px; padding:11px 14px;
+           border:2px solid var(--line); border-radius:10px; cursor:pointer;
+           font-size:14px; color:var(--ink-soft); }
+  .switch:has(input:checked){ border-color:var(--warn); background:var(--warn-bg);
+                              color:var(--ink); }
+  .switch:has(input:focus-visible){ outline:3px solid var(--accent); outline-offset:3px; }
+  .switch input{ width:20px; height:20px; flex:none; margin-top:1px;
+                 accent-color:var(--warn); cursor:pointer; }
+  .switch b{ color:var(--ink); }
   .btrack i.bad{ background:var(--bad); }
   .btrack i.ghost{ background:none; border:2px dashed #8b96a1; }
   .btrack i.ghost.bad{ border-color:var(--bad); }
@@ -360,6 +371,7 @@
       <!-- the results are hidden here: this screen is on the projector while
            the files come in, and the reveal is the point of the next one -->
       <button id="btn-peek" class="btn-ghost" style="margin-left:auto;">Show results</button>
+      <button id="btn-export" class="btn-ghost">Export the comparison</button>
       <button id="btn-clear" class="btn-ghost btn-danger">Remove all…</button>
     </div>
     <div style="overflow-x:auto;"><table class="games" id="games-table"></table></div>
@@ -621,26 +633,35 @@ const el = function(id){ return document.getElementById(id); };
 const fmt  = function(n){ return Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' '); };
 const fmtE = function(n){ return fmt(n) + ' €'; };
 
-/* Season length is the longest game loaded, floored at the length the game
-   actually ships. Taking it purely from the data broke two ways, both
-   measured: a part game loaded ALONE was the longest thing present, so it
-   defined its own season and was ranked as if finished; and a full 13-week
-   export arriving after that game's one-line summary was judged against a
-   max of 0 - a summary carries no week count - so the richer file was
-   rejected as a part game and silently discarded.
+/* A SEASON IS THIRTEEN WEEKS. Not "the longest file loaded" - that was taken
+   from the data and broke three ways, all measured: a part game loaded alone
+   was the longest thing present, so it defined its own season and was ranked
+   as finished; a full thirteen-week export arriving after that game's
+   one-line summary was judged against a max of 0 and thrown away as a part
+   game; and two rooms that stopped at week 5 ranked each other as if they
+   had both played out.
 
-   SEASON_FLOOR must track WEEKS in index.html. It is the one assumption this
+   Nothing is compared unless it ran the whole season. Anything else stays a
+   part game, however many of them there are and whatever else is loaded.
+
+   SEASON_WEEKS must track WEEKS in index.html. It is the one assumption this
    file makes about the game that wrote its input; a future export should
    carry the season length in a column and retire it. */
-const SEASON_FLOOR = 13;
-function seasonWeeks(){
-  return games.reduce(function(m, g){ return Math.max(m, g.weeks || 0); }, SEASON_FLOOR);
-}
+const SEASON_WEEKS = 13;
+function seasonWeeks(){ return SEASON_WEEKS; }
 function isComplete(g){
+  /* A one-line summary carries no week count - the export writes one at the
+     end of a season, and there is nothing in the file to check it against.
+     It is taken at its word, and the games table badges it "summary only" so
+     the room can see which rooms were taken on trust. */
   if(g.source === 'summary') return true;
-  /* against its own length too: an incoming game is not in `games` yet */
-  return g.weeks === Math.max(seasonWeeks(), g.weeks || 0) && !g.issues.length;
+  return g.weeks === SEASON_WEEKS && !g.issues.length;
 }
+/* The default: part games are shown, never ranked. The toggle below lets a
+   facilitator rank them anyway - useful when a whole room ran out of time -
+   and every stage says loudly when it is on. */
+let includeParts = false;
+function ranksNow(g){ return isComplete(g) || (includeParts && g.weeks > 0); }
 function economics(g){
   return { cost: g.unitCost !== null && g.unitCost !== undefined ? g.unitCost : fallbackCost,
            fixed: g.fixedCost !== null && g.fixedCost !== undefined ? g.fixedCost : fallbackFixed,
@@ -656,7 +677,8 @@ function margin(g){
 function marginPct(g){ return g.turnover ? margin(g) / g.turnover * 100 : null; }
 
 function save(){
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ games:games, fallbackCost:fallbackCost, fallbackFixed:fallbackFixed })); }
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ games:games,
+    fallbackCost:fallbackCost, fallbackFixed:fallbackFixed, includeParts:includeParts })); }
   catch(err){ /* over quota — the session still works, it just will not survive a reload */ }
 }
 function load(){
@@ -667,6 +689,7 @@ function load(){
     if(o && Array.isArray(o.games)) games = o.games;
     if(o && o.fallbackCost) fallbackCost = o.fallbackCost;
     if(o && o.fallbackFixed) fallbackFixed = o.fallbackFixed;
+    if(o) includeParts = !!o.includeParts;
   }catch(err){ games = []; }
 }
 
@@ -781,7 +804,15 @@ function renderImport(){
      every truncated export a different build of the game. Two games disagree
      only if a week/bag/boutique they BOTH recorded carries a different
      demand. */
-  const withDemand = games.filter(function(g){ return g.demandMap; });
+  /* Compare everything that ran the whole SEASON - not everything that is
+     "complete". Completeness also fails on arithmetic issues, and a file
+     edited to carry a different demand table is exactly the thing that both
+     trips those issues and needs catching here: filtering on isComplete
+     excluded the one file this check exists for. Length is the only property
+     that matters, because a short file cannot match a long one whatever it
+     contains. */
+  const withDemand = games.filter(function(g){
+    return g.demandMap && g.weeks === SEASON_WEEKS; });
   const agrees = function(a, b){
     for(const k in a.demandMap)
       if(b.demandMap[k] !== undefined && b.demandMap[k] !== a.demandMap[k]) return false;
@@ -867,7 +898,7 @@ function renderImport(){
   el('games-table').classList.toggle('peek', peeking);
   el('btn-peek').textContent = peeking ? 'Hide results' : 'Show results';
 
-  const rankable = games.filter(isComplete).length;
+  const rankable = games.filter(ranksNow).length;
   const start = el('btn-start');
   start.disabled = rankable === 0 || conflicts.length > 0;
   start.textContent = conflicts.length ? 'Resolve the conflicts above first'
@@ -902,6 +933,108 @@ function rankBy(metric){
     return byName(a, b);
   };
 }
+/* =========================================================================
+   THE COMPARISON, AS A FILE
+   =========================================================================
+   One row per room: exactly the table the debrief ranks, so a facilitator can
+   take the room's result away without re-typing it off a projector. Every
+   figure is the one on screen, read through the same margin()/marginPct() the
+   ranking uses - a second computation here is a second thing to drift.
+
+   Part games are included, flagged in a column of their own, and carry the
+   week they reached. A file that quietly dropped them would disagree with the
+   screen the room just watched. */
+function comparisonRows(){
+  const head = ['Team','Game','TargetSellThrough','StorePctAtSetup','Turnover',
+                'Margin','MarginPct','SellThroughPct','Missed','Weeks',
+                'Complete','Ranked','CostAssumed'];
+  const body = games.slice().sort(function(a, b){
+    /* the ranked ones first, in the order the debrief put them */
+    const ra = ranksNow(a), rb = ranksNow(b);
+    if(ra !== rb) return ra ? -1 : 1;
+    return ra ? rankBy('margin')(a, b) : byName(a, b);
+  }).map(function(g){
+    const e = economics(g), m = margin(g), mp = marginPct(g);
+    const st = g.producedTotal ? g.sold / g.producedTotal * 100 : null;
+    return [g.team, g.game,
+            g.target === null || g.target === undefined ? '' : g.target + '%',
+            g.storePct === null || g.storePct === undefined ? '' : g.storePct + '%',
+            Math.round(g.turnover), Math.round(m),
+            mp === null ? '' : mp.toFixed(1),
+            st === null ? '' : st.toFixed(1),
+            g.missed === null || g.missed === undefined ? '' : g.missed,
+            g.weeks || '', isComplete(g) ? 'yes' : 'no',
+            ranksNow(g) ? 'yes' : 'no', e.assumed ? 'yes' : 'no'];
+  });
+  return [head].concat(body);
+}
+function toCSV(rows){
+  return rows.map(function(r){ return r.map(function(c){
+    const v = String(c === null || c === undefined ? '' : c);
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }).join(','); }).join('\r\n');
+}
+function exportComparison(){
+  const rows = comparisonRows();
+  const csv = toCSV(rows);
+  /* Clipboard first and separately from the download: navigator.clipboard is
+     not available on a file:// page in every browser, and the older
+     execCommand path needs a real selection. Neither failing may stop the
+     download, which is the part that always works. */
+  let copied = false;
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = csv;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed'; ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, csv.length);
+    copied = document.execCommand('copy');
+    document.body.removeChild(ta);
+  }catch(err){ copied = false; }
+  if(!copied && navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(csv).then(function(){}, function(){});
+  }
+  let saved = true;
+  try{
+    const blob = new Blob(['\ufeff' + csv], { type:'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'comparison.csv';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }catch(err){ saved = false; }
+  /* Say which of the two happened. "Exported" over a browser that blocked
+     the download would be a lie the facilitator only finds out about later. */
+  /* built the way every other dialog in this file is built - there is no
+     openModal here, and inventing one for a single caller would leave two */
+  const back = document.createElement('div');
+  back.style.cssText = 'position:fixed;inset:0;z-index:70;background:rgba(12,16,22,.6);'
+    + 'display:flex;align-items:center;justify-content:center;padding:18px;';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:10px;max-width:680px;width:100%;padding:26px;';
+  const n = rows.length - 1;
+  box.innerHTML = '<h2 style="font-size:23px;margin-bottom:10px;">The comparison — '
+      + n + ' room' + (n === 1 ? '' : 's') + '</h2>'
+    + '<p style="margin:0 0 14px;">'
+    + (saved ? 'Saved as <b>comparison.csv</b>. ' : '<b>The browser blocked the download.</b> ')
+    + (copied ? 'It is on the clipboard as well — paste it straight into a sheet.'
+              : 'Copy it out of the box below.')
+    + '</p>';
+  const ta = document.createElement('textarea');
+  ta.readOnly = true; ta.value = csv;
+  ta.style.cssText = 'width:100%;min-height:170px;font:12px ui-monospace,Menlo,Consolas,monospace;';
+  box.appendChild(ta);
+  const row = document.createElement('div'); row.className = 'row-buttons';
+  const ok = mkBtn('Close', function(){ back.remove(); });
+  ok.className = 'btn-primary btn-xl';
+  row.appendChild(ok); box.appendChild(row);
+  back.appendChild(box);
+  back.addEventListener('click', function(e){ if(e.target === back) back.remove(); });
+  el('modal-root').appendChild(back);
+  ok.focus();
+}
+
 function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
   return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); }
 function mkBtn(label, fn){ const b = document.createElement('button'); b.textContent = label;
@@ -928,7 +1061,7 @@ const PALETTE = ['#12395e','#2f6ea8','#6ba3cd','#8d99a6','#464f59','#0f6b45','#8
                  '#7d5ba6','#00798c','#6a8532','#b07d62','#4f6d7a','#7a4419'];
 
 function startReveal(){
-  ranked = games.filter(isComplete).sort(byName);
+  ranked = games.filter(ranksNow).sort(byName);
   ranked.forEach(function(g, i){ g.colour = PALETTE[i % PALETTE.length]; });
   stage = 0;
   el('screen-import').classList.add('hidden');
@@ -969,10 +1102,47 @@ function renderExcluded(){
   const box = el('excluded');
   box.classList.toggle('hidden', parts.length === 0);
   if(!parts.length) return;
-  box.innerHTML = '<h2 style="font-size:19px;">Not ranked — part games</h2>'
+  /* The toggle lives with the rooms it is about, so turning it on and seeing
+     them appear in the ranking is one movement. Off is the default and the
+     honest reading: a room that stopped at week 5 did not play the season. */
+  box.innerHTML = '<h2 style="font-size:19px;">'
+    + (includeParts ? 'Part games — ranked anyway' : 'Not ranked — part games') + '</h2>'
     + '<p class="muted small" style="margin:4px 0 0;">'
-    + parts.map(function(g){ return esc(g.team + ' · ' + g.game) + ' (reached week ' + (g.weeks || '?') + ')'; }).join(' · ')
-    + '</p>';
+    + parts.map(function(g){
+        /* A game can miss the ranking two ways, and "reached week 13 of 13"
+           as the reason for excluding a 13-week game reads as a contradiction.
+           Say which it is. */
+        const why = g.weeks === SEASON_WEEKS
+          ? (g.issues.length ? g.issues.join('; ') : 'not comparable')
+          : 'reached week ' + (g.weeks || '?') + ' of ' + SEASON_WEEKS;
+        return esc(g.team + ' · ' + g.game) + ' (' + esc(why) + ')'; }).join(' · ')
+    + '</p>'
+    + '<label class="switch" style="margin-top:12px;">'
+    +   '<input type="checkbox" id="ck-parts"' + (includeParts ? ' checked' : '') + '>'
+    +   '<span>Rank them anyway — <b>' + parts.length + ' part game'
+    +   (parts.length > 1 ? 's' : '') + '</b> against rooms that played all '
+    +   SEASON_WEEKS + ' weeks. Their season is shorter, so their turnover and '
+    +   'margin are not comparable.</span>'
+    + '</label>';
+  el('ck-parts').addEventListener('change', function(){
+    includeParts = this.checked;
+    save();
+    reRank();
+  });
+}
+
+/* Changing the line-up mid-debrief rebuilds the same way a fresh reveal does,
+   and stays on the stage the room is looking at. Colours are re-dealt from
+   the ranked order, so a room keeps its colour as long as the line-up does. */
+function reRank(){
+  const here = stage;
+  ranked = games.filter(ranksNow).sort(byName);
+  ranked.forEach(function(g, i){ g.colour = PALETTE[i % PALETTE.length]; });
+  el('matrix-wrap').dataset.built = '';
+  buildRows();
+  stage = Math.min(here, STAGES.length - 1);
+  renderDetail();
+  renderStage();
 }
 
 /* First-Last-Invert-Play: rows glide to their new places, so a room can be
@@ -1903,6 +2073,7 @@ function init(){
     peeking = !peeking; renderImport();
   });
 
+  el('btn-export').addEventListener('click', exportComparison);
   el('btn-clear').addEventListener('click', function(){
     if(!games.length) return;
     askConfirm('Remove all ' + games.length + ' loaded games?',

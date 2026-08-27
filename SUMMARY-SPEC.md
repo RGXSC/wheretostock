@@ -44,15 +44,31 @@ Two levels, because they mean different things:
 Each game is checked and badged, never silently dropped:
 
 - Expect `13 × 5 × 3 = 195` rows. Fewer → **incomplete**, badged with the week
-  it reached, and **excluded from the ranking stages**. A room that crashed
+  it reached, and **excluded from the ranking stages by default**, with a
+  toggle beside the list of them to rank them anyway. A room that crashed
   still has data worth looking at, but it must not be ranked against rooms
-  that finished. (An earlier draft promised a toggle to include them; there
-  is none, and the exclusion is unconditional.)
+  that finished unless the facilitator says so.
 
-  Completeness is measured against the longest game loaded, floored at the
-  13 weeks the game ships (`SEASON_FLOOR`). Without the floor a part game
-  loaded on its own was the longest thing present, so it defined its own
-  season and was ranked as finished.
+  **A season is exactly `SEASON_WEEKS` = 13.** Not "the longest file
+  loaded" — that was taken from the data and broke three ways, all measured:
+  a part game loaded alone was the longest thing present, so it defined its
+  own season and ranked as finished; a full thirteen-week export arriving
+  after that game's one-line summary was judged against a max of 0 and thrown
+  away; and two rooms that both stopped at week 5 ranked each other as if
+  they had played out. Nothing is compared unless it ran the whole season,
+  and the version check only compares games that did.
+
+  `SEASON_WEEKS` must track `WEEKS` in `index.html`. It is the one assumption
+  this file makes about the game that wrote its input; a future export should
+  carry the season length in a column and retire it.
+
+  A **one-line summary** carries no week count — the game writes one at the
+  end of a season and there is nothing in the file to check it against — so
+  it is taken at its word and badged *summary only* in the games table.
+
+  The toggle persists with everything else, says so in the panel heading
+  (*"Part games — ranked anyway"*), and re-deals colours from the new ranked
+  order while staying on the stage the room is looking at.
 - Row identities re-checked: `opening + received − sold = closing` on boutique
   rows, `sold + missed = demand`. A failure means a hand-edited file; badge it
   loudly.
@@ -325,9 +341,23 @@ documentation of it.
 - Everything persists to `localStorage`, so a reload mid-debrief loses
   nothing. Same resume/reset discipline as the game.
 - Per-entry **remove**; a global **Clear all** behind a confirmation.
-- **Export the comparison** — *not built.* A CSV and clipboard copy of the
-  one-row-per-team table (team, game, setup, turnover, margin, margin %,
-  sell-through, missed) was specified and never implemented.
+- **Export the comparison**: one row per room, downloaded as `comparison.csv`
+  and put on the clipboard in the same click — team, game, target, launch
+  push, turnover, margin, margin %, sell-through %, missed, weeks, and three
+  flags: `Complete`, `Ranked`, `CostAssumed`.
+
+  Ranked rooms come first in the order the debrief put them, part games after
+  in name order. **Part games are in the file**, flagged rather than dropped:
+  a file that quietly disagreed with the screen the room just watched is
+  worse than one that explains itself. Every figure is read through the same
+  `margin()` / `marginPct()` the ranking uses — a second computation here is
+  a second thing to drift.
+
+  The clipboard and the download are attempted independently, and the dialog
+  reports which of the two actually happened: `navigator.clipboard` is not
+  available on a `file://` page in every browser, and a download can be
+  blocked. The CSV is shown in a text box either way, so the facilitator is
+  never left with a button that silently did nothing.
 - A **facilitator sheet**: print stylesheet so stage 5 and the matrix print
   onto one page.
 
