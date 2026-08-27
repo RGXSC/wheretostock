@@ -489,7 +489,7 @@
       <label class="switch" id="flex-switch">
         <input type="checkbox" id="ck-flex">
         <span><b>Flexible production capacity</b> — 50% of everything held back
-          joins a shared production pool, made only if a shortage calls on
+          joins a shared production capacity pool, made only if a shortage calls on
           it</span>
       </label>
       <div class="mcfield">
@@ -901,9 +901,13 @@ function mcStart(){
      flexibility was worth rather than only what it produced.
 
      The premium changes the COST of flex, never the decision to draw it: a
-     unit drawn serves demand worth 1 000 €, against at most 260 € at the top
-     of the slider, so it is always worth drawing. The allocation is therefore
-     premium-independent and these accumulators stay valid as it moves. */
+     unit drawn serves demand worth 1 000 €, against at most 650 € - the top
+     of the bag-cost slider, 500 €, plus the top of the premium, +30% - so it
+     is always worth drawing anywhere in the two ranges. ("At most 260 €" was
+     the old figure here and quietly assumed a 200 € bag, which the cost
+     slider has not been fixed at since it became a slider.) The allocation is
+     therefore independent of BOTH prices, which is what lets either move
+     without re-running. */
   const sumC = new Float64Array(combos.length);   /* committed: pushed + own reserve */
   const sumX = new Float64Array(combos.length);   /* flex actually drawn */
   const sumR = new Float64Array(combos.length);   /* the rigid season's turnover */
@@ -1052,7 +1056,7 @@ function renderMC(){
      recomputes the whole board without touching the simulation */
   const prem = Number(el('mc-flexcost').value) / 100;
   /* The two readings of the same seasons. FLEX: half of what each bag holds
-     back is a shared production pool, so what was committed up front is paid
+     back is a shared production capacity pool, so what was committed up front is paid
      at the plain cost and only what was drawn late carries the premium.
      RIGID: every bag keeps its whole pool to itself, so everything planned is
      made and paid for whether or not it sells.
@@ -1173,12 +1177,12 @@ function renderMC(){
        sentence turns on and it is not on screen until the box is ticked. */
     tail = 'Every bag is keeping everything it holds back to itself. Tick '
          + '<b>flexible production capacity</b> above and 50% of it becomes a '
-         + 'shared production pool: at ' + premWord + ' — the price of late '
+         + 'shared production capacity pool: at ' + premWord + ' — the price of late '
          + 'capacity, which becomes a slider once the box is ticked — that is '
          + 'worth ' + money(gain) + '. ' + moveSentence;
   }else{
     const drawn = r.avgX[key(bm.st, bm.sp)], held = r.avgC[key(bm.st, bm.sp)];
-    tail = '50% of everything held back is a shared production pool. Against '
+    tail = '50% of everything held back is a shared production capacity pool. Against '
          + 'every bag keeping its own, that is worth ' + money(gain) + ' at '
          + premWord + ' — ' + fmt(Math.round(drawn)) + ' of the '
          + fmt(Math.round(held + drawn)) + ' pieces made are drawn late. '
@@ -1255,8 +1259,11 @@ function init(){
   addEventListener('pageshow', function(){ syncFlex(); mcHints(); renderMC(); });
 }
 
-/* one function writes all four things the flag controls, so they cannot
-   drift: the flag, the premium field, the grid, and nothing else */
+/* One function writes the three things the flag controls, so they cannot
+   drift: the flag itself, the premium field's visibility, and the grid that
+   gives the bag cost the whole row when the premium is not there. Called by
+   init and by pageshow as well as by the change handler, because a restored
+   checkbox fires neither. */
 function syncFlex(){
   flexOn = el('ck-flex').checked;
   el('mc-flexfield').classList.toggle('hidden', !flexOn);

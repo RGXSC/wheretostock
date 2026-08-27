@@ -395,6 +395,11 @@ Enter. A keyboard reader tabs off Run onto the tick or the cost slider and
 presses the key the page just taught them. Space still toggles the tick and
 the arrows still move the sliders.
 
+**The pool is called a *shared production capacity pool*, the same words the
+deck uses.** A participant scans the QR code off the slide that names it, so
+the two files must not rename it between the slide and the page. The player
+said "shared production pool" in four places and the deck never does.
+
 **The premium is a slider, 0 to 30% of unit cost in steps of 5, defaulting to
 +10%, and it appears only once the tick is on.** It is the price of a deal you
 only have if you take it, not a property of the world — offering it beside an
