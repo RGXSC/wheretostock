@@ -96,8 +96,9 @@ default. Side by side, *"+10% — a piece made late costs 220 € instead of
 200 €"* under a slider reading 380 € is a visible contradiction.
 
 Range 0–30% of the bag's cost, in steps of 5, default 10%. It never stops
-paying inside that range — a piece drawn late costs at most 260 € and serves
-1 000 € of demand — but the **best square moves at +15%**, from 90/30 to
+paying inside that range — at the default 200 € bag a piece drawn late costs
+260 € and serves 1 000 € of demand, and even at the top of the *cost* slider
+it is 650 € against 1 000 € — but the **best square moves at +15%**, from 90/30 to
 80/30: dearer late capacity is answered by committing more up front. The
 default sits one step below that switch, so the first nudge changes the answer
 rather than a number. See `SIMULATE-SPEC.md` §4c for the sweep.
@@ -426,9 +427,11 @@ the same seasons played rigidly with their production. That keeps **both** the
 unit-cost slider and the premium slider free: margin at any pair of values is
 arithmetic on numbers already in hand, with nothing to re-run. The premium
 changes the *cost* of flex and never the decision to draw it — a drawn unit
-serves demand worth 1 000 € against at most 260 € at the top of the slider — so
-the allocation is premium-independent and the accumulators stay valid as it
-moves.
+serves demand worth 1 000 € against at most **650 €**, the top of the bag-cost
+slider (500 €) plus the top of the premium (+30%) — so the allocation is
+independent of *both* prices, which is what lets either move without
+re-running. (260 € was the figure here for a while: it is a 200 € bag plus
+30%, and quietly assumed a cost slider fixed at its default.)
 
 Measured on the default 40 × 40 board, from a single run re-read at each stop:
 
@@ -443,9 +446,10 @@ Two things the table is for. **The best square moves at +15%**, from 90/30 to
 80/30: as late capacity gets dearer you commit more up front instead of relying
 on it. The default sits one step below that switch, so a single nudge changes
 the answer rather than merely changing a number. And flexibility never stops
-paying inside the range — at +30% a late piece costs 260 € against 1 000 € of
-revenue — which is honest rather than convenient, and worth saying if a room
-asks where the break-even is.
+paying inside the range — at +30% on a 200 € bag a late piece costs 260 €
+against 1 000 € of revenue, and 650 € at the dearest bag the slider allows —
+which is honest rather than convenient, and worth saying if a room asks where
+the break-even is.
 
 Alongside the two matrices the slide states what the same seasons would have
 earned rigidly, so the gain is a comparison and not an assertion.
