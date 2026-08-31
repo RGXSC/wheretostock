@@ -341,6 +341,37 @@ documentation of it.
 - Everything persists to `localStorage`, so a reload mid-debrief loses
   nothing. Same resume/reset discipline as the game.
 - Per-entry **remove**; a global **Clear all** behind a confirmation.
+### The P&L is walked, not revealed
+
+The reveal used to go *turnover → rank → margin → rank*, which hid three
+separate movements behind one number. It now takes the deductions one at a
+time, in the order the notes move in the room, and **re-ranks at every step**:
+
+| Stage | Column shown | Ranked on |
+|---|---|---|
+| `turnover` / `sortT` | Turnover | turnover |
+| `fixed` | − Fixed cost → Provisional | turnover − fixed |
+| `cogs` | − Cost of the sold → Provisional | … − cost of goods sold |
+| `unsold` | − Cost of the unsold → **Margin** | the finished margin |
+
+Two columns carry the walk and re-label themselves at each step: the
+**deduction** being taken (in `--bad`, the colour the bridge and the game both
+paint a cost) and the **running total** after it. The running figure animates
+on change, so the eye is pulled to the number that moved rather than only to
+the row that moved.
+
+**Margin %** waits for the last deduction. Beside a provisional total it would
+be a ratio of two different things.
+
+The last deduction is `(produced − sold) × cost`, not `max(0, …)`, so the walk
+lands exactly on `margin()` — which subtracts the whole production. In any
+valid export the two are identical; the unclamped form guarantees the last
+column and the ranking cannot disagree.
+
+Why it earns three stages: on the sample room set, one team leads on turnover,
+holds first place through the fixed cost *and* the cost of what it sold, then
+loses the season on stock nobody bought. Revealed in one go, that is invisible.
+
 - **Export the comparison**: one row per room, downloaded as `comparison.csv`
   and put on the clipboard in the same click — team, game, target, launch
   push, turnover, margin, margin %, sell-through %, missed, weeks, and three

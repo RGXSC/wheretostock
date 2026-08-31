@@ -1282,7 +1282,13 @@ function renderGrid(){
       + '<span><i class="sw" style="background:var(--plan)"></i>the plan</span>'
       + '<span><i class="sw" style="background:var(--real)"></i>what the season asked for</span>'
       + (whUsed ? '<span><i class="sw" style="background:var(--sent)"></i>sent from the warehouse</span>' : '')
-      + '<span><i class="sw" style="background:var(--miss)"></i>nobody could buy</span>'
+      /* Red is not the same claim on both sides of the warehouse beat. Before
+         it ships, red is what the SHELF could not serve - and the warehouse is
+         about to cover a good part of it. Only after it has shipped is red
+         genuinely a customer nobody could serve. Calling it "nobody could buy"
+         all the way through wrote off sales the deck then goes on to save. */
+      + '<span><i class="sw" style="background:var(--miss)"></i>'
+      + (whUsed ? 'nobody could buy' : 'the shelf could not serve') + '</span>'
       + '<span><i class="sw" style="background:var(--spare)"></i>sitting in the wrong boutique</span>'
       + '</div>';
   }
@@ -1334,7 +1340,9 @@ function seasonWords(){
     ['One more boutique', null],
     ['One bag, all five boutiques', null],
     ['What the season asked for',
-     'Now all twenty-five. You already know how to read one.'],
+     'Now all twenty-five. You already know how to read one. The red is what '
+     + 'the <b>shelves</b> could not serve — the warehouse has not shipped yet, '
+     + 'and it is still holding <b class="num">' + fmt(central) + '</b> pieces.'],
     ['And the whole board, in one cell', null],
     ['The warehouse answers',
      '<b class="num">' + fmt(central) + '</b> pieces never left the warehouse, against '
@@ -1920,11 +1928,13 @@ function spotCard(k){
       text:'One bag, one season. Planned <b>' + fmt(F_BAG[i]) + '</b>, asked for <b>'
         + fmt(D_BAG[i]) + '</b>' + (ga && sp
         ? '. Underneath that: ' + sw('miss') + ' <b>' + fmt(ga)
-          + '</b> nobody could buy and ' + sw('spare') + ' <b>' + fmt(sp)
+          + '</b> the shelves could not serve and ' + sw('spare') + ' <b>' + fmt(sp)
           + '</b> sitting where nobody wants them — in the same bag, at '
-          + 'the same moment. The stock cannot walk from one boutique to another.'
+          + 'the same moment. The warehouse can still answer the shortfall. It '
+          + 'can do nothing at all about the surplus: stock cannot walk from one '
+          + 'boutique to another.'
         : ga ? ' — and ' + sw('miss') + ' <b>' + fmt(ga)
-               + '</b> nobody could buy, spread across the row.'
+               + '</b> the shelves could not serve, spread across the row.'
              : ' — and ' + sw('spare') + ' <b>' + fmt(sp)
                + '</b> sitting where nobody wants them.') };
   }
@@ -1936,7 +1946,7 @@ function spotCard(k){
     return { title:'Now the whole board',
       text:'<b>' + fmt(F_TOTAL) + '</b> planned. <b>' + fmt(rowSum(D_BAG))
         + '</b> asked for. The total was right. Underneath it, ' + sw('miss')
-        + ' <b>' + fmt(ga) + '</b> nobody could buy'
+        + ' <b>' + fmt(ga) + '</b> the shelves could not serve'
         + (sp ? ' and ' + sw('spare') + ' <b>' + fmt(sp)
                 + '</b> sitting where nobody wants them. '
                 + 'Every mistake on this board is a mistake of place, not of '
@@ -1966,8 +1976,9 @@ function spotCard(k){
       + sw('real') + ' what the season actually asked for: <b>' + fmt(d)
       + '</b>.<br>The third bar is that one again, cut where the shelf ran out: '
       + '<b>' + fmt(given) + '</b> served, then ' + sw('miss') + ' <b>' + fmt(ga)
-      + '</b> who found nothing — ' + fmtE(ECON.price)
-      + ' of sales each, walking out of the door.' };
+      + '</b> the shelf could not serve. That is ' + fmtE(ECON.price) + ' of sales '
+      + 'each — <b>if nothing reaches them</b>. The warehouse has not shipped yet, '
+      + 'and it is holding stock.' };
   /* the no-surplus board: the cell the forecast came closest to getting right */
   return { title:'The one we very nearly got right',
     text:'Planned <b>' + fmt(f) + '</b> for ' + esc(BAGS[i].name) + ' in '

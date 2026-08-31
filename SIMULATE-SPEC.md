@@ -140,6 +140,36 @@ Flush rows also group the three bars as one reading, which is what they are.
 The cost: the grid needs 929px of page instead of 869, so a 1280×800 screen
 scrolls ~130px on this slide. 1400×940 and 1920×1080 still fit whole.
 
+## Red is not the same claim on both sides of the warehouse
+
+Before the warehouse ships, red is what the **shelf** could not serve — and
+the warehouse is about to cover a good part of it. Only after it has shipped
+is red genuinely a customer nobody could serve.
+
+The deck used to caption it *"nobody could buy"* from the first beat, and the
+walk card told the room those customers were *"walking out of the door"* at
+1 000 € each — writing off sales the deck then spends a whole beat saving. On
+this board the spotlit cell goes from −47 to −20 once the warehouse answers:
+more than half the loss the card had already booked.
+
+Everything that names it now branches on `whUsed`:
+
+- the legend reads **"the shelf could not serve"** before, **"nobody could
+  buy"** after;
+- the walk card says the shelf could not serve them, and makes the money
+  conditional — *"1 000 € of sales each, if nothing reaches them"* — naming
+  the warehouse as the reason it is conditional;
+- the all-twenty-five lead says the warehouse has not shipped and how much it
+  is still holding;
+- the row and total cards say *"the shelves could not serve"*.
+
+The amber claim is unchanged and stays absolute, because it is: the warehouse
+can answer a shortfall and can do nothing at all about stock already sitting
+in the wrong boutique.
+
+`r7precise.mjs` sweeps every pre-warehouse beat of five combinations — thirty
+(combination, beat) pairs — for any wording that writes the sale off.
+
 ## The colours
 
 Four roles, one hex each, named once in `:root` so a bar, its number, the ring

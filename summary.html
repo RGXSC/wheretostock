@@ -111,9 +111,9 @@
   .board{ background:var(--surface); border:2px solid var(--line-soft);
           border-radius:var(--radius); padding:8px 18px 18px; margin-top:20px; }
   .rowhead, .trow{ display:grid; gap:10px; align-items:center;
-                   grid-template-columns:56px minmax(180px,2fr) 130px 130px 150px 150px 110px; }
+                   grid-template-columns:56px minmax(160px,2fr) 116px 116px 140px 150px 150px 104px; }
   @media (max-width:900px){
-    .rowhead, .trow{ grid-template-columns:44px minmax(120px,1.4fr) 90px 90px 110px 110px 90px;
+    .rowhead, .trow{ grid-template-columns:44px minmax(120px,1.4fr) 84px 84px 108px 116px 116px 86px;
                      font-size:15px; }
   }
   .rowhead{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
@@ -131,9 +131,17 @@
 
   /* columns appear as the stages advance; visibility (not display) keeps the
      grid geometry fixed, so nothing jumps and the sort measurements hold */
-  .c-setup, .c-turnover, .c-margin, .c-rank{ visibility:hidden; }
+  .c-setup, .c-turnover, .c-margin, .c-rank, .c-ded, .c-run{ visibility:hidden; }
   .show-setup .c-setup, .show-turnover .c-turnover,
-  .show-margin .c-margin, .show-rank .c-rank{ visibility:visible; animation:fade .45s ease both; }
+  .show-margin .c-margin, .show-rank .c-rank,
+  .show-ded .c-ded, .show-run .c-run{ visibility:visible; animation:fade .45s ease both; }
+  /* the deduction is money going out, and it is the colour the bridge and the
+     game both paint a cost */
+  .c-ded{ color:var(--bad); font-variant-numeric:tabular-nums; }
+  /* the running total re-animates on every step, so the eye is pulled to the
+     number that just changed rather than to the row that just moved */
+  .c-run.bump{ animation:bump .5s ease both; }
+  @keyframes bump{ 0%{ transform:scale(1); } 35%{ transform:scale(1.09); } 100%{ transform:scale(1); } }
   @keyframes fade{ from{ opacity:0; transform:translateY(-6px) } to{ opacity:1; transform:none } }
 
   .footbar{ position:fixed; left:0; right:0; bottom:0; z-index:20; background:var(--surface);
@@ -394,7 +402,9 @@
       <div class="rowhead">
         <span class="c-rank">Rank</span><span>Team</span>
         <span class="c-setup">Sell-through</span><span class="c-setup">In the boutiques</span>
-        <span class="c-turnover">Turnover</span><span class="c-margin">Margin</span>
+        <span class="c-turnover">Turnover</span>
+        <span class="c-ded" id="h-ded">− Fixed cost</span>
+        <span class="c-run" id="h-run">Provisional</span>
         <span class="c-margin">Margin&nbsp;%</span>
       </div>
       <div id="rows"></div>
@@ -1043,16 +1053,55 @@ function mkBtn(label, fn){ const b = document.createElement('button'); b.textCon
 /* =========================================================================
    5. THE REVEAL
    ========================================================================= */
+/* The P&L is walked one deduction at a time, in the order the notes move in
+   the room: turnover in, then the fixed cost back, then what the bags sold
+   cost to make, then what the unsold ones cost. Each step re-ranks, because
+   the whole point is that the order CHANGES — a room can lead on turnover,
+   survive the fixed cost, and lose the season on stock nobody bought.
+
+   Revealing the finished margin in one go hid all three of those movements
+   behind a single number. */
+const PNL_STEPS = [
+  { key:'fixed',
+    title:'Take the fixed cost back',
+    ded:function(g){ return economics(g).fixed; },
+    dedLab:'− Fixed cost',
+    runLab:'Provisional' },
+  { key:'cogs',
+    title:'…and what the bags they sold cost to make',
+    ded:function(g){ return g.sold * economics(g).cost; },
+    dedLab:'− Cost of the sold',
+    runLab:'Provisional' },
+  { key:'unsold',
+    title:'…and what the bags nobody bought cost',
+    /* produced − sold, not max(0, …): this makes the walk land exactly on
+       margin(), which subtracts the whole production. In any valid export
+       the two are the same number. */
+    ded:function(g){ return (g.producedTotal - g.sold) * economics(g).cost; },
+    dedLab:'− Cost of the unsold',
+    runLab:'Margin' }
+];
+/* turnover minus the first `upto`+1 deductions; upto = −1 is turnover itself */
+function runningAt(g, upto){
+  let v = g.turnover;
+  for(let i = 0; i <= upto && i < PNL_STEPS.length; i++) v -= PNL_STEPS[i].ded(g);
+  return v;
+}
 const STAGES = [
   { key:'names',    title:'The teams' },
   { key:'setup',    title:'What each team decided' },
   { key:'turnover', title:'Turnover — still in alphabetical order' },
   { key:'sortT',    title:'Ranked by turnover' },
-  { key:'margin',   title:'…and here is the margin' },
-  { key:'sortM',    title:'Ranked by margin' },
+  { key:'fixed',    title:PNL_STEPS[0].title },
+  { key:'cogs',     title:PNL_STEPS[1].title },
+  { key:'unsold',   title:PNL_STEPS[2].title },
   { key:'mapT',     title:'Turnover on the map' },
   { key:'mapM',     title:'…and the same map by margin' }
 ];
+/* which deduction a stage is showing, or −1 for the stages before them */
+function pnlIndexOf(key){
+  return PNL_STEPS.findIndex(function(x){ return x.key === key; });
+}
 let stage = 0;
 let ranked = [];                  /* the games being revealed, in display order */
 
@@ -1089,7 +1138,10 @@ function buildRows(){
       + '<div class="big c-setup">' + g.target + '%</div>'
       + '<div class="big c-setup">' + g.storePct + '%</div>'
       + '<div class="big c-turnover">' + fmtE(g.turnover) + '</div>'
-      + '<div class="big c-margin' + (m < 0 ? ' neg' : '') + '">' + fmtE(m) + '</div>'
+      /* filled in per stage by paintPnl(): the deduction being taken now, and
+         the running total after it */
+      + '<div class="c-ded"></div>'
+      + '<div class="big c-run"></div>'
       + '<div class="big c-margin' + (m < 0 ? ' neg' : '') + '">'
       +   (mp === null ? '—' : mp.toFixed(1) + '%') + '</div>';
     host.appendChild(d);
@@ -1197,6 +1249,33 @@ function finishSort(){
   setRanks();
 }
 
+/* Write the two moving columns for the step the room is on. Cells are updated
+   in place rather than rebuilt: buildRows() would drop the nodes reorder()
+   measures for its FLIP animation, and the rows would jump instead of glide. */
+function paintPnl(upto){
+  const step = upto >= 0 ? PNL_STEPS[upto] : null;
+  el('h-ded').textContent = step ? step.dedLab : '';
+  el('h-run').textContent = step ? step.runLab : '';
+  const kids = el('rows').children;
+  for(let i = 0; i < kids.length; i++){
+    const node = kids[i];
+    const g = ranked.find(function(x){ return x.id === node.dataset.id; });
+    if(!g) continue;
+    const ded = node.querySelector('.c-ded'), run = node.querySelector('.c-run');
+    if(!step){ ded.textContent = ''; run.textContent = ''; continue; }
+    ded.textContent = '− ' + fmtE(step.ded(g));
+    const v = runningAt(g, upto);
+    const was = run.textContent;
+    run.textContent = fmtE(v);
+    run.classList.toggle('neg', v < 0);
+    /* only bump what actually moved, so the last step does not flash every
+       row that was already at its final figure */
+    if(was && was !== run.textContent){
+      run.classList.remove('bump'); void run.offsetWidth; run.classList.add('bump');
+    }
+  }
+}
+
 function setRanks(){
   const kids = el('rows').children;
   for(let i = 0; i < kids.length; i++) kids[i].querySelector('.rank').textContent = (i + 1);
@@ -1208,10 +1287,19 @@ function renderStage(){
   el('stage-title').textContent = s.title;
 
   const board = el('board');
+  const pnl = pnlIndexOf(s.key);          /* −1 before the deductions start */
+  const firstPnl = STAGES.findIndex(function(x){ return x.key === PNL_STEPS[0].key; });
   board.classList.toggle('show-setup',    stage >= 1);
   board.classList.toggle('show-turnover', stage >= 2);
   board.classList.toggle('show-rank',     stage >= 3);
-  board.classList.toggle('show-margin',   stage >= 4);
+  board.classList.toggle('show-ded',      stage >= firstPnl);
+  board.classList.toggle('show-run',      stage >= firstPnl);
+  /* the percentage is of the FINISHED margin, so it waits for the last
+     deduction — showing it beside a provisional total would be a ratio of two
+     different things */
+  board.classList.toggle('show-margin',   pnl === PNL_STEPS.length - 1
+                                          || stage > STAGES.findIndex(function(x){
+                                               return x.key === PNL_STEPS[PNL_STEPS.length-1].key; }));
 
   const onMap = (s.key === 'mapT' || s.key === 'mapM');
   el('matrix-wrap').classList.toggle('hidden', !onMap);
@@ -1220,12 +1308,29 @@ function renderStage(){
 
   /* The order belongs to the stage, not to the act of arriving at it going
      forwards: stepping back out of a ranking used to leave the rows ranked
-     under a heading that says "still in alphabetical order". */
-  const sortM = STAGES.findIndex(function(x){ return x.key === 'sortM'; });
+     under a heading that says "still in alphabetical order".
+
+     Every deduction re-ranks on the RUNNING total, which is the point of
+     walking the P&L at all: a room can lead on turnover, hold its place
+     through the fixed cost, and lose the season on stock nobody bought. */
   const sortT = STAGES.findIndex(function(x){ return x.key === 'sortT'; });
+  const lastPnl = STAGES.findIndex(function(x){
+    return x.key === PNL_STEPS[PNL_STEPS.length - 1].key; });
   let want = ranked;
-  if(stage >= sortM)      want = ranked.slice().sort(rankBy('margin'));
-  else if(stage >= sortT) want = ranked.slice().sort(rankBy('turnover'));
+  if(pnl >= 0 || stage > lastPnl){
+    const upto = pnl >= 0 ? pnl : PNL_STEPS.length - 1;
+    want = ranked.slice().sort(function(a, b){
+      const d = runningAt(b, upto) - runningAt(a, upto);
+      if(d) return d;
+      const t = b.turnover - a.turnover;
+      return t ? t : byName(a, b);
+    });
+  }else if(stage >= sortT){
+    want = ranked.slice().sort(rankBy('turnover'));
+  }
+  /* paint before reordering: reorder() measures where the rows are, and a
+     cell whose text changes afterwards can resize the row it is in */
+  paintPnl(stage > lastPnl ? PNL_STEPS.length - 1 : pnl);
   reorder(want);
   setTimeout(setRanks, 40);
   if(onMap){
