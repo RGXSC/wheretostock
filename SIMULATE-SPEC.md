@@ -156,9 +156,11 @@ Everything that names it now branches on `whUsed`:
 
 - the legend reads **"the shelf could not serve"** before, **"nobody could
   buy"** after;
-- the walk card says the shelf could not serve them, and makes the money
-  conditional — *"1 000 € of sales each, if nothing reaches them"* — naming
-  the warehouse as the reason it is conditional;
+- the walk card says the shelf could not serve them — *"47 the shelf could
+  not serve — if nothing reaches them. The warehouse has not shipped yet."*
+  The **price is not quoted here at all**: at 1 000 € a head it needed a hedge
+  to stay true, and the hedge made the sentence hard to read. The figure
+  belongs to the beat that can actually charge it;
 - the all-twenty-five lead says the warehouse has not shipped and how much it
   is still holding;
 - the row and total cards say *"the shelves could not serve"*.

@@ -1975,10 +1975,12 @@ function spotCard(k){
       + esc(BOUTIQUES[j]) + ': <b>' + fmt(f) + '</b>.<br>'
       + sw('real') + ' what the season actually asked for: <b>' + fmt(d)
       + '</b>.<br>The third bar is that one again, cut where the shelf ran out: '
+      /* The price belongs to the beat that can charge it. Quoting 1 000 EUR
+         here needed a hedge to stay true, and the hedge made the sentence
+         hard to read - so the figure goes and the hedge becomes the point. */
       + '<b>' + fmt(given) + '</b> served, then ' + sw('miss') + ' <b>' + fmt(ga)
-      + '</b> the shelf could not serve. That is ' + fmtE(ECON.price) + ' of sales '
-      + 'each — <b>if nothing reaches them</b>. The warehouse has not shipped yet, '
-      + 'and it is holding stock.' };
+      + '</b> the shelf could not serve — <b>if nothing reaches them</b>. '
+      + 'The warehouse has not shipped yet.' };
   /* the no-surplus board: the cell the forecast came closest to getting right */
   return { title:'The one we very nearly got right',
     text:'Planned <b>' + fmt(f) + '</b> for ' + esc(BAGS[i].name) + ' in '
