@@ -1618,7 +1618,10 @@ function renderMatrices(){
   const all = ST_LEVELS.length * SP_LEVELS.length;
   el('matrix-sub').textContent = n + ' of ' + all + ' combinations played. '
     + 'Sell-through across, share placed at launch down the side.'
-    + (poolOn ? ' Every square is read with the shared production capacity pool on.' : '');
+    /* Not "is read with": on a page of coloured squares, "read" is a
+       homograph of "red" and the sentence looked like a claim about the
+       colour of every cell. */
+    + (poolOn ? ' Every square assumes the shared production capacity pool is on.' : '');
   el('pool-switch').classList.toggle('hidden', n < 2);
   /* held back until two squares have been played by hand: the point is to
      try a couple and form an expectation before the whole field appears */

@@ -1091,8 +1091,10 @@ function renderMC(){
   el('mc-line').textContent = fmt(r.seasons) + ' seasons · '
     + fmt(r.seasons * r.combos) + ' combinations tested · '
     + fmt(r.n) + ' bags × ' + fmt(r.m) + ' boutiques · '
-    + (flexOn ? 'read with the shared production capacity pool on'
-              : 'read with every bag keeping its own stock');
+    /* "read with …" put the past tense of "to read" next to a grid of
+       coloured cells, where it is a homograph of "red". */
+    + (flexOn ? 'with the shared production capacity pool on'
+              : 'with every bag keeping its own stock');
   /* What the pool is worth, always measured the same way: the best square
      each engine can reach, not the flexible reading of the rigid engine's
      square. Both are re-derived here rather than remembered, so the premium

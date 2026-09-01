@@ -364,9 +364,10 @@ under two headings and a colour legend captioning nothing.
 **The world is named where it stays visible.** On a phone the tick sits ~900px
 above the matrices and the sentence that names the world is below them, so
 while a reader scrolls the board nothing on screen says which of the two it
-is. The run line — the page's only persistent status text — says: *read with
-the shared production capacity pool on* / *read with every bag keeping its own
-stock*. The deck names it the same way, on its matrix subtitle.
+is. The run line — the page's only persistent status text — says: *with the shared production capacity pool on* / *with every bag keeping
+its own stock*. Not "read with": beside a grid of coloured cells, the past
+tense of *to read* is a homograph of *red* and the line looked like a claim
+about the colour of every square. The deck names it the same way, on its matrix subtitle.
 
 **The flag is read from the DOM, never remembered.** `syncFlex()` is the one
 function that writes all three things the tick controls, and `init` calls it
