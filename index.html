@@ -1170,7 +1170,8 @@ function renderAction(){
 
   if(state.step === 'sell'){
     h.textContent = 'Week ' + state.week + ' — serve the customers';
-    p.textContent = 'Each bag you can serve earns 1 000 €. Anything you cannot serve is a lost sale, for good.';
+    p.textContent = 'Each bag you can serve earns ' + fmtE(ECON.price)
+      + '. Anything you cannot serve is a lost sale, for good.';
     host.appendChild(h); host.appendChild(p);
     host.appendChild(bigButton('Sell', function(){
       doSell();
@@ -2123,12 +2124,23 @@ function renderEnd(){
        Charging every bag made against the bags sold, the way a single "cost
        of goods" line does, buries that decision inside the price of trading.
        Same margin either way. */
-    +   '<tr><td>Turnover — ' + fmt(t.sold) + ' bags sold at 1 000 €</td><td>' + fmtE(t.revenue) + '</td></tr>'
-    +   '<tr class="neg"><td>Fixed cost — about 45% of forecast sales</td><td>− ' + fmtE(t.fixed) + '</td></tr>'
-    +   '<tr class="neg"><td>Cost of the ' + fmt(t.sold) + ' sold — at 200 €</td><td>− '
-    +     fmtE(t.sold * ECON.cost) + '</td></tr>'
-    +   '<tr class="neg"><td>Cost of the ' + fmt(t.leftover) + ' nobody bought — at 200 €</td><td>− '
-    +     fmtE(t.leftover * ECON.cost) + '</td></tr>'
+    /* Every figure in this table comes from ECON, none is typed. The share
+       and the two prices used to be string literals, so retuning fixedPct to
+       0.30 left the row still claiming 45% beside a charge of 80 000.
+
+       And it says "rounded up", because otherwise it invites arithmetic that
+       lands somewhere else: 45% of forecast sales is 117 000 exactly, the
+       charge is 120 000, and a room that checks the percentage finds a
+       number the game never charges. Saying the rounding is what reconciles
+       them. */
+    +   '<tr><td>Turnover — ' + fmt(t.sold) + ' bags sold at ' + fmtE(ECON.price)
+    +     '</td><td>' + fmtE(t.revenue) + '</td></tr>'
+    +   '<tr class="neg"><td>Fixed cost — ' + Math.round(ECON.fixedPct * 100)
+    +     '% of forecast sales, rounded up</td><td>− ' + fmtE(t.fixed) + '</td></tr>'
+    +   '<tr class="neg"><td>Cost of the ' + fmt(t.sold) + ' sold — at ' + fmtE(ECON.cost)
+    +     '</td><td>− ' + fmtE(t.sold * ECON.cost) + '</td></tr>'
+    +   '<tr class="neg"><td>Cost of the ' + fmt(t.leftover) + ' nobody bought — at '
+    +     fmtE(ECON.cost) + '</td><td>− ' + fmtE(t.leftover * ECON.cost) + '</td></tr>'
     +   '<tr class="total' + (t.margin < 0 ? ' neg' : '') + '"><td>Margin</td><td>' + fmtE(t.margin) + '</td></tr>'
     + '</table>'
     + '<div class="card"><h2>Bag by bag</h2><table class="h" style="width:100%">'
@@ -2592,10 +2604,12 @@ function renderBriefing(){
        It does not, and that assumption is what makes over-producing look free */
     'Anything still <b>unsold when the season ends is worth nothing</b> — there is no '
       + 'second season and no outlet.',
-    /* "about", because the figure is rounded up to a round number and is no
-       longer exactly fixedPct of forecast sales */
-    'A <b>fixed cost of ' + fmtE(ECON.fixed) + '</b> (about ' + Math.round(ECON.fixedPct * 100)
-      + '% of forecasted sales) is charged at the end.',
+    /* Name the rounding rather than hedge it with "about". The hedge left the
+       percentage checkable and wrong: 45% of forecast sales is 117 000, the
+       charge is 120 000, and a room that does the sum the sentence invites
+       lands on a number the game never charges. */
+    'A <b>fixed cost of ' + fmtE(ECON.fixed) + '</b> is charged at the end — '
+      + Math.round(ECON.fixedPct * 100) + '% of forecasted sales, rounded up.',
     'At most <b>' + SHIP_CAP + ' pieces</b> can leave the warehouse in one week, across all bags.',
     'Missed sales are <b>lost for good</b>. There are no back-orders.'
   ];

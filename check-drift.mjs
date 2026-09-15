@@ -48,6 +48,28 @@ const SHARED = ['heat', 'matrix', 'key', 'best'];
 
 const deck = readFileSync(join(HERE, 'simulate.html'), 'utf8');
 const play = readFileSync(join(HERE, 'play.html'), 'utf8');
+const game = readFileSync(join(HERE, 'index.html'), 'utf8');
+
+/* THE FIXED-COST RULE lives in all three engines and in none of the shared
+   functions, so the check above cannot see it. It is 45% of forecast sales
+   ROUNDED UP to the nearest 10 000 - the rounding is what turns 117 000 into
+   the 120 000 a briefing can say out loud.
+
+   play.html took the raw product for a while, so the SAME 650-unit board cost
+   292 500 there and 300 000 in the deck: a 7 500 € disagreement between two
+   pages shown in one session. Nothing in a browser notices, which is exactly
+   why it is pinned here. */
+const RULE = /Math\.ceil\(\s*ECON\.fixedPct\s*\*\s*\w+\s*\*\s*ECON\.price\s*\/\s*10000\s*\)\s*\*\s*10000/;
+
+const ENGINES = [['index.html', game], ['simulate.html', deck], ['play.html', play]];
+const unrounded = ENGINES.filter(function(e){ return !RULE.test(e[1]); });
+/* Guard the guard. A pattern that matches nothing would report every engine
+   as unrounded, and one that matched everything would report none - either
+   way the check would be theatre. If NO engine matches, the pattern is what
+   broke, not the engines. */
+if(unrounded.length === ENGINES.length)
+  console.log('PATTERN  no engine matches the fixed-cost rule at all — the check\'s\n'
+            + '         regex is probably what needs updating, not the engines');
 
 const drifted = [], missing = [];
 for(const name of SHARED){
@@ -59,10 +81,19 @@ for(const name of SHARED){
 for(const pair of missing) for(const m of pair) console.log('MISSING  ' + m.name + ' in ' + m.file);
 for(const name of drifted) console.log('DRIFTED  ' + name);
 
-if(!drifted.length && !missing.length){
+for(const e of unrounded)
+  console.log('UNROUNDED  ' + e[0] + ' does not round the fixed cost up to the nearest 10 000');
+
+if(!drifted.length && !missing.length && !unrounded.length){
   console.log('OK  ' + SHARED.length + ' shared functions, identical in both files');
+  console.log('OK  ' + ENGINES.length + ' engines apply the same fixed-cost rule');
   process.exit(0);
 }
-console.log('\nThe two copies of the engine disagree. Fix the odd one out, or if the\n'
-          + 'change is deliberate, make it in both files.');
+if(drifted.length || missing.length)
+  console.log('\nThe two copies of the engine disagree. Fix the odd one out, or if the\n'
+            + 'change is deliberate, make it in both files.');
+if(unrounded.length)
+  console.log('\nThe fixed cost is 45% of forecast sales rounded UP to the nearest\n'
+            + '10 000, and every engine has to apply it — otherwise the same board\n'
+            + 'costs different money on two pages shown in the same session.');
 process.exit(1);

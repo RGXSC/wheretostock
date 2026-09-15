@@ -121,6 +121,22 @@ trimmed `ECON` — `{ price:1000, cost:200, fixedPct:0.45 }`. The deck's
 no use for them: it builds its own board from the sliders and computes the
 fixed cost per run.
 
+**The fixed cost is rounded, the same way the other two engines round it**:
+45% of forecast sales, rounded UP to the nearest 10 000. This file took the
+raw product for a while, and the cost was exact: a 5 × 5 world is
+`2 × 13 × 5 × 5 = 650` units — *the deck's own board* — and it charged
+292 500 € where the deck charged 300 000 €. Two pages a facilitator shows in
+one session, 7 500 € apart on the same board.
+
+Safe to round, and measured rather than assumed: the fixed cost is a constant
+in the objective, so it moves the **level** of every square and the **choice**
+of none. At 5 × 5, 14 × 14 and 1 × 20 the best square is identical before and
+after, on both engines. Rounding also clears the floating-point dust — the raw
+product came out as `2293200.0000000005` at 14 × 14.
+
+`check-drift.mjs` now pins the rule across all three engines, because nothing
+in a browser would ever notice two of them disagreeing about it.
+
 The model is specified in §6 below — the lognormal error, the half-central /
 half-shared split of what is held back, the committed-versus-drawn accounting,
 and why moving the premium does not re-run anything. It used to live in

@@ -140,6 +140,25 @@ Flush rows also group the three bars as one reading, which is what they are.
 The cost: the grid needs 929px of page instead of 869, so a 1280×800 screen
 scrolls ~130px on this slide. 1400×940 and 1920×1080 still fit whole.
 
+## The season's arithmetic closes on screen
+
+Turnover and Margin used to sit side by side with nothing between them, so the
+one sum the slide exists to explain could not be checked: 584 000 € became
+139 400 € and a room had to take it on trust. The two deductions are now shown
+between them, in the order the notes move — **fixed cost, then what was made**
+— set smaller than the two ends, because they are the working and not the
+answer.
+
+Every figure in that row, and in the game's P&L, is derived from `ECON`. They
+were string literals: retuning `fixedPct` to 0.30 left the game's P&L still
+claiming "about 45%" beside a charge of 80 000 €.
+
+**And the copy names the rounding.** "About 45% of forecast sales" is checkable
+and lands somewhere else — 45% of the game's forecast is 117 000 € exactly,
+the charge is 120 000 €, so a room doing the sum the sentence invites finds a
+number the game never charges. Both the briefing and the P&L now say
+*"45% of forecast sales, rounded up"*, which reconciles.
+
 ## Red is not the same claim on both sides of the warehouse
 
 Before the warehouse ships, red is what the **shelf** could not serve — and
@@ -326,7 +345,8 @@ Everything below is a deliberate change, and each one is stated on the page:
 Unchanged: the five bags, thirteen weeks of forecast, production = forecast ÷
 target sell-through, 1 000 € price, 200 € unit cost. The fixed cost is 45% of
 forecast sales **rounded up to the nearest 10 000** — 300 000 € here and
-120 000 € in the game — so the briefing carries a round number instead of a
+120 000 € in the game, and `play.html` applies the same rule (`check-drift.mjs`
+pins it across all three) — so the briefing carries a round number instead of a
 spreadsheet output. Safe to round, and worth knowing why: the fixed cost is a
 constant in the objective, so it moves the level of every square and the
 choice of none. Swept from 0 to 90% of forecast sales, the best combination

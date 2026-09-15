@@ -878,7 +878,17 @@ function mcStart(){
   const skuShare = paretoShares(n, cfg.aSkew);
   const boutiqueShare = paretoShares(m, cfg.bSkew);
   const TOTAL = 2 * WEEKS * n * m;             /* two per boutique per bag per week */
-  const fixed = ECON.fixedPct * TOTAL * ECON.price;
+  /* Rounded up to the nearest 10 000, the same rule index.html and
+     simulate.html apply. This file used to take the raw product, so the SAME
+     650-unit board cost 292 500 here and 300 000 in the deck - a 7 500 €
+     disagreement between two pages a facilitator shows in the same session.
+
+     Safe to round: the fixed cost is a constant in the objective, so it moves
+     the LEVEL of every square and the CHOICE of none. Measured at 5x5, 14x14
+     and 1x20: the best square is identical before and after, on both engines.
+     It also clears the floating-point dust - the raw product came out as
+     2293200.0000000005 at 14x14. */
+  const fixed = Math.ceil(ECON.fixedPct * TOTAL * ECON.price / 10000) * 10000;
   const F = new Float64Array(n);               /* forecast per bag, all boutiques */
   for(let i = 0; i < n; i++) F[i] = TOTAL * skuShare[i];
   const g = new Float64Array(m);               /* boutique share of any bag */

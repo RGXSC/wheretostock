@@ -977,7 +977,11 @@ function renderBoard(){
   h += '<p class="small muted" style="margin-top:12px;max-width:none;">'
      + 'One bag sells for ' + fmtE(ECON.price) + ', costs ' + fmtE(ECON.cost)
      + ' to make whether it sells or not, and the season carries a fixed cost of '
-     + fmtE(ECON.fixed) + ' — about 45% of forecast sales. '
+     /* derived, and the rounding named: 45% of forecast sales is 292 500 here
+        and the charge is 300 000, so "about 45%" left a facilitator's own
+        arithmetic landing 7 500 short of the figure on the slide */
+     + fmtE(ECON.fixed) + ' — ' + Math.round(ECON.fixedPct * 100)
+     + '% of forecast sales, rounded up. '
      /* the margin writes leftover off in full; said here because "costs X to
         make whether it sells or not" only states that the cost is incurred,
         which leaves room to read the stock as still carrying value */
@@ -1569,13 +1573,28 @@ function testCombo(){
      + (leftTot ? fmt(leftTot) : '—') + '</td></tr></tbody></table>';
 
   {
-    h += '<div style="display:flex;gap:32px;flex-wrap:wrap;margin-top:12px;">'
-       + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Turnover</div>'
+    /* Turnover and Margin used to sit side by side with nothing between them,
+       so the one arithmetic the slide exists to explain could not be checked
+       on screen: 650 000 became 199 400 and a room had to take it on trust.
+       The two deductions go in, in the order the notes move in the room and
+       the order the game and the debrief both use - fixed cost, then what the
+       bags cost to make. The costs are set smaller than the two ends: they
+       are the working, not the answer. */
+    const lab = function(x){ return '<div class="small muted" style="font-weight:800;'
+      + 'text-transform:uppercase;letter-spacing:.05em;">' + x + '</div>'; };
+    h += '<div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-end;margin-top:12px;">'
+       + '<div>' + lab('Turnover')
        + '<div style="font-size:26px;font-weight:800;">' + fmtE(t.turnover) + '</div></div>'
-       + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Margin</div>'
+       + '<div>' + lab('− Fixed cost')
+       + '<div style="font-size:19px;font-weight:800;color:var(--miss);">− '
+       + fmtE(ECON.fixed) + '</div></div>'
+       + '<div>' + lab('− The ' + fmt(t.production) + ' made')
+       + '<div style="font-size:19px;font-weight:800;color:var(--miss);">− '
+       + fmtE(t.cogs) + '</div></div>'
+       + '<div>' + lab('Margin')
        + '<div style="font-size:26px;font-weight:800;color:' + (t.margin < 0 ? 'var(--bad)' : 'var(--good)')
        + '">' + fmtE(t.margin) + '</div></div>'
-       + '<div><div class="small muted" style="font-weight:800;text-transform:uppercase;letter-spacing:.05em;">Sell-through reached</div>'
+       + '<div>' + lab('Sell-through reached')
        + '<div style="font-size:26px;font-weight:800;">' + t.sellThrough.toFixed(0) + '%</div></div>'
        + '</div>';
   }

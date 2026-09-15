@@ -91,6 +91,14 @@ to 200 € and 120 000 €, with a visible warning that the numbers were assumed
 rather than read. 120 000 is what the game actually charges: 45% of forecast
 sales (117 000) rounded up to a round number.
 
+**Those defaults are not persisted unless a facilitator edits them.** They
+were, and the consequence was the bug that prompted this: a session that ran
+before the default was corrected kept **117 000 in `localStorage` for ever**,
+so the game charged 120 000 and the debrief beside it said 117 000, with
+nothing on screen to explain the gap. A remembered default is a default that
+can never be fixed. `fallbackEdited` is set only when a typed figure differs
+from the shipped default — and typing the default back releases the pin.
+
 ---
 
 ## 2. The reveal

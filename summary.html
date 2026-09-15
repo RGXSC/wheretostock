@@ -634,10 +634,18 @@ let games = [];                 /* loaded team-games            */
 let conflicts = [];             /* awaiting a keep/replace call */
 let messages = [];              /* one-off import feedback      */
 let peeking = false;            /* results shown on the import screen */
-/* the game charges 45% of forecast sales rounded UP to a round number -
-   120 000, not the unrounded 117 000 this used to assume. Only reached when
-   an export has no FixedCost column. */
-let fallbackCost = 200, fallbackFixed = 120000;
+/* Only reached when an export has no FixedCost column. The game charges 45%
+   of forecast sales ROUNDED UP to a round number - 117 000 becomes 120 000 -
+   and index.html, simulate.html and play.html all apply that same rule.
+
+   These defaults are NOT persisted unless the facilitator edits them. They
+   were, and a session that ran before the default was corrected kept 117 000
+   in localStorage for ever: the game charged 120 000, the debrief beside it
+   said 117 000, and nothing on screen explained the gap. A remembered default
+   is a default that can never be fixed. */
+const FALLBACK_COST = 200, FALLBACK_FIXED = 120000;
+let fallbackCost = FALLBACK_COST, fallbackFixed = FALLBACK_FIXED;
+let fallbackEdited = false;     /* true once a facilitator types a figure */
 
 const el = function(id){ return document.getElementById(id); };
 const fmt  = function(n){ return Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' '); };
@@ -688,7 +696,8 @@ function marginPct(g){ return g.turnover ? margin(g) / g.turnover * 100 : null; 
 
 function save(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ games:games,
-    fallbackCost:fallbackCost, fallbackFixed:fallbackFixed, includeParts:includeParts })); }
+    fallbackCost:fallbackCost, fallbackFixed:fallbackFixed,
+    fallbackEdited:fallbackEdited, includeParts:includeParts })); }
   catch(err){ /* over quota — the session still works, it just will not survive a reload */ }
 }
 function load(){
@@ -697,8 +706,14 @@ function load(){
     if(!raw) return;
     const o = JSON.parse(raw);
     if(o && Array.isArray(o.games)) games = o.games;
-    if(o && o.fallbackCost) fallbackCost = o.fallbackCost;
-    if(o && o.fallbackFixed) fallbackFixed = o.fallbackFixed;
+    /* A stored figure is only restored if someone typed it. Restoring an
+       untouched default pins whatever the default happened to be on the day
+       the browser first saw this page. */
+    if(o && o.fallbackEdited){
+      if(o.fallbackCost)  fallbackCost  = o.fallbackCost;
+      if(o.fallbackFixed) fallbackFixed = o.fallbackFixed;
+      fallbackEdited = true;
+    }
     if(o) includeParts = !!o.includeParts;
   }catch(err){ games = []; }
 }
@@ -2170,6 +2185,9 @@ function init(){
     el(id).addEventListener('input', function(){
       fallbackCost = Number(el('in-cost').value) || 0;
       fallbackFixed = Number(el('in-fixed').value) || 0;
+      /* from here on this session's figures are the facilitator's, and they
+         survive a reload; until now they were only the current defaults */
+      fallbackEdited = fallbackCost !== FALLBACK_COST || fallbackFixed !== FALLBACK_FIXED;
       save(); renderImport();
     });
   });
