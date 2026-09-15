@@ -338,7 +338,7 @@ on the deck's.
 **Whether it moves the plan** is the gap between the flexible reading of the
 *rigid* best square and the flexible best square. It is usually tiny. On a 6×6
 board the argmax shifts 90/30 → 80/30 and moving there is worth **71 € against
-a 321 736 € margin** — 0.02%, inside the rounding of the figures the matrix
+a 313 004 € margin** — 0.02%, inside the rounding of the figures the matrix
 prints. The deck's own celebrated move, 90/30 → 100/30, is worth **400 € on
 220 000 €**. Calling either "the pool moves the answer" is an overclaim, and
 both files made it until the figure was computed. The move is now quoted in
@@ -349,11 +349,16 @@ half-a-percent threshold.
 It said *"well inside the band the matrix paints as within 5%"* — but the band
 is computed from whichever board is **drawn**, and with the tick off that is
 the rigid one. At 5×5 with the bag cost at 240 the sentence claimed two
-squares were within 5% of each other beside a matrix painting 90/30 at 166k
-"the best" and 80/30 at 157k "the rest", the one tier the legend defines as
+squares were within 5% of each other beside a matrix painting 90/30 at 158k
+"the best" and 80/30 at 149k "the rest", the one tier the legend defines as
 *not* within 5%. Both numbers in the sentence belong to the flexible board in
-either mood, so it now says so: *"80% / 30% is worth only 127 € more than
-90% / 30%, against a margin of 196 771 €."*
+either mood, so it now says so: *"80% / 30% is worth only 128 € more than
+90% / 30%, against a margin of 189 270 €."*
+
+(Every figure in these two paragraphs is a live measurement, so they move when
+the model does — they were quoted before `play.html` started rounding the
+fixed cost, and were 8 000 € stale until re-measured. A worked example in a
+spec is a claim about the code, not an illustration.)
 
 **A pool worth nothing is not called worth money.** The no-move sentence
 hard-coded "the pool is worth money here". One bag against twenty boutiques

@@ -91,6 +91,30 @@ to 200 € and 120 000 €, with a visible warning that the numbers were assumed
 rather than read. 120 000 is what the game actually charges: 45% of forecast
 sales (117 000) rounded up to a round number.
 
+**A column being present is not the same as a cell carrying a figure.** The
+economics are read with `money()`, which returns `null` for anything that is
+not a plain unambiguous number, so it routes to the fallback *and* to the
+"costs assumed" badge. Two measured ways the old column-level test went wrong:
+`"120,000"` — a CSV round-tripped through a US-locale spreadsheet — parsed as
+**120 €**, because `num()` maps a comma to the decimal point, and a room's
+margin came out 119 880 € wrong while claiming to be read from the file; and a
+blank cell became a real **0** with the same silence.
+
+**An empty field is not a zero either.** `Number('') || 0` made it one, so
+clearing the box ran the whole room's P&L at no fixed cost with nothing saying
+so — and because the reload restored the default instead, one saved session
+rendered two margins 120 000 € apart. An unreadable field falls back and
+repaints itself, so what is shown is always what is being charged. A **typed**
+zero is still honoured, and now survives a reload: it used to be thrown away
+on the way back in by a truthiness test.
+
+**The conflict card names what actually differs.** When a legacy export meets
+the real one, the turnover and the week count are identical, so the card
+printed the same sentence twice and then blamed an unfinished game — the only
+real difference being that one file carries the cost columns. Each side now
+says whether its costs were read or assumed, and the "exported before the game
+finished" line only appears when the seasons genuinely differ.
+
 **Those defaults are not persisted unless a facilitator edits them.** They
 were, and the consequence was the bug that prompted this: a session that ran
 before the default was corrected kept **117 000 in `localStorage` for ever**,

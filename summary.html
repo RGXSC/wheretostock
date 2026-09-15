@@ -485,6 +485,26 @@ const num = function(v){
   return isNaN(n) ? 0 : n;
 };
 
+/* A COLUMN being present is not the same as a CELL carrying a figure, and the
+   economics are the one place where guessing is worse than admitting. Two
+   measured ways it went wrong:
+
+     "120,000"  a CSV round-tripped through a US-locale spreadsheet. num()
+                maps ',' to the decimal point, so the fixed cost became
+                120 € and a room's margin was 119 880 € out - presented as a
+                figure read from the file, with no "costs assumed" badge.
+     ""         a blank cell became a real 0, same silence.
+
+   money() returns null for anything that is not a plain, unambiguous number,
+   which routes it to the fallback AND to the badge that says so. */
+const money = function(v){
+  if(v === undefined || v === null) return null;
+  const t = String(v).trim().replace(/\s/g, '');
+  if(!/^-?\d+(\.\d+)?$/.test(t)) return null;
+  const n = Number(t);
+  return isNaN(n) ? null : n;
+};
+
 function fnv(str){
   let h = 2166136261 >>> 0;
   for(let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
@@ -551,8 +571,8 @@ function buildDetail(key, rows, at, sourceName){
     storePct:num(rows[0][at['StorePctAtSetup']]),
     producedPerBag:num(rows[0][at['ProducedPerBag']]),
     producedTotal:num(rows[0][at['ProducedTotal']]),
-    unitCost:at['UnitCost'] !== undefined ? num(rows[0][at['UnitCost']]) : null,
-    fixedCost:at['FixedCost'] !== undefined ? num(rows[0][at['FixedCost']]) : null,
+    unitCost:at['UnitCost'] !== undefined ? money(rows[0][at['UnitCost']]) : null,
+    fixedCost:at['FixedCost'] !== undefined ? money(rows[0][at['FixedCost']]) : null,
     issues:[], rows:[]
   };
 
@@ -616,9 +636,9 @@ function buildSummary(key, c, at, sourceName){
     missed:num(c[at['Missed']]), turnover:num(c[at['Revenue']]),
     /* no COGS column at all means "not stated", which is what triggers the
        assumed-cost badge — a missing column used to arrive as a real 0 */
-    unitCost:(at['COGS'] !== undefined && num(c[at['Produced']]))
-      ? num(c[at['COGS']]) / num(c[at['Produced']]) : null,
-    fixedCost:at['FixedCost'] !== undefined ? num(c[at['FixedCost']]) : null,
+    unitCost:(at['COGS'] !== undefined && money(c[at['COGS']]) !== null && num(c[at['Produced']]))
+      ? money(c[at['COGS']]) / num(c[at['Produced']]) : null,
+    fixedCost:at['FixedCost'] !== undefined ? money(c[at['FixedCost']]) : null,
     weeks:null, demandHash:null, issues:[]
   };
   g.contentHash = fnv(c.join(''));
@@ -710,8 +730,11 @@ function load(){
        untouched default pins whatever the default happened to be on the day
        the browser first saw this page. */
     if(o && o.fallbackEdited){
-      if(o.fallbackCost)  fallbackCost  = o.fallbackCost;
-      if(o.fallbackFixed) fallbackFixed = o.fallbackFixed;
+      /* typeof, not truthiness: a facilitator who deliberately sets the fixed
+         cost to 0 - to show the room what the season looks like without it -
+         stored a 0 that a truthy test threw away on the way back in */
+      if(typeof o.fallbackCost  === 'number') fallbackCost  = o.fallbackCost;
+      if(typeof o.fallbackFixed === 'number') fallbackFixed = o.fallbackFixed;
       fallbackEdited = true;
     }
     if(o) includeParts = !!o.includeParts;
@@ -787,15 +810,30 @@ function renderImport(){
   const host = el('notes');
   host.textContent = '';
 
+  /* one line per side of a conflict, naming the thing that differs */
+  const describe = function(g){
+    const e = economics(g);
+    return 'turnover ' + fmtE(g.turnover) + ', ' + (g.weeks || '?') + ' weeks, '
+         + (e.assumed ? 'costs assumed (' + fmtE(e.fixed) + ')'
+                      : 'costs read from the file (' + fmtE(e.fixed) + ')');
+  };
   conflicts.forEach(function(c, idx){
     const n = document.createElement('div');
     n.className = 'note stop';
     n.innerHTML = '<h3>' + esc(c.incoming.team) + ' · ' + esc(c.incoming.game) + ' is already loaded, '
       + 'but this file says something different</h3>'
-      + '<p class="small" style="margin:0">Loaded: turnover ' + fmtE(c.existing.turnover)
-      + ', ' + (c.existing.weeks || '?') + ' weeks &nbsp;·&nbsp; New: turnover ' + fmtE(c.incoming.turnover)
-      + ', ' + (c.incoming.weeks || '?') + ' weeks. Usually this means one of them was exported '
-      + 'before the game finished.</p>';
+      /* Describe what actually differs. When a legacy export meets the real
+         one the turnover and the week count are identical, so the card showed
+         the same sentence twice and then blamed an unfinished game - the only
+         difference being that one file carries the cost columns. Say which
+         side states its economics and which is being guessed at. */
+      + '<p class="small" style="margin:0">Loaded: ' + describe(c.existing)
+      + ' &nbsp;·&nbsp; New: ' + describe(c.incoming)
+      + (c.existing.turnover === c.incoming.turnover
+           && (c.existing.weeks || 0) === (c.incoming.weeks || 0)
+         ? ' The seasons match; they differ in what they say about costs.'
+         : ' Usually this means one of them was exported before the game finished.')
+      + '</p>';
     const row = document.createElement('div'); row.className = 'row-buttons';
     row.appendChild(mkBtn('Replace with the new one', function(){
       /* the loaded game can have been removed while this note sat on screen;
@@ -2183,8 +2221,20 @@ function init(){
 
   ['in-cost','in-fixed'].forEach(function(id){
     el(id).addEventListener('input', function(){
-      fallbackCost = Number(el('in-cost').value) || 0;
-      fallbackFixed = Number(el('in-fixed').value) || 0;
+      /* An EMPTY field is not a zero. `Number('') || 0` made it one, so
+         clearing the box ran the whole room's P&L at no fixed cost with
+         nothing on screen saying so - and because the reload restored the
+         default instead, the same saved session rendered two margins 120 000
+         apart. An unreadable field falls back and repaints itself, so what is
+         shown is always what is being charged. A typed 0 is still a 0. */
+      const readBack = function(id, dflt){
+        const raw = String(el(id).value).trim();
+        if(/^-?\d+(\.\d+)?$/.test(raw)) return Number(raw);
+        el(id).value = dflt;
+        return dflt;
+      };
+      fallbackCost  = readBack('in-cost',  FALLBACK_COST);
+      fallbackFixed = readBack('in-fixed', FALLBACK_FIXED);
       /* from here on this session's figures are the facilitator's, and they
          survive a reload; until now they were only the current defaults */
       fallbackEdited = fallbackCost !== FALLBACK_COST || fallbackFixed !== FALLBACK_FIXED;

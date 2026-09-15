@@ -915,7 +915,12 @@ function matrix(host, get, fmtFn, marks){
       if(v === null || v === undefined){ h += '<td><div class="mcell"></div></td>'; return; }
       const tier = v === hi ? 'best' : (v >= band ? 'near' : 'rest');
       const mk = marks ? marks(st, sp, v) : '';
-      h += '<td><div class="mcell ' + tier + (v < 0 ? ' neg' : '')
+      /* Colour on the figure the reader SEES, not the raw one. fmtK collapses
+         a small loss to "0k" (never "-0k"), so a square a few hundred euros
+         under water read break-even in the loss colour. Same discipline as the
+         gain sentence: signs come from the rounded figure, so the number and
+         the colour can never disagree. */
+      h += '<td><div class="mcell ' + tier + (Math.round(v / 1000) < 0 ? ' neg' : '')
          + (mk.indexOf('tested') >= 0 ? ' tested' : '') + '">'
          + (mk.indexOf('T') >= 0 ? '<span class="star">★</span>' : '')
          + (mk.indexOf('M') >= 0 ? '<span class="star" style="left:5px;right:auto">◆</span>' : '')
