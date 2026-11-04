@@ -326,8 +326,8 @@
           background:var(--surface); display:flex; flex-direction:column;
           justify-content:center; align-items:center; gap:3px; position:relative; }
   .mcell .v{ font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
-  /* three tiers, not a gradient: the best square, everything within 5% of it,
-     and the rest. What a room needs from this table is where the good region
+  /* tiers, not a gradient: the best square, everything within 5% of it,
+     the rest, and a paler red pair for the worst end. What a room needs from this table is where the good region
      is, not a reading of every square. */
   /* no ring: several squares often tie for best, and touching rings merge
      into a blob. The fill already separates the three tiers. */
@@ -335,6 +335,11 @@
   .mcell.near{ background:#cfe6d6; color:var(--ink); border-color:#8fc2a2; }
   .mcell.rest{ background:var(--surface); color:var(--ink-soft); }
   .mcell.rest.neg, .mcell.near.neg{ color:var(--bad); }
+  /* a lighter red mirror of the green: the worst square and the bottom
+     quarter of the range. Paler than the greens on purpose - the eye goes to the
+     good region first, the red only marks what to avoid. */
+  .mcell.worst{ background:#f0c6bb; color:#6e2410; border-color:#d4907f; }
+  .mcell.low{ background:#fae8e3; color:var(--bad); border-color:#ebc2b6; }
   .mcell.tested{ box-shadow:inset 0 0 0 3px var(--ink); }
   .mcell .star{ position:absolute; top:1px; right:4px; font-size:15px; }
   .mlegend{ display:flex; gap:20px; flex-wrap:wrap; margin-top:12px;
@@ -513,7 +518,7 @@
       <div><h3 style="margin-bottom:8px;">Turnover</h3><div class="mwrap" id="mx-t"></div></div>
       <div><h3 style="margin-bottom:8px;">Margin</h3><div class="mwrap" id="mx-m"></div></div>
     </div>
-    <div class="mlegend"><span><i style="background:#0f6b45;border-color:#0f6b45"></i>the best</span><span><i style="background:#cfe6d6;border-color:#8fc2a2"></i>within 5% of it</span><span><i style="background:#fff"></i>the rest</span></div>
+    <div class="mlegend"><span><i style="background:#0f6b45;border-color:#0f6b45"></i>the best</span><span><i style="background:#cfe6d6;border-color:#8fc2a2"></i>within 5% of it</span><span><i style="background:#fff"></i>the rest</span><span><i style="background:#fae8e3;border-color:#ebc2b6"></i>near the worst</span><span><i style="background:#f0c6bb;border-color:#d4907f"></i>the worst</span></div>
     <div id="matrix-read" class="hidden" style="margin-top:6px;"></div>
   </div>
 
@@ -901,6 +906,12 @@ function matrix(host, get, fmtFn, marks){
   }); });
   const hi = vals.length ? Math.max.apply(null, vals) : 1;
   const band = hi - Math.abs(hi) * 0.05;      /* within 5% of the best */
+  /* The mirror at the bottom, lighter: the worst square, and the squares in
+     the lowest quarter of the range on screen. Only once at least three squares
+     are drawn, so a half-played board does not paint its second result red. */
+  const lo = vals.length ? Math.min.apply(null, vals) : 0;
+  const redOn = vals.length >= 3 && hi > lo;
+  const lowBand = lo + (hi - lo) * 0.25;
 
   let h = '<table class="matrix"><thead><tr><th></th><th></th>'
         + '<th colspan="' + ST_LEVELS.length + '">Target sell-through</th></tr>'
@@ -913,7 +924,8 @@ function matrix(host, get, fmtFn, marks){
     ST_LEVELS.forEach(function(st){
       const v = get(st, sp);
       if(v === null || v === undefined){ h += '<td><div class="mcell"></div></td>'; return; }
-      const tier = v === hi ? 'best' : (v >= band ? 'near' : 'rest');
+      const tier = v === hi ? 'best' : (v >= band ? 'near'
+                 : (redOn && v === lo ? 'worst' : (redOn && v <= lowBand ? 'low' : 'rest')));
       const mk = marks ? marks(st, sp, v) : '';
       /* Colour on the figure the reader SEES, not the raw one. fmtK collapses
          a small loss to "0k" (never "-0k"), so a square a few hundred euros

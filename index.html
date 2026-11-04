@@ -111,12 +111,22 @@
            border-radius:var(--radius); padding:12px 16px; margin-bottom:18px; }
 
   /* ---------------------------------------------------------- setup UI */
-  .econ{ background:var(--accent-soft); border:2px solid #bcd6e8;
-         border-radius:var(--radius); padding:18px 22px; margin-bottom:22px; }
-  .econ ul{ margin:10px 0 0; padding-left:22px; }
-  .econ li{ margin-bottom:6px; }
-  .curvesketch{ display:block; margin:8px 0 2px 0; }
-  .econ b{ font-variant-numeric:tabular-nums; }
+  /* The briefing as ten cards, one rule each, the way the deck shows it:
+     an icon, a two-word title, one line of detail. Five across on a laptop
+     or projector, fewer as the window narrows. */
+  .econ{ margin:18px 0 22px; }
+  .rules{ display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:14px; }
+  @media (max-width:1100px){ .rules{ grid-template-columns:repeat(3, minmax(0, 1fr)); } }
+  @media (max-width:640px){ .rules{ grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+  .rule{ background:var(--surface); border:2px solid var(--line-soft);
+         border-radius:var(--radius); padding:16px 16px 18px; }
+  .rule .ic{ width:64px; height:64px; display:flex; align-items:center;
+             justify-content:center; margin-bottom:14px; }
+  .rule .ic svg{ display:block; }
+  .rule h3{ font-size:19px; font-weight:800; margin:0 0 6px; letter-spacing:-0.01em; }
+  .rule p{ margin:0; font-size:15px; line-height:1.4; color:var(--ink-soft);
+           font-variant-numeric:tabular-nums; }
+  .curvesketch{ display:block; }
 
   /* ------------------------------------------------------- setup sliders */
   .sliderbox{ padding:6px 4px 0; }
@@ -396,6 +406,19 @@
   .hint.rightof:after{ left:-7px; top:26px; }
   .hint.leftof:after{ right:-7px; top:26px; }
   .hint.clamped:after{ display:none; }
+  /* the zoom bubble: the keys, then a drawing of the browser menu's Zoom row */
+  .hint .zoomkeys{ display:block; margin:12px 0 10px; font-size:15px; color:#fff; }
+  .hint kbd{ display:inline-block; min-width:26px; padding:2px 7px; border-radius:6px;
+             background:#2b333d; border:1px solid #5a6672; border-bottom-width:3px;
+             font:700 14px system-ui, sans-serif; color:#fff; text-align:center; }
+  .hint .zoommock{ display:flex; align-items:center; gap:6px; background:#fff; color:#12161b;
+                   border-radius:8px; padding:8px 10px; font-size:14px; }
+  .hint .zoommock .zl{ flex:1; }
+  .hint .zoommock .zb{ width:28px; height:28px; border-radius:50%; display:inline-flex;
+                       align-items:center; justify-content:center; background:#eef1f4; font-weight:800; }
+  .hint .zoommock .zv{ min-width:42px; text-align:center; font-weight:700; }
+  .hint .zoommock .zf{ margin-left:6px; color:#525c68; }
+  .hint .zoomcap{ display:block; font-size:12.5px; color:#b7c1cb; margin-top:6px; }
   .hint-mask{ position:fixed; inset:0; z-index:55; background:rgba(10,14,20,.42); }
   /* when a hint names something, cut a hole in the dimming over it — the
      huge spread shadow IS the dimming, so the mask stays transparent */
@@ -555,7 +578,7 @@
   <div class="econ">
     <!-- filled from the constants in the script, so the briefing can never
          disagree with the rules actually being played -->
-    <ul id="econ-list"></ul>
+    <div class="rules" id="econ-list"></div>
   </div>
 
   <div class="twodec">
@@ -1713,7 +1736,20 @@ function animateArrivals(recv){
    7. GUIDED HINTS — fade in over the first three weeks, one per new step
    ========================================================================= */
 const HINTS = [
-  /* first, who is who — the three places the stock lives */
+  /* before anything: the board is wide, and on a laptop at 100% the warehouse,
+     both boutiques and the action panel do not fit on one screen. Zooming the
+     browser out is the one-keystroke fix, so the first bubble shows how. */
+  { id:'zoom', week:1, step:'reveal', anchor:function(){ return document.querySelector('header.topbar'); },
+    place:'below',
+    title:'Before you start — see the whole board',
+    text:'Zoom the browser out until the warehouse, Paris, Tokyo and the buttons all fit on one screen '
+       + '(80% or 67% usually does it).'
+       + '<span class="zoomkeys"><kbd>Ctrl</kbd> + <kbd>−</kbd> &nbsp;·&nbsp; Mac: <kbd>⌘</kbd> + <kbd>−</kbd></span>'
+       + '<span class="zoommock" aria-label="Example: the Zoom line of the Chrome or Edge menu">'
+       + '<span class="zl">Zoom</span><span class="zb">−</span><span class="zv">80%</span>'
+       + '<span class="zb">+</span><span class="zf">⤢</span></span>'
+       + '<span class="zoomcap">Or in Chrome / Edge: the ⋮ or ⋯ menu, top right › Zoom</span>' },
+  /* then, who is who — the three places the stock lives */
   { id:'intro-wh', week:1, step:'reveal', anchor:function(){ return el('panel-wh'); }, place:'rightof',
     spot:function(){ return [el('panel-wh')]; },
     title:'1 of 3 — the central warehouse',
@@ -2588,32 +2624,49 @@ let draft = { sellThrough:80, storePct:50 };
 /* The briefing is written from the constants above rather than typed into the
    HTML, so changing WEEKS or the economics updates what players are told. */
 function renderBriefing(){
-  const items = [
-    'You are launching <b>' + BAGS.length + ' bags</b> in <b>2 boutiques</b>, supplied by '
-      + '<b>1 central warehouse</b>.',
-    'You will simulate <b>' + WEEKS + ' rounds</b> — every round is one week.',
-    'The forecast is <b>2 pieces per week, per boutique, per bag</b> → <b>' + FORECAST_PER_BAG
-      + ' pieces per bag</b> over the ' + WEEKS + ' weeks. <b>' + FORECAST_TOTAL + '</b> in total.',
-    'Forecasted demand has a <b>curve</b> shape:' + curveSketch(),
-    'Every bag sells for <b>' + fmtE(ECON.price) + '</b> and costs <b>' + fmtE(ECON.cost)
-      + '</b> to produce.',
-    'You pay the ' + fmtE(ECON.cost) + ' for <b>everything produced</b> — whether it sells or not.',
+  /* stroke icons, drawn in the ink colour so they print and project alike */
+  const svg = function(body){
+    return '<svg width="56" height="56" viewBox="0 0 56 56" fill="none" stroke="#12161b" '
+         + 'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+         + body + '</svg>';
+  };
+  const IC = {
+    bag:      svg('<path d="M12 22h32l-3 26H15z"/><path d="M21 22v-5a7 7 0 0 1 14 0v5"/>'),
+    calendar: svg('<rect x="8" y="12" width="40" height="36" rx="3"/><path d="M8 21h40M17 8v8M39 8v8"/>'
+                + '<path d="M8 30h40M8 39h40M18 21v27M28 21v27M38 21v27"/>'),
+    forecast: svg('<rect x="13" y="10" width="30" height="40" rx="3"/><rect x="22" y="7" width="12" height="6" rx="2"/>'
+                + '<path d="M19 22l2 2 3-4M28 22h9M19 31l2 2 3-4M28 31h9M19 40l2 2 3-4M28 40h9"/>'),
+    price:    svg('<path d="M30 8h16v16L24 46 10 32z"/><circle cx="39" cy="15" r="3"/>'),
+    norebal:  svg('<path d="M8 16c12 0 18 24 32 24M8 40c12 0 18-24 32-24"/><path d="M40 10l8 6-8 6M40 34l8 6-8 6"/>'),
+    bin:      svg('<path d="M14 16h28M23 16v-4h10v4M17 16l2 32h18l2-32"/><path d="M24 23v18M28 23v18M32 23v18"/>'),
+    fixed:    svg('<path d="M8 12h40M8 46h40M16 12v34M28 12v34M40 12v34"/>'),
+    truck:    svg('<path d="M6 16h28v22H6zM34 24h9l7 8v6H34z"/><circle cx="15" cy="41" r="4"/><circle cx="41" cy="41" r="4"/>'),
+    lost:     svg('<circle cx="28" cy="28" r="19"/><path d="M15 15l26 26"/>')
+  };
+  const cards = [
+    [IC.bag, 'Scope', BAGS.length + ' bags · 2 boutiques · 1 central warehouse'],
+    [IC.calendar, 'Season', WEEKS + ' rounds, one week each'],
+    [IC.forecast, 'Forecast', '2 pcs / week / boutique / bag — <b>' + FORECAST_PER_BAG
+       + '</b> per bag, <b>' + FORECAST_TOTAL + '</b> total'],
+    [curveSketch(), 'Demand shape', 'Follows a curve from week 1 to week ' + WEEKS],
+    [IC.price, 'Unit economics', 'Sells for <b>' + fmtE(ECON.price) + '</b> · costs <b>'
+       + fmtE(ECON.cost) + '</b> to produce, paid on everything made'],
+    [IC.norebal, 'No rebalancing', 'Paris and Tokyo cannot pass stock to each other during the '
+       + WEEKS + '-week season'],
     /* the P&L writes leftover stock off in full and never says so anywhere else:
-       "you pay whether it sells or not" states that the cost is incurred, which
-       leaves room to assume the stock still carries value into a next season.
-       It does not, and that assumption is what makes over-producing look free */
-    'Anything still <b>unsold when the season ends is worth nothing</b> — there is no '
-      + 'second season and no outlet.',
-    /* Name the rounding rather than hedge it with "about". The hedge left the
-       percentage checkable and wrong: 45% of forecast sales is 117 000, the
-       charge is 120 000, and a room that does the sum the sentence invites
-       lands on a number the game never charges. */
-    'A <b>fixed cost of ' + fmtE(ECON.fixed) + '</b> is charged at the end — '
-      + Math.round(ECON.fixedPct * 100) + '% of forecasted sales, rounded up.',
-    'At most <b>' + SHIP_CAP + ' pieces</b> can leave the warehouse in one week, across all bags.',
-    'Missed sales are <b>lost for good</b>. There are no back-orders.'
+       zero salvage is what makes over-producing expensive, so it is stated */
+    [IC.bin, 'Leftovers', 'Unsold stock is worth nothing — no outlet, no second season'],
+    /* Name the rounding rather than hedge it with "about": 45% of forecast
+       sales is 117 000, the charge is 120 000, and a room that does the sum
+       must land on the number the game actually charges. */
+    [IC.fixed, 'Fixed cost', '<b>' + fmtE(ECON.fixed) + '</b> charged at season end ('
+       + Math.round(ECON.fixedPct * 100) + '% of forecast sales, rounded up)'],
+    [IC.truck, 'Shipping cap', 'Max <b>' + SHIP_CAP + ' pieces</b> leave the warehouse per week, all bags'],
+    [IC.lost, 'Missed sales', 'Lost for good — no back-orders']
   ];
-  el('econ-list').innerHTML = items.map(function(t){ return '<li>' + t + '</li>'; }).join('');
+  el('econ-list').innerHTML = cards.map(function(c){
+    return '<div class="rule"><div class="ic">' + c[0] + '</div><h3>' + c[1] + '</h3><p>' + c[2] + '</p></div>';
+  }).join('');
 }
 
 /* A sketch of the demand profile — slow start, peak, then a long tail.
@@ -2633,7 +2686,7 @@ function curveSketch(){
     return (a + v + c) / 3;
   });
   const max = Math.max.apply(null, sm) || 1;
-  const W = 190, H = 46, pad = 4;
+  const W = 64, H = 40, pad = 3;
   const X = function(i){ return pad + i * (W - 2 * pad) / (WEEKS - 1); };
   const Y = function(v){ return H - pad - (v / max) * (H - 2 * pad - 2); };
 
@@ -2647,9 +2700,8 @@ function curveSketch(){
        + '<path d="' + area + '" fill="#12557f" opacity=".16"/>'
        + '<path d="' + line + '" fill="none" stroke="#12557f" stroke-width="2.4" '
        + 'stroke-linejoin="round" stroke-linecap="round"/>'
-       + '<text x="' + pad + '" y="' + (H - 1) + '" font-size="9" fill="#68727d">week 1</text>'
-       + '<text x="' + (W - pad) + '" y="' + (H - 1) + '" font-size="9" fill="#68727d" '
-       + 'text-anchor="end">week ' + WEEKS + '</text></svg>';
+       + '<path d="M' + pad + ',' + (H - pad) + ' H' + (W - pad) + '" stroke="#12161b" stroke-width="1.5"/>'
+       + '</svg>';
 }
 
 /* Both setup decisions are sliders: one drag, snapped to steps of 10, with

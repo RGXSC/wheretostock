@@ -449,7 +449,11 @@ is more useful than a rigged optimum:
 
 Matrix squares are drawn in three tiers rather than a gradient — the best,
 everything within 5% of it, and the rest — because what a room needs from
-that table is where the good region is, not a reading of every square.
+that table is where the good region is, not a reading of every square. A paler red pair mirrors the greens at the bottom (November 2026): the
+worst square, and every square in the lowest quarter of the range on screen,
+drawn only once three or more squares are filled. The reds are lighter than
+the greens on purpose, so the eye still lands on the good region first; they
+only mark what to avoid. play.html shares the same rule (`check-drift.mjs`).
 
 ## 4. The Monte Carlo — moved out, and handed over
 
