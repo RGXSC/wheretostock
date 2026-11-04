@@ -406,6 +406,7 @@
   .hint.rightof:after{ left:-7px; top:26px; }
   .hint.leftof:after{ right:-7px; top:26px; }
   .hint.clamped:after{ display:none; }
+  .hint.corner:after{ top:-7px; right:30px; }
   /* the zoom bubble: the keys, then a drawing of the browser menu's Zoom row */
   .hint .zoomkeys{ display:block; margin:12px 0 10px; font-size:15px; color:#fff; }
   .hint kbd{ display:inline-block; min-width:26px; padding:2px 7px; border-radius:6px;
@@ -1740,7 +1741,7 @@ const HINTS = [
      both boutiques and the action panel do not fit on one screen. Zooming the
      browser out is the one-keystroke fix, so the first bubble shows how. */
   { id:'zoom', week:1, step:'reveal', anchor:function(){ return document.querySelector('header.topbar'); },
-    place:'below',
+    place:'corner',
     title:'Before you start — see the whole board',
     text:'Zoom the browser out until the warehouse, Paris, Tokyo and the buttons all fit on one screen '
        + '(80% or 67% usually does it).'
@@ -1748,7 +1749,7 @@ const HINTS = [
        + '<span class="zoommock" aria-label="Example: the Zoom line of the Chrome or Edge menu">'
        + '<span class="zl">Zoom</span><span class="zb">−</span><span class="zv">80%</span>'
        + '<span class="zb">+</span><span class="zf">⤢</span></span>'
-       + '<span class="zoomcap">Or in Chrome / Edge: the ⋮ or ⋯ menu, top right › Zoom</span>' },
+       + '<span class="zoomcap">↑ Or in Chrome / Edge: the ⋮ or ⋯ menu, just above, top right of the window › Zoom</span>' },
   /* then, who is who — the three places the stock lives */
   { id:'intro-wh', week:1, step:'reveal', anchor:function(){ return el('panel-wh'); }, place:'rightof',
     spot:function(){ return [el('panel-wh')]; },
@@ -1831,6 +1832,10 @@ function placeBubble(box, avoid, prefer){
     rightof: { left:avoid.right + M,         top:clampY(avoid.top),  side:'rightof'},
     leftof:  { left:avoid.left - bw - M,     top:clampY(avoid.top),  side:'leftof' }
   };
+  /* 'corner' is not relative to anything on the page: it sits in the top
+     right of the window, right under where Chrome and Edge keep their menu
+     and zoom button, with the arrow pointing up at it. */
+  if(prefer === 'corner') return { left:Math.max(M, vw - bw - M), top:M, side:'corner' };
   const order = [prefer, 'below', 'rightof', 'above', 'leftof'].filter(Boolean);
   for(let i = 0; i < order.length; i++){
     const c = cand[order[i]];
