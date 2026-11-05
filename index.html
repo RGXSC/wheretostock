@@ -603,7 +603,7 @@
     <p class="muted" style="margin-top:0;">
       Decide which part of the production goes to the boutiques before launch; the rest stays in the
       central warehouse, where you can send it week by week — it takes <b>one week to arrive</b>,
-      and no more than <b>30 pieces</b> can leave in any one week. The boutique share is
+      and no more than <b>50 pieces</b> can leave in any one week. The boutique share is
       <b>split equally between Paris and Tokyo</b>.
     </p>
     <div class="sliderbox">
@@ -707,14 +707,12 @@
 const WEEKS = 13;
 const FORECAST_PER_BAG = 2 * WEEKS * 2;   /* 2 per week per store, 2 stores = 52 */
 /* One truck a week: at most this many pieces can leave the warehouse in a
-   round, counted across all five bags together, so a heavy week forces a
-   choice between them. Measured against five plausible ways of playing: it
-   binds in the two peak weeks even for a team that ships exactly what sold -
-   demand is 37 and 34 against a cap of 30 in weeks 4 and 5 - appears three
-   or four weeks in twelve for one that keeps a fat shelf, and moves the best
-   strategy not at all. It buys realism and a decision, not a different
-   answer. */
-const SHIP_CAP = 30;
+   round, counted across all five bags together. 50 since November 2026 (it
+   was 30, which bound in the two peak weeks - demand 37 and 34 in weeks 4
+   and 5): the warehouse now follows the peak, so a reserve kept central is
+   held back only by the week it takes to arrive. The setup paragraph
+   ("no more than 50 pieces") names it too - change both together. */
+const SHIP_CAP = 50;
 
 const ECON = {
   price: 1000,        /* € earned per bag sold                              */
