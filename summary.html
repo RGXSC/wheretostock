@@ -1854,7 +1854,7 @@ function teamList(){ return sortedForDisplay(); }
    boutique" whenever that boutique happened to hold stock, which counted the same
    seven physical bags seventeen times.
 
-   Per bag, with left = made − sold (which includes anything still on a truck
+   Per bag, with left = made − sold (which includes anything still in transit
    when the season ended):
      short   - made fewer than the season asked for: max(0, missed − left).
                No placement could have fixed these.
@@ -1947,7 +1947,7 @@ function teamScales(){
     const st = teamStats(g);
     if(st) st.bags.forEach(function(b){
       const p = st.per[b];
-      /* endW alone under-counts the central pile: anything still on a truck
+      /* endW alone under-counts the central pile: anything still in transit
          when the season ended is the team's stock too, and the bar draws it */
       unit = Math.max(unit, p.soldA + p.missA + p.endA, p.soldB + p.missB + p.endB,
                       p.endW + (p.transit || 0));
