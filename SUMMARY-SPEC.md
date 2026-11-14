@@ -414,6 +414,13 @@ the row that moved.
 **Margin %** waits for the last deduction. Beside a provisional total it would
 be a ratio of two different things.
 
+**S/T achieved** comes with it, in the last column: sold ÷ produced, the
+figure the target sell-through was a promise about (the setup column now
+reads *Target S/T*, two columns to the left of it on the same row). Green
+where the season reached the target, red short of it. The margin map shows
+the same figure beside each team's name (*S/T 87%*), on the margin view
+only — on the turnover view it would answer a question nobody has asked yet.
+
 The last deduction is `(produced − sold) × cost`, not `max(0, …)`, so the walk
 lands exactly on `margin()` — which subtracts the whole production. In any
 valid export the two are identical; the unclamped form guarantees the last

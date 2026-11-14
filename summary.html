@@ -118,8 +118,8 @@
   .board{ background:var(--surface); border:2px solid var(--line-soft);
           border-radius:var(--radius); padding:2px 22px 8px; margin-top:12px; --rowh:56px; }
   .rowhead, .trow{ display:grid; column-gap:clamp(8px, 1.3vw, 26px); align-items:center;
-                   grid-template-columns:calc(var(--rowh) * .9 + 16px) minmax(0,2.6fr) minmax(0,.85fr) minmax(0,.95fr)
-                                         minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,1.2fr) minmax(0,1.05fr); }
+                   grid-template-columns:calc(var(--rowh) * .9 + 16px) minmax(0,2.2fr) minmax(0,.85fr) minmax(0,.95fr)
+                                         minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,1.2fr) minmax(0,1.05fr) minmax(0,1fr); }
   @media (max-width:900px){
     .rowhead, .trow{ grid-template-columns:44px minmax(120px,1.4fr) 84px 84px 108px 116px 116px 86px;
                      font-size:15px; }
@@ -140,10 +140,12 @@
   .trow .nm .tn{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .trow .nm .gm{ font-size:.62em; font-weight:700; color:var(--ink-soft); }
   .trow .dot{ width:.62em; height:.62em; border-radius:50%; flex:none; }
-  /* the figures follow the row, but never outgrow their column (1.8vw) */
-  .trow .rank{ font-size:clamp(14px, min(calc(var(--rowh) * .46), 1.8vw), 30px); font-weight:800; color:var(--ink-soft); line-height:1.2; }
-  .trow .big{ font-size:clamp(14px, min(calc(var(--rowh) * .46), 1.8vw), 30px); font-weight:800; white-space:nowrap; line-height:1.2; }
+  /* the figures follow the row, but never outgrow their column (1.65vw) */
+  .trow .rank{ font-size:clamp(14px, min(calc(var(--rowh) * .46), 1.65vw), 30px); font-weight:800; color:var(--ink-soft); line-height:1.2; }
+  .trow .big{ font-size:clamp(14px, min(calc(var(--rowh) * .46), 1.65vw), 30px); font-weight:800; white-space:nowrap; line-height:1.2; }
   .trow .neg{ color:var(--bad); }
+  .trow .st.hit{ color:var(--good); }
+  .trow .st.short{ color:var(--bad); }
   .trow.part{ opacity:.55; }
 
   /* columns appear as the stages advance; visibility (not display) keeps the
@@ -155,7 +157,7 @@
   /* the deduction is money going out, and it is the colour the bridge and the
      game both paint a cost */
   .c-ded{ color:var(--bad); font-variant-numeric:tabular-nums; }
-  .trow .c-ded{ white-space:nowrap; font-size:clamp(12px, min(calc(var(--rowh) * .34), 1.5vw), 22px); line-height:1.2; }
+  .trow .c-ded{ white-space:nowrap; font-size:clamp(12px, min(calc(var(--rowh) * .34), 1.3vw), 22px); line-height:1.2; }
   /* the running total re-animates on every step, so the eye is pulled to the
      number that just changed rather than to the row that just moved */
   .c-run.bump{ animation:bump .5s ease both; }
@@ -208,6 +210,9 @@
   .mval{ flex:none; min-width:4.3em; text-align:right; font-size:calc(20px * var(--ms)); font-weight:800;
          color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
   .mrow.part .mval{ color:var(--ink-soft); font-weight:700; }
+  .mst{ flex:none; font-size:calc(15px * var(--ms)); font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .mst.hit{ color:var(--good); }
+  .mst.short{ color:var(--bad); }
   /* a loss is not just the shortest bar on the board: it is a different kind
      of number, and it says so */
   .mrow.negative .mval{ color:var(--warn); }
@@ -421,11 +426,12 @@
     <div id="board" class="board">
       <div class="rowhead">
         <span class="c-rank">Rank</span><span>Team</span>
-        <span class="c-setup">Sell-through</span><span class="c-setup">In the boutiques</span>
+        <span class="c-setup">Target S/T</span><span class="c-setup">In the boutiques</span>
         <span class="c-turnover">Turnover</span>
         <span class="c-ded" id="h-ded">− Fixed cost</span>
         <span class="c-run" id="h-run">Provisional</span>
         <span class="c-margin">Margin&nbsp;%</span>
+        <span class="c-margin">S/T achieved</span>
       </div>
       <div id="rows"></div>
     </div>
@@ -733,6 +739,8 @@ function margin(g){
 /* null, not 0: a team with no turnover has no margin percentage, and 0.0%
    read as "broke even" next to a six-figure loss */
 function marginPct(g){ return g.turnover ? margin(g) / g.turnover * 100 : null; }
+/* sold over produced, the figure the target sell-through was a promise about */
+function sellThroughOf(g){ return g.producedTotal ? g.sold / g.producedTotal * 100 : null; }
 
 function save(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ games:games,
@@ -1206,7 +1214,7 @@ function buildRows(){
     const d = document.createElement('div');
     d.className = 'trow';
     d.dataset.id = g.id;
-    const m = margin(g), mp = marginPct(g);
+    const m = margin(g), mp = marginPct(g), st = sellThroughOf(g);
     d.innerHTML =
         '<div class="rank c-rank"></div>'
       + '<div class="nm" title="' + esc(g.team + ' · ' + g.game) + '"><span class="dot" style="background:' + g.colour + '"></span>'
@@ -1219,7 +1227,11 @@ function buildRows(){
       + '<div class="c-ded"></div>'
       + '<div class="big c-run"></div>'
       + '<div class="big c-margin' + (m < 0 ? ' neg' : '') + '">'
-      +   (mp === null ? '—' : mp.toFixed(1) + '%') + '</div>';
+      +   (mp === null ? '—' : mp.toFixed(1) + '%') + '</div>'
+      /* the sell-through the season came to, with the margin: green where it
+         reached the target the team set (two columns to the left), red short of it */
+      + '<div class="big c-margin st ' + (st === null ? '' : st >= g.target - 1e-9 ? 'hit' : 'short') + '">'
+      +   (st === null ? '—' : Math.round(st) + '%') + '</div>';
     host.appendChild(d);
   });
   renderExcluded();
@@ -1475,7 +1487,7 @@ function renderMatrix(){
                + '<div class="mbot"><div class="mtrack"><div class="mbar part" style="width:12%"></div></div>'
                + '<span class="mval">part</span></div></div>';
         return '<div class="mrow" data-id="' + esc(g.id) + '">'
-             + '<div class="mtop">' + dot + '<span class="mlab">' + esc(g.team) + '</span></div>'
+             + '<div class="mtop">' + dot + '<span class="mlab">' + esc(g.team) + '</span><span class="mst"></span></div>'
              + '<div class="mbot"><div class="mtrack"><div class="mbar"></div></div><span class="mval"></span></div></div>';
       }).join('') + '</td>';
     });
@@ -1503,7 +1515,7 @@ function setMatrixMetric(metric){
   el('map-title').textContent = metric === 'turnover' ? 'Turnover' : 'Margin';
   el('map-sub').textContent = metric === 'turnover'
     ? ' — each team sits in the square it chose. The full bar is the best turnover in the room.'
-    : ' — the same squares, now by margin. The full bar is the best margin. Watch which bars shrink.';
+    : ' — the same squares, now by margin, with the sell-through each team reached (green: target met). Watch which bars shrink.';
   if(!ranked.length) return;
   const vals = ranked.map(val).sort(function(a, b){ return a - b; });
   const q = function(p){ const x = p * (vals.length - 1), i = Math.floor(x);
@@ -1519,6 +1531,10 @@ function setMatrixMetric(metric){
     bar.style.backgroundColor = scale(Math.max(lo, Math.min(hi, v)), lo, hi);
     row.querySelector('.mval').textContent = (v < 0 ? '−' : '') + fmt(Math.abs(v) / 1000) + ' k€';
     row.classList.toggle('negative', v < 0);
+    /* with the margin, the sell-through it was made with */
+    const st = sellThroughOf(g), mst = row.querySelector('.mst');
+    mst.textContent = metric === 'margin' && st !== null ? 'S/T ' + Math.round(st) + '%' : '';
+    mst.className = 'mst' + (metric === 'margin' && st !== null ? (st >= g.target - 1e-9 ? ' hit' : ' short') : '');
   });
 }
 

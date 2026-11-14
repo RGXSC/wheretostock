@@ -492,11 +492,14 @@
   table.sales{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
   table.sales th{ font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft);
                   text-align:right; padding:6px 10px; border-bottom:2px solid var(--line-soft); }
-  table.sales td{ text-align:right; padding:8px 10px; border-bottom:1px solid var(--line-soft); font-size:18px; }
+  table.sales td{ text-align:right; padding:8px 8px; border-bottom:1px solid var(--line-soft); font-size:18px; }
+  table.sales th{ padding-left:6px; padding-right:6px; }
+  table.sales td.dem{ color:var(--accent); font-weight:700; }
+  table.sales td.left{ color:var(--warn); }
   table.sales th:first-child, table.sales td:first-child{ text-align:left; }
   table.sales td:first-child svg{ vertical-align:-2px; margin-right:6px; }
   table.sales tfoot td{ font-weight:800; border-top:2px solid var(--line); border-bottom:0; }
-  table.sales th.st{ width:34%; }
+  table.sales th.st{ width:24%; }
   table.sales td.st{ display:flex; align-items:center; gap:10px; }
   .stbar{ position:relative; flex:1; height:12px; background:var(--line-soft); border-radius:99px; }
   .stbar i{ position:absolute; left:0; top:0; bottom:0; border-radius:99px; }
@@ -2199,47 +2202,49 @@ function openExport(){
    9. END SCREEN — the P&L reveal
    ========================================================================= */
 /* What the season sold, before any money but the turnover: each bag, in each
-   boutique, against what was made - and the sell-through it comes to beside
-   the target the team set. It comes before the P&L: on its own until the
-   team asks for the P&L (online: until the facilitator reveals it). */
+   boutique, beside what the customers really asked for, what was made and
+   what is left - and the sell-through it comes to beside the target the team
+   set. It comes before the P&L: on its own until the team asks for the P&L
+   (online: until the facilitator reveals it). Real demand minus sold is the
+   sales the bag missed: every week a boutique sells what it holds, up to the
+   demand, and the rest of the demand is lost. */
 function salesHTML(){
   const s = state.setup, target = s.sellThrough;
+  const sum = function(a){ return a.reduce(function(t, x){ return t + x; }, 0); };
   const cell = function(sold, made){
     const pct = made ? sold / made * 100 : 0, ok = pct >= target - 1e-9;
     return '<td class="st"><span class="stbar"><i style="width:' + Math.min(100, pct).toFixed(1)
       + '%;background:' + (ok ? 'var(--live)' : 'var(--warn)') + '"></i><u style="left:' + target + '%"></u></span>'
       + '<b class="' + (ok ? 'ok' : 'low') + '">' + Math.round(pct) + '%</b></td>';
   };
-  let pa = 0, to = 0, made = 0;
+  let pa = 0, to = 0, made = 0, dem = 0, left = 0;
   const rows = BAGS.map(function(b, i){
     const a = state.sold.A[i], c = state.sold.B[i];
-    pa += a; to += c; made += s.perBag;
+    const d = sum(DEMAND[b.key].A) + sum(DEMAND[b.key].B);
+    /* transit counts: a game saved before the last-week step was removed can
+       still hold units that left the warehouse and never arrived */
+    const l = state.stock.W[i] + state.stock.A[i] + state.stock.B[i]
+            + (state.transit.A[i] || 0) + (state.transit.B[i] || 0);
+    pa += a; to += c; made += s.perBag; dem += d; left += l;
     return '<tr><td>' + bagIcon(i, 18) + '<b>' + b.name + '</b></td><td>' + fmt(a) + '</td><td>' + fmt(c) + '</td>'
-      + '<td><b>' + fmt(a + c) + '</b></td><td>' + fmt(s.perBag) + '</td>' + cell(a + c, s.perBag) + '</tr>';
+      + '<td><b>' + fmt(a + c) + '</b></td><td class="dem">' + fmt(d) + '</td><td>' + fmt(s.perBag) + '</td>'
+      + '<td' + (l > 0 ? ' class="left"' : '') + '>' + fmt(l) + '</td>' + cell(a + c, s.perBag) + '</tr>';
   }).join('');
   return '<div class="card sales"><h2>Your sales <span>target sell-through ' + target + '%</span></h2>'
     + '<table class="sales"><thead><tr><th>Bag</th><th>' + STORES.A + '</th><th>' + STORES.B + '</th>'
-    + '<th>Sold</th><th>Produced</th><th class="st">Sell-through</th></tr></thead>'
+    + '<th>Sold</th><th>Real demand</th><th>Produced</th><th>Unsold</th><th class="st">Sell-through</th></tr></thead>'
     + '<tbody>' + rows + '</tbody>'
     + '<tfoot><tr><td>Total</td><td>' + fmt(pa) + '</td><td>' + fmt(to) + '</td><td>' + fmt(pa + to) + '</td>'
-    + '<td>' + fmt(made) + '</td>' + cell(pa + to, made) + '</tr></tfoot></table>'
-    + '<p class="key"><u></u>your target: ' + target + '% of what you made</p></div>';
+    + '<td class="dem">' + fmt(dem) + '</td><td>' + fmt(made) + '</td><td class="left">' + fmt(left) + '</td>'
+    + cell(pa + to, made) + '</tr></tfoot></table>'
+    + '<p class="key"><u></u>your target: ' + target + '% of what you made'
+    + ' &nbsp;·&nbsp; real demand − sold = the sales you missed</p></div>';
 }
 
 function renderEnd(){
   const t = totals(), s = state.setup;
   el('end-who').textContent = state.team + ' · ' + state.game
     + ' · target sell-through ' + s.sellThrough + '% · ' + s.storePct + '% in the boutiques at launch';
-
-  const perBag = BAGS.map(function(b, i){
-    const sold = state.sold.A[i] + state.sold.B[i];
-    const miss = state.missed.A[i] + state.missed.B[i];
-    /* transit counts: a game saved before the last-week step was removed can
-       still hold units that left the warehouse and never arrived */
-    const left = state.stock.W[i] + state.stock.A[i] + state.stock.B[i]
-               + (state.transit.A[i] || 0) + (state.transit.B[i] || 0);
-    return { b:b, i:i, sold:sold, miss:miss, left:left };
-  });
 
   /* Alone, the game shows the sales first and the P&L on request. Online the
      facilitator's reveal is that request, so there is no button. */
@@ -2292,18 +2297,9 @@ function renderEnd(){
     +   '<tr class="neg"><td>Cost of the ' + fmt(t.leftover) + ' nobody bought — at '
     +     fmtE(ECON.cost) + '</td><td>− ' + fmtE(t.leftover * ECON.cost) + '</td></tr>'
     +   '<tr class="total' + (t.margin < 0 ? ' neg' : '') + '"><td>Margin</td><td>' + fmtE(t.margin) + '</td></tr>'
-    + '</table>'
-    + '<div class="card"><h2>Bag by bag</h2><table class="h" style="width:100%">'
-    + '<thead><tr><th>Bag</th><th>Produced</th><th>Real demand</th><th>Sold</th><th>Missed</th><th>Left</th></tr></thead><tbody>';
-
-  if(!gated) perBag.forEach(function(r){
-    const realDemand = DEMAND[r.b.key].A.reduce(function(a, x){ return a + x; }, 0)
-                     + DEMAND[r.b.key].B.reduce(function(a, x){ return a + x; }, 0);
-    html += '<tr><td>' + bagIcon(r.i, 16) + ' <b>' + r.b.name + '</b></td>'
-          + '<td>' + s.perBag + '</td><td>' + realDemand + '</td><td>' + r.sold + '</td>'
-          + '<td style="color:var(--warn)">' + (r.miss || '') + '</td><td>' + r.left + '</td></tr>';
-  });
-  if(!gated) html += '</tbody></table></div>';
+    + '</table>';
+  /* the bag-by-bag figures (demand, sold, produced, left) are in the sales
+     table at the top of the page: they are not repeated under the P&L */
   /* while the P&L button waits, it is the one primary action on the page */
   html += '<div class="row-buttons">'
         + '<button class="' + (gated ? '' : 'btn-primary ') + 'btn-xl" id="end-dl">⭳ Download CSV</button>'
