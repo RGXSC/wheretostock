@@ -507,8 +507,6 @@
   table.sales td.st b{ min-width:3.2em; text-align:right; }
   table.sales td.st b.ok{ color:var(--live); }
   table.sales td.st b.low{ color:var(--warn); }
-  .sales .key{ margin:10px 0 0; font-size:14px; color:var(--ink-soft); }
-  .sales .key u{ display:inline-block; width:3px; height:14px; background:var(--ink); vertical-align:-2px; margin-right:6px; border-radius:2px; }
   /* the end of the season: the turnover, before the P&L */
   .welldone{ text-align:center; margin:4px 0 18px; font-size:20px; font-weight:700; }
   .welldone b{ display:block; font-size:44px; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; line-height:1.15; }
@@ -2236,9 +2234,7 @@ function salesHTML(){
     + '<tbody>' + rows + '</tbody>'
     + '<tfoot><tr><td>Total</td><td>' + fmt(pa) + '</td><td>' + fmt(to) + '</td><td>' + fmt(pa + to) + '</td>'
     + '<td class="dem">' + fmt(dem) + '</td><td>' + fmt(made) + '</td><td class="left">' + fmt(left) + '</td>'
-    + cell(pa + to, made) + '</tr></tfoot></table>'
-    + '<p class="key"><u></u>your target: ' + target + '% of what you made'
-    + ' &nbsp;·&nbsp; real demand − sold = the sales you missed</p></div>';
+    + cell(pa + to, made) + '</tr></tfoot></table></div>';
 }
 
 function renderEnd(){
