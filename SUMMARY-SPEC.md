@@ -167,6 +167,18 @@ room. No library.
 same discipline as the game. A team's row keeps a stable colour across all
 stages so it can be tracked through both sorts.
 
+**One screen, never scrolled.** The whole ranking is read at once, so the
+rows share the height left between the top bar and the Next bar (`--rowh`,
+set by `fitBoard()` at every stage and on resize, between 20 and 80 px) and
+the type follows the row. Thirteen teams fit a laptop at 125 % scaling
+(1536×730 in the browser) and a 720p projector; twenty still fit at 1366×600;
+five get very large type. The reveal takes the width of the screen (up to
+1760 px) rather than a 1200 px page, the team name stays on one line, and the
+game's name is only added after the team's when the line-up mixes several
+games. The column heads always keep two lines, so a deduction with a longer
+label never moves the rows. Each stage starts scrolled to the top: the start
+button sits at the foot of a long import page.
+
 ---
 
 ## 3. The map — two stages
@@ -180,26 +192,33 @@ Teams keep their square between the two, so nothing moves — the bars animate
 their length and colour in place, and the eye can see which team collapses
 when turnover becomes margin.
 
-- Each team is a **bar**, not a chip: length carries the result so magnitude
-  is visible without decoding colour. Several teams in one square stack.
-- **Bar length runs 50%→100% across the range on screen** — the weakest team
-  gets half the width, the strongest the full width. Zero-based bars made a
-  12% spread in turnover invisible; a purely range-based bar would have left
-  the weakest team a stub.
+- Each team is a **line of its own**: its colour dot and its **name, always
+  shown in dark ink** (wrapped, never cut), then a bar with the figure at its
+  end in a gutter the bar cannot enter. Several teams in one square stack.
+  The first version wrote the name in white inside the bar, or after a bar
+  too short to hold it — with thirteen teams most names simply disappeared,
+  and the map showed bars without owners.
+- **The map fills the screen.** The table takes the whole width; `fitMap()`
+  picks the largest scale (`--ms`) at which the map sits above the Next bar.
+- **Bar length is from zero, against the best figure on screen** for the
+  metric shown — the full grey track is the best team. The earlier 50%→100%
+  stretch made every team look nearly as good as the best as soon as one
+  team lost a lot: one outlier compressed the whole field.
 - **Part games get a short hatched stub, never a length.** They are excluded
   from the ranking, so a bar sized like a real one — the first version gave
   them a flat 70% — reads as a middling score against teams that actually
   finished. The stub is shorter than every ranked bar and carries the word
   *part* instead of a number.
 - **Colour is recomputed for whatever metric is on screen**, over that
-  metric's own range: a team can be green on turnover and deep red on margin,
-  which is the lesson. The ramp runs through five stops — red, orange, amber,
-  light green, green — because a three-stop ramp turned the whole middle of
-  the field into one muddy olive.
-- The value sits in its own gutter that the bar cannot enter, and a bar too
-  short to hold its team name puts the name alongside in dark ink — decided
-  by measuring the rendered label, not by guessing a threshold, so a long
-  team name cannot end up as white text on white.
+  metric's range **without its extremes** (10th to 90th percentile; beyond
+  them the colour is the end of the ramp): a team can be green on turnover
+  and deep red on margin, which is the lesson. Over the full range, a single
+  big loss painted every other team the same green and the switch to margin
+  showed nothing. Teams that turned over much the same now look much the
+  same, and margin is what pulls them apart. The ramp runs through five
+  stops — red, orange, amber, light green, green — because a three-stop ramp
+  turned the whole middle of the field into one muddy olive. A loss gets a
+  hatched red stub and a red figure.
 - **No background shading.** The tool could compute what margin was reachable
   in each square by replaying the demand, but that asserts what a team "could
   have" made in a square it never chose. The map shows where teams landed and

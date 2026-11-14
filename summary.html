@@ -103,29 +103,46 @@
   header.topbar{ position:sticky; top:0; z-index:20; background:var(--surface);
                  border-bottom:2px solid var(--line); }
   .bar-inner{ display:flex; align-items:center; gap:18px; flex-wrap:wrap;
-              padding:12px 20px; max-width:1200px; margin:0 auto; }
+              padding:12px 24px; max-width:1760px; margin:0 auto; }
+  /* the reveal is projected: it takes the width of the screen, not of a page */
+  .wrap.wide{ max-width:1760px; padding:0 24px; }
   .stagepill{ background:var(--accent); color:#fff; border-radius:var(--radius);
               padding:6px 16px; font-weight:800; font-size:19px; }
   .stagetitle{ font-size:21px; font-weight:800; flex:1 1 240px; }
 
+  /* The whole ranking is read at once from the back of the room, so it is
+     never scrolled: fitBoard() shares the height between the two bars among
+     the rows (--rowh), and the type grows and shrinks with the row. Thirteen
+     teams fit a laptop screen; five get very large type. The columns share
+     the width, so a long team name stays on one line. */
   .board{ background:var(--surface); border:2px solid var(--line-soft);
-          border-radius:var(--radius); padding:8px 18px 18px; margin-top:20px; }
-  .rowhead, .trow{ display:grid; gap:10px; align-items:center;
-                   grid-template-columns:56px minmax(160px,2fr) 116px 116px 140px 150px 150px 104px; }
+          border-radius:var(--radius); padding:2px 22px 8px; margin-top:12px; --rowh:56px; }
+  .rowhead, .trow{ display:grid; column-gap:clamp(8px, 1.3vw, 26px); align-items:center;
+                   grid-template-columns:calc(var(--rowh) * .9 + 16px) minmax(0,2.6fr) minmax(0,.85fr) minmax(0,.95fr)
+                                         minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,1.2fr) minmax(0,1.05fr); }
   @media (max-width:900px){
     .rowhead, .trow{ grid-template-columns:44px minmax(120px,1.4fr) 84px 84px 108px 116px 116px 86px;
                      font-size:15px; }
   }
-  .rowhead{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
-            color:var(--ink-soft); padding:10px 0 8px; border-bottom:2px solid var(--line-soft); }
+  /* two lines are kept for the column heads whatever they say, so the heads
+     changing with each deduction never moves the rows */
+  .rowhead{ font-size:clamp(11px, min(calc(var(--rowh) * .22), 1.05vw), 15px); font-weight:800; text-transform:uppercase;
+            letter-spacing:.05em; line-height:1.2; color:var(--ink-soft); padding:8px 0 6px;
+            border-bottom:2px solid var(--line-soft); align-items:end; min-height:calc(2.4em + 14px); }
+  .rowhead span{ overflow-wrap:anywhere; }
   .rowhead span, .trow > *{ text-align:right; }
   .rowhead span:nth-child(2), .trow > *:nth-child(2){ text-align:left; }
-  .trow{ padding:12px 0; border-bottom:1px solid var(--line-soft);
+  .trow{ height:var(--rowh); padding:0; border-bottom:1px solid var(--line-soft);
          font-variant-numeric:tabular-nums; will-change:transform; }
-  .trow .nm{ font-weight:800; font-size:20px; display:flex; align-items:center; gap:9px; }
-  .trow .dot{ width:14px; height:14px; border-radius:50%; flex:none; }
-  .trow .rank{ font-size:22px; font-weight:800; color:var(--ink-soft); }
-  .trow .big{ font-size:22px; font-weight:800; }
+  .trow:last-child{ border-bottom:0; }
+  .trow .nm{ font-weight:800; font-size:clamp(13px, calc(var(--rowh) * .42), 28px); line-height:1.2;
+             display:flex; align-items:center; gap:.45em; min-width:0; }
+  .trow .nm .tn{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .trow .nm .gm{ font-size:.62em; font-weight:700; color:var(--ink-soft); }
+  .trow .dot{ width:.62em; height:.62em; border-radius:50%; flex:none; }
+  /* the figures follow the row, but never outgrow their column (1.8vw) */
+  .trow .rank{ font-size:clamp(14px, min(calc(var(--rowh) * .46), 1.8vw), 30px); font-weight:800; color:var(--ink-soft); line-height:1.2; }
+  .trow .big{ font-size:clamp(14px, min(calc(var(--rowh) * .46), 1.8vw), 30px); font-weight:800; white-space:nowrap; line-height:1.2; }
   .trow .neg{ color:var(--bad); }
   .trow.part{ opacity:.55; }
 
@@ -138,6 +155,7 @@
   /* the deduction is money going out, and it is the colour the bridge and the
      game both paint a cost */
   .c-ded{ color:var(--bad); font-variant-numeric:tabular-nums; }
+  .trow .c-ded{ white-space:nowrap; font-size:clamp(12px, min(calc(var(--rowh) * .34), 1.5vw), 22px); line-height:1.2; }
   /* the running total re-animates on every step, so the eye is pulled to the
      number that just changed rather than to the row that just moved */
   .c-run.bump{ animation:bump .5s ease both; }
@@ -145,66 +163,66 @@
   @keyframes fade{ from{ opacity:0; transform:translateY(-6px) } to{ opacity:1; transform:none } }
 
   .footbar{ position:fixed; left:0; right:0; bottom:0; z-index:20; background:var(--surface);
-            border-top:2px solid var(--line); padding:14px 20px; }
-  .footbar-inner{ max-width:1200px; margin:0 auto; display:flex; gap:14px;
+            border-top:2px solid var(--line); padding:12px 24px; }
+  .footbar-inner{ max-width:1760px; margin:0 auto; display:flex; gap:14px;
                   align-items:center; flex-wrap:wrap; }
   .footbar .btn-xl{ flex:1 1 300px; }
+  /* a laptop or a 720p projector: the two bars give their height to the results */
+  @media (max-height:860px){
+    .bar-inner{ padding:6px 24px; }
+    .stagepill{ font-size:17px; padding:4px 14px; }
+    .stagetitle{ font-size:19px; }
+    header.topbar .btn-ghost{ min-height:38px; padding:4px 12px; }
+    .footbar{ padding:7px 24px; }
+    .footbar .btn-xl{ min-height:50px; font-size:20px; padding:6px 24px; }
+    .footbar .btn-ghost{ min-height:44px; }
+  }
 
-  /* ------------------------------------------------------------- matrix */
+  /* ------------------------------------------------------------- matrix
+     The map is read from the back of the room too. Every team is a line of
+     its own: its colour, its NAME (always shown, in dark ink, wrapped rather
+     than cut), its figure, and under them a bar. The table takes the whole
+     width, and fitMap() sets the scale (--ms) so the map fills the screen
+     without running under the bar: large with few teams, smaller with many. */
   .mwrap{ overflow-x:auto; }
-  table.matrix{ border-collapse:separate; border-spacing:6px; margin:0 auto; }
-  table.matrix th{ font-size:13px; font-weight:800; color:var(--ink-soft);
-                   text-transform:uppercase; letter-spacing:.04em; padding:4px 8px; }
-  table.matrix th.rowlab{ font-size:14px; white-space:nowrap; }
-  /* Sized to what is in them, not to the busiest square: with five targets
-     and seven splits, a flat 74px made the map two screens tall on a 720p
-     projector while most squares held nothing at all. */
-  table.matrix td{ min-width:190px; height:1px; vertical-align:top;
-                   background:var(--surface); border:2px solid var(--line-soft);
-                   border-radius:8px; padding:6px; }
-  table.matrix td:empty{ height:26px; background:transparent; border-style:dashed; }
-
-  /* one bar per team: length is the result, so the spread reads at a glance
-     and not only through colour */
-  .mrow{ position:relative; height:26px; margin-bottom:4px; }
-  .mrow:last-child{ margin-bottom:0; }
+  #matrix-wrap{ --ms:1; padding:calc(12px * var(--ms)) calc(18px * var(--ms)) calc(14px * var(--ms)); margin-top:12px !important; }
+  .mapsub{ margin:0 0 calc(4px * var(--ms)); font-size:calc(17px * var(--ms)); color:var(--ink-soft); }
+  .mapsub b{ color:var(--ink); }
+  table.matrix{ width:100%; table-layout:fixed; border-collapse:separate; border-spacing:calc(6px * var(--ms)); }
+  table.matrix col.c-axis{ width:calc(30px * var(--ms)); }
+  table.matrix col.c-lab{ width:calc(66px * var(--ms)); }
+  table.matrix th{ font-size:calc(15px * var(--ms)); font-weight:800; color:var(--ink-soft);
+                   text-transform:uppercase; letter-spacing:.04em; padding:calc(2px * var(--ms)) 4px; }
+  table.matrix th.rowlab{ font-size:calc(17px * var(--ms)); white-space:nowrap; text-align:right; padding-right:calc(8px * var(--ms)); }
+  table.matrix td{ vertical-align:middle; background:var(--surface); border:2px solid var(--line-soft);
+                   border-radius:8px; padding:calc(7px * var(--ms)) calc(10px * var(--ms)); }
+  table.matrix td:empty{ height:calc(24px * var(--ms)); padding:0; background:transparent; border-style:dashed; }
+  .mrow + .mrow{ margin-top:calc(9px * var(--ms)); }
+  /* the name has the whole width of its square; the figure sits at the end of
+     the bar, in a gutter of its own that the bar can never run into */
+  .mtop{ display:flex; align-items:baseline; gap:calc(8px * var(--ms)); }
+  .mbot{ display:flex; align-items:center; gap:calc(10px * var(--ms)); margin-top:calc(4px * var(--ms)); }
+  .mtop .dot{ width:calc(13px * var(--ms)); height:calc(13px * var(--ms)); border-radius:50%; flex:none; align-self:center; }
+  .mlab{ flex:1 1 auto; min-width:0; font-size:calc(20px * var(--ms)); font-weight:800; line-height:1.15;
+         color:var(--ink); overflow-wrap:anywhere; }
+  .mval{ flex:none; min-width:4.3em; text-align:right; font-size:calc(20px * var(--ms)); font-weight:800;
+         color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .mrow.part .mval{ color:var(--ink-soft); font-weight:700; }
+  /* a loss is not just the shortest bar on the board: it is a different kind
+     of number, and it says so */
+  .mrow.negative .mval{ color:var(--warn); }
+  /* the grey track is the best figure on screen, so every bar reads against it */
+  .mtrack{ position:relative; flex:1 1 auto; height:calc(12px * var(--ms));
+           background:var(--line-soft); border-radius:99px; overflow:hidden; }
+  .mbar{ position:absolute; left:0; top:0; bottom:0; width:0; border-radius:99px; background-color:#8d99a6;
+         transition:width 900ms cubic-bezier(.2,.8,.2,1), background-color 900ms ease; }
+  .mbar.part{ background:repeating-linear-gradient(45deg,#8d99a6,#8d99a6 6px,#b8c0c9 6px,#b8c0c9 12px); }
+  .mrow.negative .mbar{ background:repeating-linear-gradient(45deg,var(--warn),var(--warn) 5px,#eab3a5 5px,#eab3a5 10px) !important; }
   /* the two result columns stay blanked until the facilitator asks for them */
   table.games .res{ color:transparent; user-select:none; }
   table.games .res::after{ content:'\2022\2002\2022\2002\2022'; color:var(--line); }
   table.games.peek .res{ color:inherit; user-select:auto; }
   table.games.peek .res::after{ content:none; }
-  /* the value lives in its own gutter, so it can never end up sitting on a bar */
-  .mtrack{ position:absolute; inset:0 50px 0 0; }
-  .mbar{ position:absolute; inset:0 auto 0 0; width:12%; border-radius:5px;
-         background:#8d99a6;
-         transition:width 900ms cubic-bezier(.2,.8,.2,1), background-color 900ms ease; }
-  .mbar.part{ background:repeating-linear-gradient(45deg,#8d99a6,#8d99a6 6px,#7b8794 6px,#7b8794 12px); }
-  .mlab{ position:absolute; left:8px; top:0; line-height:26px; font-size:14px;
-         font-weight:800; color:#fff; white-space:nowrap; text-shadow:0 1px 2px rgba(0,0,0,.35);
-         transition:left 900ms cubic-bezier(.2,.8,.2,1); }
-  /* a bar too short to hold its name puts the name after it, in dark ink —
-     clipped at the track, so a long team name cannot run over its own value */
-  .mrow.short .mlab{ left:calc(var(--w) + 7px); color:var(--ink); text-shadow:none;
-                     right:2px; overflow:hidden; text-overflow:ellipsis; }
-  .mval{ position:absolute; right:4px; top:0; width:46px; text-align:right; line-height:26px;
-         font-size:13px; font-weight:800; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
-  /* a loss is not just the shortest bar on the board — it is a different
-     kind of number, and it says so */
-  .mrow.negative .mval{ color:var(--warn); }
-  .mrow.negative .mbar{ outline:2px solid var(--warn); outline-offset:-2px; }
-  /* The map is the one screen a room reads from the back, and on a 1280x720
-     projector it was 828px tall against 620px of usable height — the bottom
-     two splits sat under the bar. Below 820px of viewport the squares tighten
-     rather than the map being cut off. */
-  @media (max-height:820px){
-    table.matrix{ border-spacing:3px; }
-    table.matrix td{ min-width:168px; padding:3px; }
-    table.matrix th{ padding:2px 6px; font-size:12px; }
-    .mrow{ height:21px; margin-bottom:2px; }
-    .mlab{ line-height:21px; font-size:13px; }
-    .mval{ line-height:21px; font-size:12px; }
-    table.matrix td:empty{ height:21px; }
-  }
   /* ------------------------------------------------------------- print
      A facilitator asked to "print the map" got the sticky bars, the import
      screen and the nav buttons on paper. Printing gives the board and the
@@ -222,11 +240,13 @@
     /* the map is built hidden until its stage: on paper both it and the
        ranking are wanted, whichever stage the screen happens to be on */
     #matrix-wrap.hidden{ display:block !important; }
-    .mbar, .mlab{ transition:none !important; }
+    .mbar{ transition:none !important; }
+    .trow{ height:auto; padding:6px 0; }
+    #matrix-wrap{ --ms:.85 !important; }
     .trow{ transform:none !important; transition:none !important; }
   }
 
-  .axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-size:13px;
+  .axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-size:calc(14px * var(--ms, 1));
            font-weight:800; color:var(--ink-soft); text-transform:uppercase;
            letter-spacing:.06em; padding:0 2px; }
 
@@ -397,7 +417,7 @@
       <button id="btn-back-import" class="btn-ghost">Back to files</button>
     </div>
   </header>
-  <main class="wrap" style="padding-bottom:130px;">
+  <main class="wrap wide" style="padding-bottom:130px;">
     <div id="board" class="board">
       <div class="rowhead">
         <span class="c-rank">Rank</span><span>Team</span>
@@ -1179,6 +1199,9 @@ function startReveal(){
 function buildRows(){
   const host = el('rows');
   host.textContent = '';
+  /* one match on screen: its name on every row only pushed the team names
+     onto two lines. It is shown when there is something to tell apart. */
+  const several = ranked.some(function(g){ return g.game !== ranked[0].game; });
   ranked.forEach(function(g){
     const d = document.createElement('div');
     d.className = 'trow';
@@ -1186,8 +1209,8 @@ function buildRows(){
     const m = margin(g), mp = marginPct(g);
     d.innerHTML =
         '<div class="rank c-rank"></div>'
-      + '<div class="nm"><span class="dot" style="background:' + g.colour + '"></span>'
-      +   '<span>' + esc(g.team) + '<span class="muted small"> · ' + esc(g.game) + '</span></span></div>'
+      + '<div class="nm" title="' + esc(g.team + ' · ' + g.game) + '"><span class="dot" style="background:' + g.colour + '"></span>'
+      +   '<span class="tn">' + esc(g.team) + (several ? '<span class="gm"> · ' + esc(g.game) + '</span>' : '') + '</span></div>'
       + '<div class="big c-setup">' + g.target + '%</div>'
       + '<div class="big c-setup">' + g.storePct + '%</div>'
       + '<div class="big c-turnover">' + fmtE(g.turnover) + '</div>'
@@ -1336,6 +1359,9 @@ function setRanks(){
 
 function renderStage(){
   const s = STAGES[stage];
+  /* every stage is read from the top: the start button sits at the foot of a
+     long import page, and the overview below the board can be scrolled to */
+  if(window.scrollY) window.scrollTo(0, 0);
   el('stage-pill').textContent = (stage + 1) + ' / ' + STAGES.length;
   el('stage-title').textContent = s.title;
 
@@ -1358,6 +1384,8 @@ function renderStage(){
   el('matrix-wrap').classList.toggle('hidden', !onMap);
   board.classList.toggle('hidden', onMap);
   el('excluded').classList.toggle('hidden', onMap || !games.some(function(g){ return !isComplete(g); }));
+  /* before reorder() measures the rows: the same screen gives the same height,
+     so this only ever changes anything after a resize */
 
   /* The order belongs to the stage, not to the act of arriving at it going
      forwards: stepping back out of a ranking used to leave the rows ranked
@@ -1384,6 +1412,9 @@ function renderStage(){
   /* paint before reordering: reorder() measures where the rows are, and a
      cell whose text changes afterwards can resize the row it is in */
   paintPnl(stage > lastPnl ? PNL_STEPS.length - 1 : pnl);
+  /* after the heads are written, before reorder() measures the rows: the same
+     screen gives the same height, so this only changes anything after a resize */
+  if(!onMap) fitBoard();
   reorder(want);
   setTimeout(setRanks, 40);
   if(onMap){
@@ -1391,6 +1422,7 @@ function renderStage(){
     /* the bars are already on screen from the turnover stage, so switching
        metric animates their length and colour rather than redrawing */
     setMatrixMetric(s.key === 'mapT' ? 'turnover' : 'margin');
+    fitMap();
   }
 
   el('btn-prev').disabled = stage === 0;
@@ -1414,12 +1446,14 @@ function renderMatrix(){
   const targets = uniqueSorted(all.map(function(g){ return g.target; }), [60,70,80,90,100]);
   const splits  = uniqueSorted(all.map(function(g){ return g.storePct; }), [30,40,50,60,70,80,90]);
 
-  let html = '<h2 style="font-size:21px;" id="map-title">Turnover on the map</h2>'
-    + '<p class="muted small" style="margin:4px 0 16px;" id="map-sub"></p>'
+  /* the stage title already says turnover or margin: one line says how to read it */
+  let html = '<p class="mapsub"><b id="map-title"></b><span id="map-sub"></span></p>'
     /* Two leading cells in every header row, not one: the body rows carry the
        rotated axis label AND the row label before the first square, so a
        single spacer slid every column heading one square to the left. */
-    + '<div class="mwrap"><table class="matrix"><thead><tr><th></th><th></th>'
+    + '<div class="mwrap"><table class="matrix"><colgroup><col class="c-axis"><col class="c-lab">'
+    + targets.map(function(){ return '<col>'; }).join('') + '</colgroup>'
+    + '<thead><tr><th></th><th></th>'
     + '<th colspan="' + targets.length + '">Target sell-through</th></tr>'
     + '<tr><th></th><th></th>'
     + targets.map(function(t){ return '<th>' + t + '%</th>'; }).join('') + '</tr></thead><tbody>';
@@ -1429,20 +1463,20 @@ function renderMatrix(){
       ? '<th class="axis-y" rowspan="' + splits.length + '">In the boutiques at launch</th>' : '');
     html += '<th class="rowlab">' + sp + '%</th>';
     targets.forEach(function(t){
-      const here = all.filter(function(g){ return g.target === t && g.storePct === sp; });
+      const here = all.filter(function(g){ return g.target === t && g.storePct === sp; }).sort(byName);
       html += '<td>' + here.map(function(g){
+        const dot = '<span class="dot" style="background:' + (g.colour || '#8d99a6') + '"></span>';
         /* A part game has no comparable result, so it must not claim a
-           length on the ranked scale: it gets a short hatched stub with its
-           name alongside, which can never be misread as a middling score. */
+           length on the ranked scale: it gets a short hatched stub and the
+           word "part", which can never be misread as a middling score. */
         if(!isComplete(g))
-          return '<div class="mrow short" style="--w:14%"><div class="mtrack">'
-               + '<div class="mbar part" style="width:14%"></div>'
-               + '<span class="mlab">' + esc(g.team) + '</span></div>'
-               + '<span class="mval">part</span></div>';
+          return '<div class="mrow part">'
+               + '<div class="mtop">' + dot + '<span class="mlab">' + esc(g.team) + '</span></div>'
+               + '<div class="mbot"><div class="mtrack"><div class="mbar part" style="width:12%"></div></div>'
+               + '<span class="mval">part</span></div></div>';
         return '<div class="mrow" data-id="' + esc(g.id) + '">'
-             + '<div class="mtrack"><div class="mbar"></div>'
-             + '<span class="mlab">' + esc(g.team) + '</span></div>'
-             + '<span class="mval"></span></div>';
+             + '<div class="mtop">' + dot + '<span class="mlab">' + esc(g.team) + '</span></div>'
+             + '<div class="mbot"><div class="mtrack"><div class="mbar"></div></div><span class="mval"></span></div></div>';
       }).join('') + '</td>';
     });
     html += '</tr>';
@@ -1452,43 +1486,82 @@ function renderMatrix(){
   el('matrix-wrap').dataset.built = '1';
 }
 
-/* Swap what the bars mean. Lengths and colours transition, so the eye can
-   follow one team growing or collapsing as turnover becomes margin. */
+/* Swap what the bars mean; lengths and colours transition, so the eye can
+   follow one team growing or collapsing as turnover becomes margin.
+
+   Length: from zero, against the best figure on screen for that metric
+   (the full grey track). Colour: the value, red to green, over the range of
+   the room WITHOUT its extremes (10th to 90th percentile; beyond them the
+   colour is simply the end of the ramp). Over the full range, one big loss
+   painted every other team the same green and the switch to margin showed
+   nothing. Now teams that turned over much the same look much the same, and
+   margin is what pulls them apart. A loss gets a hatched red stub and a red
+   figure. */
 function setMatrixMetric(metric){
   matrixMetric = metric;
-  const vals = ranked.map(function(g){ return metric === 'turnover' ? g.turnover : margin(g); });
-  if(!vals.length) return;
-  const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-  
-  el('map-title').textContent = metric === 'turnover' ? 'Turnover on the map' : 'Margin on the map';
+  const val = function(g){ return metric === 'turnover' ? g.turnover : margin(g); };
+  el('map-title').textContent = metric === 'turnover' ? 'Turnover' : 'Margin';
   el('map-sub').textContent = metric === 'turnover'
-    ? 'Each team sits in the square it chose. Bars show turnover.'
-    : 'The same squares, now showing margin. Watch which bars shrink.';
-
+    ? ' — each team sits in the square it chose. The full bar is the best turnover in the room.'
+    : ' — the same squares, now by margin. The full bar is the best margin. Watch which bars shrink.';
+  if(!ranked.length) return;
+  const vals = ranked.map(val).sort(function(a, b){ return a - b; });
+  const q = function(p){ const x = p * (vals.length - 1), i = Math.floor(x);
+    return i + 1 < vals.length ? vals[i] + (vals[i + 1] - vals[i]) * (x - i) : vals[i]; };
+  const lo = q(0.1), hi = q(0.9);
+  const best = Math.max(0, vals[vals.length - 1]);
   ranked.forEach(function(g){
     const row = el('matrix-wrap').querySelector('[data-id="' + cssEsc(g.id) + '"]');
     if(!row) return;
-    const v = metric === 'turnover' ? g.turnover : margin(g);
-    const bar = row.querySelector('.mbar');
-    /* Halfway between honest and legible: the weakest team on screen gets
-       half the width, the strongest the full width. Zero-based bars made a
-       12% spread in turnover invisible; a range-based bar would make the
-       weakest a stub. Length therefore compares teams, it is not "how much"
-       — which is why the caption says so. */
-    const span = hi - lo;
-    const pct = 50 + (span === 0 ? 50 : (v - lo) / span * 50);
+    const v = val(g), bar = row.querySelector('.mbar');
+    const pct = v > 0 && best > 0 ? Math.max(2, v / best * 100) : 9;
     bar.style.width = pct.toFixed(1) + '%';
-    bar.style.background = scale(v, lo, hi);
-    row.style.setProperty('--w', pct.toFixed(1) + '%');
-    /* measure rather than guess: a long team name may not fit even a long
-       bar, and white-on-white would be unreadable */
-    const track = row.querySelector('.mtrack'), lab = row.querySelector('.mlab');
-    const targetPx = track.getBoundingClientRect().width * pct / 100;
-    row.classList.toggle('short', lab.scrollWidth + 16 > targetPx);
-    row.querySelector('.mval').textContent = fmt(v / 1000) + 'k';
+    bar.style.backgroundColor = scale(Math.max(lo, Math.min(hi, v)), lo, hi);
+    row.querySelector('.mval').textContent = (v < 0 ? '−' : '') + fmt(Math.abs(v) / 1000) + ' k€';
     row.classList.toggle('negative', v < 0);
   });
 }
+
+/* The largest scale at which the whole map sits above the bar. */
+function fitMap(){
+  const wrap = el('matrix-wrap');
+  if(wrap.classList.contains('hidden') || el('screen-reveal').classList.contains('hidden')) return;
+  const limit = window.innerHeight - document.querySelector('.footbar').getBoundingClientRect().height - 10;
+  let ms = 1.3;
+  for(; ms > 0.6; ms -= 0.05){
+    wrap.style.setProperty('--ms', ms.toFixed(2));
+    if(wrap.getBoundingClientRect().bottom + window.scrollY <= limit) break;
+  }
+}
+
+/* The rows share the height left between the two bars (see .board). */
+function fitBoard(){
+  const board = el('board');
+  if(board.classList.contains('hidden') || el('screen-reveal').classList.contains('hidden')) return;
+  const n = Math.max(1, el('rows').children.length);
+  const bars = document.querySelector('header.topbar').getBoundingClientRect().height
+             + document.querySelector('.footbar').getBoundingClientRect().height;
+  const cs = getComputedStyle(board);
+  const chrome = ['marginTop', 'paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth']
+    .reduce(function(t, k){ return t + (parseFloat(cs[k]) || 0); }, 0);
+  /* the column heads grow with the rows: settle in two passes */
+  let h = parseFloat(cs.getPropertyValue('--rowh')) || 56;
+  for(let k = 0; k < 2; k++){
+    const head = board.querySelector('.rowhead').getBoundingClientRect().height;
+    h = Math.max(20, Math.min(80, Math.floor((window.innerHeight - bars - chrome - head - 10) / n)));
+    board.style.setProperty('--rowh', h + 'px');
+  }
+  /* the column heads wrap differently at each size: settle on what is drawn */
+  const foot = window.innerHeight - document.querySelector('.footbar').getBoundingClientRect().height - 6;
+  while(h > 20 && board.getBoundingClientRect().bottom + window.scrollY > foot){
+    h -= 1; board.style.setProperty('--rowh', h + 'px');
+  }
+}
+let fitTimer = 0;
+window.addEventListener('resize', function(){
+  clearTimeout(fitTimer);
+  fitTimer = setTimeout(function(){ fitBoard(); fitMap(); }, 120);
+});
 
 function cssEsc(s){ return String(s).replace(/["\\]/g, '\\$&'); }
 
