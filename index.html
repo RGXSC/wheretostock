@@ -439,6 +439,56 @@
           width:100%; padding:26px; max-height:92vh; overflow:auto; }
   .modal h2{ font-size:25px; margin-bottom:10px; }
 
+  /* ------------------------------------------------------ launch pop-ups
+     The two setup decisions worked out in pieces, the moment the board
+     opens: numbers and operators, two words under each. */
+  .modal.launchpop{ max-width:700px; text-align:center; padding:26px 30px 24px; }
+  .lp-kicker{ font-size:13px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); }
+  .launchpop h2{ font-size:28px; margin:4px 0 22px; }
+  .launchpop h2 .hl{ color:var(--accent); }
+  .lp-eq{ display:flex; align-items:flex-start; justify-content:center; gap:10px 14px; flex-wrap:wrap; }
+  .lp-term{ min-width:100px; }
+  .lp-term b{ display:block; font-size:46px; line-height:1.05; font-weight:800; font-variant-numeric:tabular-nums; }
+  .lp-term span{ display:block; margin-top:5px; font-size:12.5px; font-weight:800; color:var(--ink-soft);
+                 text-transform:uppercase; letter-spacing:.05em; line-height:1.25; }
+  .lp-term.res b{ color:var(--accent); }
+  .lp-op{ font-size:40px; font-weight:700; color:var(--ink-soft); line-height:1.15; }
+  .lp-total{ margin:20px 0 0; background:var(--accent-soft); border-radius:12px; padding:12px 16px;
+             font-size:19px; font-weight:700; color:#0d3d5e; display:flex; justify-content:center;
+             align-items:baseline; gap:6px 16px; flex-wrap:wrap; }
+  .lp-total b{ font-size:38px; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; }
+  .lp-total i{ font-style:normal; display:inline-flex; align-items:baseline; gap:6px; }
+  .lp-total i b{ font-size:31px; }
+  .lp-total i::before{ content:''; width:12px; height:12px; border-radius:3px; background:var(--c); align-self:center; }
+  .lp-split{ display:flex; height:60px; border-radius:10px; overflow:hidden; margin:22px 0 5px; }
+  .lp-seg{ flex-basis:0; min-width:86px; display:flex; flex-direction:column; align-items:center;
+           justify-content:center; color:#fff; }
+  .lp-seg b{ font-size:23px; line-height:1.05; font-variant-numeric:tabular-nums; }
+  .lp-seg span{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; opacity:.92; }
+  .lp-seg.A{ background:#12557f; } .lp-seg.B{ background:#6ba3cd; } .lp-seg.W{ background:#9aa7b3; color:#12161b; }
+  .lp-cap{ font-size:12.5px; font-weight:800; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; }
+  .launchpop p.lp-note{ margin:14px 0 18px; font-size:15px; color:var(--ink-soft); }
+  .launchpop .btn-xl{ width:100%; }
+  /* a laptop or a 720p projector: the same pop-up, tighter */
+  @media (max-height:760px){
+    .modal.launchpop{ padding:16px 24px 16px; }
+    .launchpop h2{ font-size:24px; margin:2px 0 12px; }
+    .lp-term b{ font-size:38px; }
+    .lp-op{ font-size:32px; }
+    .lp-total{ margin-top:12px; padding:8px 14px; }
+    .lp-total b{ font-size:32px; }
+    .lp-total i b{ font-size:28px; }
+    .lp-split{ height:50px; margin:14px 0 4px; }
+    .launchpop p.lp-note{ margin:10px 0 12px; }
+    .launchpop .btn-xl{ min-height:54px; }
+  }
+  /* the reminder chips under the header open the same pop-ups again */
+  .dchip[data-pop]{ cursor:pointer; }
+  .dchip[data-pop]:hover{ border-color:var(--accent); background:#d9e8f3; }
+  /* the end of the season: the turnover, before the P&L */
+  .welldone{ text-align:center; margin:4px 0 18px; font-size:20px; font-weight:700; }
+  .welldone b{ display:block; font-size:44px; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; line-height:1.15; }
+
   /* ---------------------------------------------------- the detail panel */
   /* Deliberately quiet: on the P&L page it should be findable by whoever is
      looking for it and invisible to a room being walked through the results. */
@@ -687,7 +737,7 @@
 
 <!-- =========================================================== SCREEN: END -->
 <section id="screen-end" class="wrap narrow hidden" style="padding:30px 0 70px;">
-  <h1 style="font-size:31px;">Season closed — the P&amp;L</h1>
+  <h1 style="font-size:31px;" id="end-title">Season closed — the P&amp;L</h1>
   <p class="muted" style="margin-top:4px;" id="end-who"></p>
   <div id="end-body"></div>
 </section>
@@ -1115,11 +1165,12 @@ function renderSteps(){
 function renderDecisions(){
   const s = state.setup;
   if(!s) return;
+  const tip = ' title="How this is worked out"';
   el('decisions').innerHTML =
-      '<span class="dchip"><span>Target sell-through</span> <b>' + s.sellThrough + '%</b></span>'
-    + '<span class="dchip"><span>Produced</span> <b>' + fmt(s.perBag * BAGS.length) + '</b> <span>('
+      '<span class="dchip" data-pop="st"' + tip + '><span>Target sell-through</span> <b>' + s.sellThrough + '%</b></span>'
+    + '<span class="dchip" data-pop="st"' + tip + '><span>Produced</span> <b>' + fmt(s.perBag * BAGS.length) + '</b> <span>('
       + s.perBag + ' per bag)</span></span>'
-    + '<span class="dchip"><span>At launch</span> <b>' + s.storePct + '%</b> <span>to the boutiques — '
+    + '<span class="dchip" data-pop="sp"' + tip + '><span>At launch</span> <b>' + s.storePct + '%</b> <span>to the boutiques — '
       + s.perStore + ' per bag each, ' + s.central + ' central</span></span>';
 }
 
@@ -1845,6 +1896,7 @@ function placeBubble(box, avoid, prefer){
 
 function maybeHint(){
   if(hintOpen || hintPending || !state || state.finished) return;
+  if(launchOpen || maybeLaunch()) return;          /* the two decisions, before the tour */
   const h = HINTS.find(function(x){
     return !state.hintsSeen[x.id] && x.week === state.week && x.step === state.step;
   });
@@ -2140,7 +2192,9 @@ function renderEnd(){
     return { b:b, i:i, sold:sold, miss:miss, left:left };
   });
 
+  el('end-title').innerHTML = 'Season closed — the P&amp;L';
   let html = ''
+    + '<div class="welldone">Well done! Your turnover is <b>' + fmtE(t.revenue) + '</b></div>'
     + '<div class="stat">'
     +   '<div><div class="k">Produced</div><div class="v">' + fmt(t.produced) + '</div></div>'
     +   '<div><div class="k">Sold</div><div class="v">' + fmt(t.sold) + '</div></div>'
@@ -2525,9 +2579,90 @@ function panelCauses(d, missed){
 }
 
 /* =========================================================================
+   9c. LAUNCH POP-UPS — the two setup decisions, in pieces
+   =========================================================================
+   The moment the board opens, before the guided tour, one pop-up per
+   decision: the target sell-through and the total it makes, then the share
+   placed in the boutiques at launch. Numbers and operators, two words under
+   each - read in seconds. Shown once (hintsSeen); the chips under the header
+   open them again. "≈" where the game rounds to whole pieces. */
+let launchOpen = false;
+function launchHTML(which){
+  const s = state.setup, n = BAGS.length, per = s.perBag, tot = per * n;
+  const eq = function(exact, shown){ return Math.abs(exact - shown) < 1e-9 ? '=' : '≈'; };
+  const term = function(v, lab, cls){
+    return '<div class="lp-term' + (cls ? ' ' + cls : '') + '"><b>' + v + '</b><span>' + lab + '</span></div>'; };
+  const op = function(o){ return '<div class="lp-op">' + o + '</div>'; };
+  if(which === 'st'){
+    const extra = tot - FORECAST_TOTAL;
+    return '<div class="lp-kicker">Your strategy · 1 of 2</div>'
+      + '<h2>Target sell-through <span class="hl">' + s.sellThrough + '%</span></h2>'
+      + '<div class="lp-eq">'
+      +   term(FORECAST_PER_BAG, 'forecast<br>per bag') + op('÷')
+      +   term(s.sellThrough + '%', 'target<br>sell-through')
+      +   op(eq(FORECAST_PER_BAG * 100 / s.sellThrough, per))
+      +   term(per, 'produced<br>per bag', 'res')
+      + '</div>'
+      + '<div class="lp-total"><span>× ' + n + ' bags =</span><b>' + fmt(tot) + '</b><span>pieces produced</span></div>'
+      + '<p class="lp-note">' + (extra > 0
+          ? '<b>' + fmt(extra) + '</b> more than the forecast (' + fmt(FORECAST_TOTAL) + '): your safety stock.'
+          : 'Exactly the forecast (' + fmt(FORECAST_TOTAL) + '): no safety stock.') + '</p>';
+  }
+  const shops = 2 * s.perStore;
+  return '<div class="lp-kicker">Your strategy · 2 of 2</div>'
+    + '<h2>At launch: <span class="hl">' + s.storePct + '%</span> in the boutiques</h2>'
+    + '<div class="lp-eq">'
+    +   term(per, 'produced<br>per bag') + op('×')
+    +   term(s.storePct + '%', 'to the<br>boutiques')
+    +   op(eq(per * s.storePct / 100, shops))
+    +   term(shops, 'in the boutiques<br>per bag', 'res')
+    + '</div>'
+    + '<div class="lp-split" aria-hidden="true">'
+    +   '<div class="lp-seg A" style="flex-grow:' + s.perStore + '"><b>' + s.perStore + '</b><span>Paris</span></div>'
+    +   '<div class="lp-seg B" style="flex-grow:' + s.perStore + '"><b>' + s.perStore + '</b><span>Tokyo</span></div>'
+    +   '<div class="lp-seg W" style="flex-grow:' + s.central + '"><b>' + s.central + '</b><span>Warehouse</span></div>'
+    + '</div>'
+    + '<div class="lp-cap">each bag</div>'
+    + '<div class="lp-total"><span>× ' + n + ' bags:</span>'
+    +   '<i style="--c:#12557f"><b>' + fmt(s.perStore * n) + '</b>Paris</i>'
+    +   '<i style="--c:#6ba3cd"><b>' + fmt(s.perStore * n) + '</b>Tokyo</i>'
+    +   '<i style="--c:#9aa7b3"><b>' + fmt(s.central * n) + '</b>warehouse</i></div>'
+    + '<p class="lp-note">The warehouse ships week by week: at most ' + SHIP_CAP + ' pieces a week, one week to arrive.</p>';
+}
+/* chain: part of the launch sequence (marks it seen, then the tour goes on);
+   otherwise opened again from a chip, and simply closes */
+function showLaunch(which, chain){
+  launchOpen = true;
+  let btn = null;
+  openModal(function(box){
+    box.classList.add('launchpop');
+    box.innerHTML = launchHTML(which);
+    btn = document.createElement('button');
+    btn.className = 'btn-primary btn-xl';
+    btn.textContent = !chain ? 'Close' : which === 'st' ? 'Next ›' : 'Got it ›';
+    /* the Enter that opened the board must not close this in the same breath */
+    btn.disabled = true;
+    btn.addEventListener('click', closeModal);
+    box.appendChild(btn);
+  }, { onClose:function(){
+    launchOpen = false;
+    if(chain){ state.hintsSeen['launch-' + which] = true; save(); maybeHint(); }
+  } });
+  setTimeout(function(){ if(btn && btn.isConnected){ btn.disabled = false; btn.focus(); } }, 450);
+}
+function maybeLaunch(){
+  if(!state || !state.setup || state.finished || state.week !== 1 || state.step !== 'reveal') return false;
+  const which = !state.hintsSeen['launch-st'] ? 'st' : !state.hintsSeen['launch-sp'] ? 'sp' : null;
+  if(!which) return false;
+  if(!el('modal-root').firstChild) showLaunch(which, true);
+  return true;
+}
+
+/* =========================================================================
    10. MODAL / TOAST
    ========================================================================= */
 let modalOpener = null;
+let modalAfter = null;            /* opts.onClose of the modal on screen */
 function closeModal(){
   el('modal-root').textContent = '';
   /* focus fell to <body> when the modal was emptied, and the global Enter
@@ -2535,6 +2670,9 @@ function closeModal(){
      modal that had just been dismissed. Put focus back where it came from. */
   if(modalOpener && modalOpener.isConnected) modalOpener.focus();
   modalOpener = null;
+  /* however it was closed - its button, Escape, the backdrop */
+  const after = modalAfter; modalAfter = null;
+  if(after) after();
 }
 function openModal(build, opts){
   closeModal();
@@ -2576,6 +2714,7 @@ function openModal(build, opts){
   }
   const f = box.querySelector('[data-default]') || box.querySelector('button, textarea');
   if(f) f.focus();
+  modalAfter = (opts && opts.onClose) || null;
 }
 function askConfirm(o){
   openModal(function(box){
@@ -2849,6 +2988,10 @@ function init(){
     el(id).addEventListener('change', renderSetupOptions);
   });
   el('btn-begin').addEventListener('click', beginGame);
+  el('decisions').addEventListener('click', function(e){
+    const c = e.target.closest('[data-pop]');
+    if(c && state && state.setup) showLaunch(c.getAttribute('data-pop'), false);
+  });
   el('btn-export').addEventListener('click', openExport);
   el('btn-help').addEventListener('click', function(){
     /* replay every bubble written for the step in front of you, in order */
