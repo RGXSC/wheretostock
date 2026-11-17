@@ -1,0 +1,2320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fast forward — five boutiques</title>
+<style>
+/* =========================================================================
+   Same discipline as the game and the debrief: one file, no network, system
+   fonts, readable from a metre. Greyscale and blue, one red for what was
+   lost, one green for what was earned.
+   ========================================================================= */
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  :root{
+    --bg:#eef1f4; --surface:#ffffff; --ink:#12161b; --ink-soft:#525c68;
+    --line:#c6ced7; --line-soft:#e2e7ec; --accent:#12557f; --accent-soft:#e7f0f7;
+    --good:#0f6b45; --bad:#8a3115; --radius:10px;
+    /* The demand grid's four roles. One hex each, named once, so a bar, its
+       number, the cell ring below it and the legend can never disagree.
+         plan   what we forecast and shipped - a plan, not an outcome
+         real   what the season asked for, and the part of it we served
+         miss   customers who found nothing: 1 000 € each, never earned
+         spare  stock in a boutique nobody wants it in: 200 € each, spent
+       Amber and not green for spare: green means ACHIEVED everywhere else on
+       this page, and calling stranded stock a success is the exact misreading
+       the slide exists to kill. Red is revenue never earned, amber is cash
+       already spent - two kinds of bad, and the 5x gap between them is the
+       point. They also differ in lightness, so they survive greyscale and
+       red-green colour blindness, and position disambiguates anyway: red only
+       ever sits INSIDE the demand bar, amber only ever extends past its end. */
+    --plan:#9aa7b3; --real:#1b3a57; --miss:#c0341a; --spare:#d8901f;
+    /* The warehouse's green sits directly against the red it is eating into,
+       and --good #0f6b45 has almost exactly the red's lightness: a deuteranope
+       sees one continuous brown bar, and so does a greyscale print. This
+       lighter green carries the same meaning with 1.7x the red's luminance,
+       so the boundary survives with the hue taken away. --good keeps its job
+       in text, where nothing sits next to it. */
+    --sent:#35a06b;
+  }
+  body{ font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background:var(--bg); color:var(--ink); font-size:17px; line-height:1.5;
+        -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:1240px; margin:0 auto; padding:0 20px; }
+  h1{ font-size:29px; } h2{ font-size:22px; } h3{ font-size:17px; }
+  p{ max-width:none; }
+  .muted{ color:var(--ink-soft); }
+  .small{ font-size:14px; }
+  b.num{ font-variant-numeric:tabular-nums; }
+
+  /* ------------------------------------------------------------- chrome */
+  .topbar{ position:sticky; top:0; z-index:40; background:var(--surface);
+           border-bottom:2px solid var(--line-soft); }
+  .topbar-inner{ max-width:1240px; margin:0 auto; padding:12px 20px;
+                 display:flex; align-items:center; gap:14px; }
+  .pill{ background:var(--accent); color:#fff; font-weight:800; font-size:15px;
+         padding:5px 12px; border-radius:999px; white-space:nowrap; }
+  .stagetitle{ font-weight:800; font-size:19px; }
+  .footbar{ position:fixed; left:0; right:0; bottom:0; z-index:40;
+            background:var(--surface); border-top:2px solid var(--line-soft); }
+  .footbar-inner{ max-width:1240px; margin:0 auto; padding:12px 20px;
+                  display:flex; gap:12px; align-items:center; }
+  /* .wrap is a class and main is an element, so `.wrap { padding }` wins on
+     specificity — the bottom padding has to be written on main.wrap or the
+     last of the page sits under the fixed bar with no way to scroll to it */
+  main.wrap{ padding:26px 20px 130px; }
+
+  button{ font:inherit; cursor:pointer; border-radius:8px; border:2px solid var(--line);
+          background:var(--surface); color:var(--ink); font-weight:700;
+          min-height:46px; padding:8px 18px; }
+  button:disabled{ opacity:.45; cursor:default; }
+  .btn-primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn-xl{ min-height:58px; font-size:19px; flex:1; }
+  .btn-ghost{ background:none; }
+  .kbd{ font-size:12px; font-weight:800; opacity:.8; border:1px solid currentColor;
+        border-radius:5px; padding:1px 6px; margin-left:9px; }
+
+  .card{ background:var(--surface); border-radius:var(--radius); padding:18px 24px;
+         margin-bottom:14px; }
+  .note{ background:var(--accent-soft); border-left:4px solid var(--accent);
+         padding:10px 16px; border-radius:6px; margin:10px 0; }
+  .note.q{ background:#fdf6ec; border-left-color:#b06e28; }
+  .hidden{ display:none !important; }
+
+  /* --------------------------------------------------------- data table */
+  table.grid{ border-collapse:collapse; width:100%; }
+  table.grid th, table.grid td{ padding:6px 8px; text-align:right;
+        font-variant-numeric:tabular-nums; border-bottom:1px solid var(--line-soft); }
+  table.grid th{ font-size:12px; font-weight:800; color:var(--ink-soft);
+        text-transform:uppercase; letter-spacing:.04em; text-align:right;
+        border-bottom:2px solid var(--line); }
+  table.grid th:first-child, table.grid td:first-child{ text-align:left; }
+  table.grid tr.tot td{ font-weight:800; border-top:2px solid var(--line);
+        border-bottom:0; background:#f6f8fa; }
+  /* One bar per figure, tall enough to read, with the number inside it when
+     the bar can hold it and alongside in dark ink when it cannot. Which of
+     the two is decided by measuring the rendered label, not by guessing a
+     threshold — a three-digit number in a narrow column would otherwise end
+     up as white text on white. */
+  .cb{ position:relative; display:block; height:22px; border-radius:4px;
+       background:#f1f4f7; }
+  .cb i{ position:absolute; left:0; top:0; bottom:0; border-radius:4px; }
+  .cb b{ position:absolute; top:0; line-height:22px; font-size:13px; font-weight:800;
+         white-space:nowrap; font-variant-numeric:tabular-nums;
+         right:calc(100% - var(--w) + 6px); color:#fff;
+         text-shadow:0 1px 2px rgba(0,0,0,.35); }
+  .cb.out b{ right:auto; left:calc(var(--w) + 5px); color:var(--ink); text-shadow:none; }
+  .cb.zero{ background:none; }
+  .cb.zero b{ right:auto; left:0; color:var(--ink-soft); text-shadow:none; }
+  .up{ color:var(--good); font-weight:800; } .down{ color:var(--miss); font-weight:800; }
+
+  /* -------------------------------------------------------------- picks */
+  /* the same slider the game uses, so the two pages feel like one tool */
+  .picks{ display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+          gap:6px 40px; margin:4px 0 2px; }
+  .pick label{ display:block; font-size:12px; font-weight:800; color:var(--ink-soft);
+               text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px; }
+  .sliderbox{ padding:4px 4px 0; }
+  .slidernow{ font-size:26px; font-weight:800; line-height:1; color:var(--accent);
+              text-align:center; margin-bottom:4px; font-variant-numeric:tabular-nums; }
+  .slider{ -webkit-appearance:none; appearance:none; width:100%;
+           background:transparent; height:40px; margin:0; cursor:pointer; }
+  .slider:focus-visible{ outline:3px solid var(--accent); outline-offset:4px; border-radius:8px; }
+  .slider::-webkit-slider-runnable-track{
+    height:16px; border-radius:8px; background:var(--line-soft); border:2px solid var(--line); }
+  .slider::-webkit-slider-thumb{
+    -webkit-appearance:none; width:36px; height:36px; border-radius:50%;
+    background:var(--accent); border:4px solid #fff; margin-top:-12px;
+    box-shadow:0 2px 10px rgba(10,30,50,.4); }
+  .slider::-moz-range-track{
+    height:16px; border-radius:8px; background:var(--line-soft); border:2px solid var(--line); }
+  .slider::-moz-range-thumb{
+    width:32px; height:32px; border-radius:50%; background:var(--accent);
+    border:4px solid #fff; box-shadow:0 2px 10px rgba(10,30,50,.4); }
+  .ticks{ display:flex; justify-content:space-between; margin-top:-4px; }
+  .ticks span{ font-size:14px; font-weight:700; color:var(--ink-soft);
+               font-variant-numeric:tabular-nums; }
+  .ticks span.on{ color:var(--accent); }
+
+  /* ---------------------------------------------------------- demand grid */
+  /* three bars stacked in a cell: plan, reality, outcome */
+  /* wide enough for the outcome row's worst case - served, sent, missing and
+     spare, four figures side by side in the totals - because clipping the one
+     number that says what a cell cost is the whole failure this replaced */
+  .tri{ display:block; min-width:152px; }
+  /* Every figure is the colour of the bar it counts, and the one that costs
+     money is set large. A room reading twenty-five cells from five metres
+     reads a field of signed colour first and the small numerals only if it
+     wants them - and the large figures line up down the right edge of every
+     cell, so the table still scans as a picture. */
+  .tri em{ font-style:normal; font-variant-numeric:tabular-nums; }
+  .tri em.plan{ color:var(--plan); }
+  .tri em.real{ color:var(--real); }
+  .tri em.sold{ color:var(--real); }
+  .tri em.sent{ color:var(--sent); }
+  .tri em.miss{ color:var(--miss); }
+  .tri em.spare{ color:var(--spare); }
+  .tri em.even{ color:var(--good); }
+  .tri em.q{ color:var(--plan); }
+  .tri em.big{ font-size:18px; font-weight:800; letter-spacing:-.02em;
+               margin-left:1px; }
+  /* The bars get a track of their own, and the number sits outside it.
+     With the label as a flex sibling of the bars, a nowrap label that could
+     not shrink pushed the whole overflow into the bars - so bar 2 ("101") and
+     bar 3 ("81 +27") were drawn at the same percentage and came out different
+     lengths, in the one place on the page where two bars are meant to be
+     compared. flex:none on the segments completes it: a bar is now exactly
+     the width it asks for or the scale is wrong, and a wrong scale should be
+     visible rather than quietly absorbed. */
+  /* 10px bars, not 6. With nothing under the grid the slide has the room, and
+     a bar made of three segments and two gaps is not readable at 6px. */
+  .tri .trow{ display:flex; align-items:center; gap:0; min-height:19px; margin:0; }
+  .tri .trow.out{ min-height:18px; }
+  /* the outcome figures, on their own line and across the whole cell */
+  .onums{ display:block; text-align:right; line-height:1.1; margin-top:1px;
+          font-size:11px; font-weight:700; white-space:nowrap;
+          font-variant-numeric:tabular-nums; }
+  .tri .trow .bars{ flex:0 0 54%; display:flex; align-items:center; min-width:0; }
+  .tri .trow i{ display:block; flex:none; height:16px; border-radius:2px; min-width:1px; }
+  /* 2px, not 1: the gap is what separates two segments when a viewer cannot
+     tell their colours apart, so it has to be visible at 6px tall */
+  .tri .trow i + i{ margin-left:2px; }
+  /* every bar colour is a class, so the palette lives in :root and nowhere
+     else - the previous version wrote five hex codes inline inside a
+     template string, where the legend could and did drift away from them */
+  .tri .trow i.plan{ background:var(--plan); }
+  .tri .trow i.real, .tri .trow i.sold{ background:var(--real); }
+  .tri .trow i.miss{ background:var(--miss); }
+  .tri .trow i.spare{ background:var(--spare); }
+  .tri .trow i.sent{ background:var(--sent); }
+  .tri .trow b{ flex:1 1 auto; margin-left:7px; font-size:11px; font-weight:700;
+                text-align:right; line-height:1.15;
+                font-variant-numeric:tabular-nums; white-space:nowrap; }
+  /* a heading that carries a mark: the icon sizes off the heading and never
+     wraps away from the first word */
+  /* a bag's mark and its name are one line. Squeezed by a wide neighbouring
+     column, "Calanque" wrapped under its own icon and the row grew 20px. */
+  td.bagcell{ white-space:nowrap; }
+  h2.withmark{ display:flex; align-items:center; gap:10px; }
+  h2.withmark svg{ width:1.15em; height:1.15em; flex:none; color:var(--accent); }
+  .dlegend i.sw{ display:inline-block; width:12px; height:9px; border-radius:2px;
+                 margin-right:6px; vertical-align:0; }
+  /* The walk card used to name the colours in words ("Grey is the plan"),
+     which asks the room to translate a word into a bar while looking at the
+     bar. It shows the colour instead. On the near-black card the navy would
+     vanish, so every swatch carries a hairline so it reads as a block whatever
+     colour is inside it. */
+  .spot-card i.sw{ display:inline-block; width:26px; height:11px; border-radius:2px;
+                   vertical-align:-1px; margin-right:2px;
+                   box-shadow:inset 0 0 0 1px rgba(255,255,255,.55); }
+  i.sw.plan{ background:var(--plan); }
+  i.sw.real, i.sw.sold{ background:var(--real); }
+  i.sw.miss{ background:var(--miss); }  i.sw.spare{ background:var(--spare); }
+  i.sw.sent{ background:var(--sent); }
+  /* the parts of a cell, named once above the table */
+  .dlegend{ display:flex; gap:18px; flex-wrap:wrap; margin:0 0 12px; font-size:13px;
+            font-weight:700; color:var(--ink-soft); }
+  .dlegend i{ font-style:normal; }
+  td.seasontot{ border-left:2px solid var(--line-soft); }
+  /* the two cells the worked example is about, marked in the table itself.
+     The ring is the signal, not the tint: a 4% wash disappears on a
+     projector, a two-pixel border does not. */
+  td.hit-left{ background:#fdf6ea; box-shadow:inset 0 0 0 2px var(--spare); }
+  td.hit-away{ background:#fdeeea; box-shadow:inset 0 0 0 2px var(--miss); }
+
+  /* Once the answer is on screen the question stops competing for attention
+     without disappearing - the room can still point at it. */
+  .card.dim{ opacity:.62; }
+
+  /* ------------------------------------------------------------- switch */
+  .switch{ display:flex; align-items:center; gap:11px; margin-top:14px;
+           padding:11px 14px; border:2px solid var(--line); border-radius:10px;
+           cursor:pointer; font-size:15px; color:var(--ink-soft); }
+  .switch:has(input:checked){ border-color:var(--good); background:#f2f8f4;
+                              color:var(--ink); }
+  .switch input{ width:20px; height:20px; flex:none; accent-color:var(--good);
+                 cursor:pointer; }
+  .switch b{ color:var(--ink); }
+
+  /* ------------------------------------------------------- the spotlight */
+  /* Lifted from the game's step-by-step guide, renamed on the way in. The
+     game calls these .hint / .hint-mask / .hint-hole; this file had eight
+     form captions on .hint at the time and pasting the rules verbatim turned
+     every one of them into a fixed black bubble. Those captions went with the
+     Monte Carlo and .hint is now free, but the names stay .spot-* — they say
+     what this is, and the collision would come back the moment anything on
+     this page wants a hint again.
+
+     The mask IS the dimming when nothing is spotlit; when something is, the
+     mask goes transparent and the 9999px spread shadow on the hole does the
+     dimming instead, which is what cuts the hole. Everything is position:
+     fixed and measured from live rects, so #spot-root has to stay a direct
+     child of <body> - any ancestor that gains a transform reparents it and
+     the hole lands nowhere. */
+  .spot-mask{ position:fixed; inset:0; z-index:55; background:rgba(10,14,20,.46); }
+  .spot-mask.spotlit{ background:transparent; }
+  .spot-hole{ position:fixed; z-index:56; pointer-events:none; border-radius:8px;
+              border:3px solid #ffd479; box-shadow:0 0 0 9999px rgba(10,14,20,.46);
+              transition:all .22s ease; }
+  .spot-card{ position:fixed; z-index:60; max-width:340px; background:var(--ink);
+              color:#fff; border-radius:var(--radius); padding:16px 18px;
+              box-shadow:0 12px 34px rgba(8,16,26,.42); }
+  .spot-card h4{ font-size:16px; font-weight:800; margin-bottom:7px; }
+  .spot-card p{ margin:0; font-size:14.5px; line-height:1.45; color:#dfe5ea; }
+  .spot-card .go{ display:block; margin-top:10px; font-size:12px; font-weight:800;
+                  letter-spacing:.08em; text-transform:uppercase; color:#8fa6b8; }
+  .spot-card:after{ content:''; position:absolute; width:14px; height:14px;
+                    background:var(--ink); transform:rotate(45deg); }
+  .spot-card.below:after{ top:-7px; left:28px; }
+  .spot-card.above:after{ bottom:-7px; left:28px; }
+  .spot-card.rightof:after{ left:-7px; top:24px; }
+  .spot-card.leftof:after{ right:-7px; top:24px; }
+  .spot-card.clamped:after{ display:none; }
+  /* the footbar has to stay clickable through the mask, or a facilitator
+     driving with the mouse clicks Next and gets 'dismiss' instead */
+  .footbar{ z-index:57; }
+
+  /* --------------------------------------------------------- progress dots */
+  /* A room tolerates a dense slide far better when it can see the end of it.
+     Filled = done, ringed = where we are, hollow = still to come. */
+  .dots{ display:flex; gap:5px; align-items:center; margin-left:2px; }
+  .dots i{ display:block; width:8px; height:8px; border-radius:50%;
+           background:var(--line); }
+  .dots i.done{ background:var(--accent); }
+  .dots i.now{ background:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .beats{ display:flex; gap:4px; align-items:center; margin-left:10px;
+          padding-left:10px; border-left:2px solid var(--line-soft); }
+  .beats i{ display:block; width:14px; height:4px; border-radius:2px;
+            background:var(--line); }
+  .beats i.done{ background:var(--accent); }
+  .beats.hidden{ display:none; }
+  /* the bag and the two boutiques followed from placement to resupply */
+  th.foll{ color:var(--accent); }
+  tr.follrow td{ background:#f4f8fb; }
+  tr.follrow td:first-child{ box-shadow:inset 3px 0 0 var(--accent); }
+  tr.follrow.lo td{ background:#eef1f4; }
+  tr.follrow.lo td:first-child{ box-shadow:inset 3px 0 0 #8b96a1; }
+  tr.follrow.hi td{ background:#fdf1ec; }
+  tr.follrow.hi td:first-child{ box-shadow:inset 3px 0 0 var(--bad); }
+  /* the transposed table: boutiques across the top, one line of the story
+     per row, the two followed boutiques tinted down their whole column */
+  /* the row labels are a caption column, not a data column: give them what
+     they need and no more, so the boutiques keep the width */
+  table.flip th:first-child{ text-align:left; font-size:14px; font-weight:700;
+                             color:var(--ink-soft); white-space:nowrap;
+                             width:1%; padding:6px 16px 6px 0; text-transform:none;
+                             letter-spacing:0; }
+  table.flip thead th:first-child{ width:1%; }
+  table.flip td.foll.lo, table.flip th.foll.lo{ background:#fdf6ea; }
+  table.flip td.foll.hi, table.flip th.foll.hi{ background:#fdeeea; }
+  table.flip th.foll{ color:var(--ink); }
+  table.flip tr.need th, table.flip tr.miss th{ color:var(--bad); }
+  table.flip tr.sent th{ color:var(--good); }
+  table.flip tr.tot td, table.flip tr.tot th{ border-top:2px solid var(--line-soft); }
+
+  /* ------------------------------------------------------------- matrix */
+  /* "safe center" so a matrix wider than the card scrolls from its first
+     column instead of having the left-hand edge clipped off by the centring */
+  .mwrap{ overflow-x:auto; display:flex; justify-content:safe center; }
+  table.matrix{ border-collapse:separate; border-spacing:4px; margin:0 auto;
+                width:100%; }
+  table.matrix td{ min-width:74px; }
+  table.matrix th{ font-size:12px; font-weight:800; color:var(--ink-soft);
+                   text-transform:uppercase; letter-spacing:.04em; padding:3px 6px; }
+  table.matrix td{ min-width:74px; height:44px; padding:0; }
+  .mcell{ width:100%; height:100%; border-radius:7px; border:2px solid var(--line-soft);
+          background:var(--surface); display:flex; flex-direction:column;
+          justify-content:center; align-items:center; gap:3px; position:relative; }
+  .mcell .v{ font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
+  /* tiers, not a gradient: the best square, everything within 5% of it,
+     the rest, and a paler red pair for the worst end. What a room needs from this table is where the good region
+     is, not a reading of every square. */
+  /* no ring: several squares often tie for best, and touching rings merge
+     into a blob. The fill already separates the three tiers. */
+  .mcell.best{ background:#0f6b45; color:#fff; border-color:#0f6b45; }
+  .mcell.near{ background:#cfe6d6; color:var(--ink); border-color:#8fc2a2; }
+  .mcell.rest{ background:var(--surface); color:var(--ink-soft); }
+  .mcell.rest.neg, .mcell.near.neg{ color:var(--bad); }
+  /* a lighter red mirror of the green: the worst square and the bottom
+     quarter of the range. Paler than the greens on purpose - the eye goes to the
+     good region first, the red only marks what to avoid. */
+  .mcell.worst{ background:#f0c6bb; color:#6e2410; border-color:#d4907f; }
+  .mcell.low{ background:#fae8e3; color:var(--bad); border-color:#ebc2b6; }
+  .mcell.tested{ box-shadow:inset 0 0 0 3px var(--ink); }
+  .mcell .star{ position:absolute; top:1px; right:4px; font-size:15px; }
+  .mlegend{ display:flex; gap:20px; flex-wrap:wrap; margin-top:12px;
+            font-size:13px; font-weight:700; color:var(--ink-soft); }
+  .mlegend i{ display:inline-block; width:14px; height:14px; border-radius:4px;
+              margin-right:7px; vertical-align:-2px; border:2px solid var(--line-soft); }
+  .axis-y{ writing-mode:vertical-rl; transform:rotate(180deg); font-size:12px;
+           font-weight:800; color:var(--ink-soft); text-transform:uppercase;
+           letter-spacing:.06em; }
+  .matrices{ display:grid; grid-template-columns:repeat(auto-fit,minmax(520px,1fr)); gap:20px; }
+
+  /* the two worlds side by side, same three numbers in each */
+  .vs{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+  .vsbox{ border:2px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .vsbox.win{ border-color:var(--good); background:#f2f8f4; }
+  .vsbox h4{ margin:0 0 10px; font-size:12px; text-transform:uppercase;
+             letter-spacing:.05em; color:var(--ink-soft); }
+  .vsline{ display:flex; justify-content:space-between; gap:12px; padding:3px 0;
+           font-variant-numeric:tabular-nums; }
+  .vsline b{ font-weight:800; }
+  .vsbig{ font-size:26px; font-weight:800; letter-spacing:-.02em; margin-bottom:6px; }
+  .vsbox.win .vsbig{ color:var(--good); }
+  .vsgain{ margin-top:10px; font-weight:800; color:var(--good); }
+
+  /* ------------------------------------------------------- the takeaway */
+  /* Last thing on the last slide, and the only thing on this page anyone is
+     asked to act on. Left up while the room packs, so the code has to read
+     from the back: 150px on a projected 1240px card is about 3cm on a 2m
+     screen, which scans from anywhere in the room. */
+  .takeaway{ margin-top:22px; display:flex; gap:22px; align-items:center;
+             background:var(--surface); border:2px solid var(--line);
+             border-radius:var(--radius); padding:18px 22px; }
+  .takeaway .qr{ flex:none; display:block; }
+  .takeaway h3{ font-size:19px; margin-bottom:4px; }
+  .takeaway p{ font-size:14px; color:var(--ink-soft); max-width:62ch; margin:0; }
+  .takeaway code{ display:inline-block; margin-top:8px; font-size:15px;
+                  font-weight:700; color:var(--ink); background:var(--accent-soft);
+                  border-radius:6px; padding:4px 9px;
+                  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <span class="pill" id="pill">1 / 5</span>
+    <span class="dots" id="dots"></span>
+    <span class="beats hidden" id="beatdots"></span>
+    <span class="stagetitle" id="stitle">The board</span>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ============================================================ 1 BOARD -->
+<section id="s0">
+  <div class="card">
+    <h1>Fast forward — one season, five boutiques</h1>
+    <div class="note" style="margin:14px 0 0;">
+      <b>One difference in the simulation:</b> the warehouse resupplies a boutique
+      instantaneously when it runs out of stock.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>The forecast</h2>
+    <p class="small muted" style="margin:4px 0 14px;">
+      Two pieces per boutique per bag per week, over thirteen weeks — 650 in total.
+    </p>
+    <div id="board-table"></div>
+    <!-- The board is worth reading once. A facilitator running this for the
+         fifth time wants the argument, not the introduction, so there is a
+         way past it that does not involve pressing Next twice and setting a
+         combination they were going to leave at the default anyway. -->
+    <!-- the chip is filled in at render time: it used to state 90% / 80% as a
+         fact, and a facilitator who set a combination, came back and pressed
+         it got a season played at something else -->
+    <button class="btn-ghost" id="btn-skip" style="margin-top:16px;">
+      Skip to the season <span class="kbd" id="skip-at"></span></button>
+  </div>
+</section>
+
+<!-- ======================================================== 2 STRATEGY -->
+<section id="s1" class="hidden">
+  <div class="card">
+    <h2>Set the strategy</h2>
+    <div class="picks" style="margin-top:14px;">
+      <div class="pick">
+        <label>Target sell-through</label>
+        <div class="sliderbox">
+          <div class="slidernow" id="val-st">90%</div>
+          <input class="slider" type="range" id="sl-st" min="60" max="100" step="10" value="90"
+                 aria-label="Target sell-through">
+          <div class="ticks" id="ticks-st"></div>
+        </div>
+      </div>
+      <div class="pick">
+        <label>In the boutiques at launch</label>
+        <div class="sliderbox">
+          <div class="slidernow" id="val-sp">80%</div>
+          <input class="slider" type="range" id="sl-sp" min="30" max="100" step="10" value="80"
+                 aria-label="Share of production placed in the boutiques at launch">
+          <div class="ticks" id="ticks-sp"></div>
+        </div>
+      </div>
+    </div>
+    <div id="trial-say" class="small muted"></div>
+    <!-- where every piece goes, so the split is seen rather than asserted -->
+    <div id="place-table" style="margin-top:14px;"></div>
+    <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;">
+      <button class="btn-primary" id="btn-test" style="max-width:340px;">Run the season</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== 3 THE SEASON -->
+<!-- One slide, six beats. It used to be three slides showing three tables
+     that were 80% the same picture, and a room reading the second one spent
+     its first ten seconds working out whether anything had changed.
+
+     Now ONE table is built once and transformed in place: the plan, then
+     three spotlit cells that teach the room to read a cell before it faces
+     twenty-five, then all twenty-five, then the warehouse's answer drawn on
+     top of them. The block BELOW the grid is replaced at each beat, never
+     appended, so the grid itself never leaves the top of the screen. -->
+<section id="sd" class="hidden">
+  <div class="card">
+    <h2 style="margin-bottom:6px;" id="sd-h2">What the season asked for</h2>
+    <p class="small muted" id="sd-lead" style="margin:0 0 14px;"></p>
+    <div id="demand-table"></div>
+  </div>
+  <!-- ONE host for everything under the grid. There used to be two, #trial-out
+       and #wh-out, each un-hidden and never re-hidden - on one slide that
+       leaves the same table on screen twice, one of them stale. -->
+  <div class="card hidden" id="sd-out"></div>
+</section>
+
+<!-- =========================================================== 3 MATRIX -->
+<section id="s2" class="hidden">
+  <div class="card">
+    <h2>Every combination</h2>
+    <p class="small muted" style="margin:2px 0 8px;" id="matrix-sub"></p>
+    <div class="picks">
+      <div class="pick">
+        <label>Target sell-through</label>
+        <div class="sliderbox">
+          <div class="slidernow" id="val2-st">90%</div>
+          <input class="slider" type="range" id="sl2-st" min="60" max="100" step="10" value="90"
+                 aria-label="Target sell-through">
+          <div class="ticks" id="ticks2-st"></div>
+        </div>
+      </div>
+      <div class="pick">
+        <label>In the boutiques at launch</label>
+        <div class="sliderbox">
+          <div class="slidernow" id="val2-sp">80%</div>
+          <input class="slider" type="range" id="sl2-sp" min="30" max="100" step="10" value="80"
+                 aria-label="Share of production placed in the boutiques at launch">
+          <div class="ticks" id="ticks2-sp"></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:2px;">
+      <button class="btn-primary" id="btn-test2">Test another combination</button>
+      <button class="btn-ghost hidden" id="btn-fill">Test all combinations</button>
+    </div>
+    <!-- The pool was argued on one combination two slides ago. Here it can be
+         switched on and off over the whole field, which is the only way to see
+         that it moves the BEST square and not just the numbers in it. -->
+    <label class="switch" id="pool-switch">
+      <input type="checkbox" id="ck-pool">
+      <span>Production capacity pool — <b>50%</b> of everything not in the
+        boutiques at launch, shared across the five bags</span>
+    </label>
+    <div style="margin-top:12px;" class="matrices">
+      <div><h3 style="margin-bottom:8px;">Turnover</h3><div class="mwrap" id="mx-t"></div></div>
+      <div><h3 style="margin-bottom:8px;">Margin</h3><div class="mwrap" id="mx-m"></div></div>
+    </div>
+    <div class="mlegend"><span><i style="background:#0f6b45;border-color:#0f6b45"></i>the best</span><span><i style="background:#cfe6d6;border-color:#8fc2a2"></i>within 5% of it</span><span><i style="background:#fff"></i>the rest</span><span><i style="background:#fae8e3;border-color:#ebc2b6"></i>near the worst</span><span><i style="background:#f0c6bb;border-color:#d4907f"></i>the worst</span></div>
+    <div id="matrix-read" class="hidden" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- The same simulator, on its own, for people to take home. Generated as
+       inline SVG so the file stays self-contained; if the URL ever moves, the
+       code has to be regenerated with it. -->
+  <div class="takeaway">
+    <svg class="qr" viewBox="-4 -4 41 41" width="150" height="150" role="img" aria-label="QR code linking to the standalone simulator" shape-rendering="crispEdges"><rect x="-4" y="-4" width="41" height="41" fill="#fff"/><path fill="#12161b" d="M0 0h7v1h-7zM8 0h4v1h-4zM15 0h5v1h-5zM21 0h4v1h-4zM26 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM8 1h2v1h-2zM15 1h1v1h-1zM17 1h3v1h-3zM22 1h3v1h-3zM26 1h1v1h-1zM32 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM8 2h2v1h-2zM11 2h1v1h-1zM13 2h3v1h-3zM19 2h1v1h-1zM23 2h2v1h-2zM26 2h1v1h-1zM28 2h3v1h-3zM32 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM8 3h1v1h-1zM15 3h2v1h-2zM18 3h1v1h-1zM22 3h2v1h-2zM26 3h1v1h-1zM28 3h3v1h-3zM32 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM13 4h1v1h-1zM17 4h3v1h-3zM21 4h1v1h-1zM23 4h2v1h-2zM26 4h1v1h-1zM28 4h3v1h-3zM32 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM9 5h1v1h-1zM12 5h2v1h-2zM16 5h2v1h-2zM19 5h1v1h-1zM22 5h3v1h-3zM26 5h1v1h-1zM32 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM24 6h1v1h-1zM26 6h7v1h-7zM8 7h1v1h-1zM13 7h1v1h-1zM15 7h1v1h-1zM17 7h5v1h-5zM1 8h2v1h-2zM4 8h1v1h-1zM6 8h2v1h-2zM9 8h1v1h-1zM11 8h3v1h-3zM16 8h2v1h-2zM20 8h2v1h-2zM23 8h2v1h-2zM26 8h1v1h-1zM28 8h5v1h-5zM0 9h6v1h-6zM7 9h1v1h-1zM12 9h1v1h-1zM15 9h2v1h-2zM21 9h1v1h-1zM24 9h4v1h-4zM31 9h2v1h-2zM1 10h1v1h-1zM5 10h2v1h-2zM9 10h2v1h-2zM13 10h2v1h-2zM16 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM25 10h1v1h-1zM27 10h1v1h-1zM30 10h3v1h-3zM0 11h1v1h-1zM4 11h2v1h-2zM8 11h2v1h-2zM11 11h3v1h-3zM17 11h1v1h-1zM21 11h1v1h-1zM26 11h1v1h-1zM28 11h1v1h-1zM32 11h1v1h-1zM1 12h2v1h-2zM5 12h4v1h-4zM10 12h1v1h-1zM12 12h3v1h-3zM18 12h1v1h-1zM21 12h1v1h-1zM24 12h3v1h-3zM29 12h1v1h-1zM31 12h2v1h-2zM3 13h3v1h-3zM8 13h1v1h-1zM10 13h2v1h-2zM13 13h1v1h-1zM15 13h1v1h-1zM17 13h1v1h-1zM20 13h2v1h-2zM24 13h1v1h-1zM26 13h1v1h-1zM29 13h2v1h-2zM32 13h1v1h-1zM1 14h4v1h-4zM6 14h4v1h-4zM12 14h1v1h-1zM17 14h2v1h-2zM20 14h2v1h-2zM25 14h1v1h-1zM28 14h1v1h-1zM30 14h3v1h-3zM0 15h4v1h-4zM7 15h1v1h-1zM9 15h1v1h-1zM13 15h2v1h-2zM16 15h1v1h-1zM18 15h2v1h-2zM21 15h2v1h-2zM26 15h1v1h-1zM31 15h1v1h-1zM0 16h1v1h-1zM6 16h1v1h-1zM13 16h3v1h-3zM19 16h3v1h-3zM25 16h2v1h-2zM0 17h1v1h-1zM2 17h1v1h-1zM4 17h1v1h-1zM7 17h1v1h-1zM9 17h3v1h-3zM13 17h6v1h-6zM20 17h1v1h-1zM24 17h1v1h-1zM26 17h2v1h-2zM32 17h1v1h-1zM1 18h2v1h-2zM5 18h7v1h-7zM15 18h2v1h-2zM24 18h1v1h-1zM26 18h1v1h-1zM30 18h3v1h-3zM1 19h3v1h-3zM13 19h1v1h-1zM15 19h2v1h-2zM19 19h3v1h-3zM23 19h1v1h-1zM26 19h3v1h-3zM32 19h1v1h-1zM0 20h1v1h-1zM3 20h1v1h-1zM5 20h2v1h-2zM8 20h3v1h-3zM12 20h7v1h-7zM20 20h2v1h-2zM23 20h5v1h-5zM29 20h1v1h-1zM31 20h1v1h-1zM2 21h1v1h-1zM4 21h2v1h-2zM8 21h1v1h-1zM11 21h1v1h-1zM13 21h2v1h-2zM17 21h1v1h-1zM20 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM31 21h2v1h-2zM0 22h1v1h-1zM2 22h1v1h-1zM5 22h2v1h-2zM9 22h1v1h-1zM16 22h2v1h-2zM20 22h1v1h-1zM22 22h1v1h-1zM26 22h7v1h-7zM1 23h5v1h-5zM7 23h3v1h-3zM11 23h1v1h-1zM15 23h2v1h-2zM20 23h3v1h-3zM24 23h3v1h-3zM31 23h2v1h-2zM0 24h1v1h-1zM4 24h3v1h-3zM10 24h1v1h-1zM12 24h1v1h-1zM14 24h3v1h-3zM18 24h2v1h-2zM21 24h1v1h-1zM23 24h7v1h-7zM31 24h1v1h-1zM8 25h2v1h-2zM11 25h2v1h-2zM14 25h2v1h-2zM17 25h2v1h-2zM20 25h3v1h-3zM24 25h1v1h-1zM28 25h2v1h-2zM31 25h2v1h-2zM0 26h7v1h-7zM8 26h2v1h-2zM12 26h1v1h-1zM15 26h1v1h-1zM17 26h2v1h-2zM20 26h1v1h-1zM22 26h3v1h-3zM26 26h1v1h-1zM28 26h1v1h-1zM30 26h1v1h-1zM32 26h1v1h-1zM0 27h1v1h-1zM6 27h1v1h-1zM10 27h3v1h-3zM14 27h1v1h-1zM17 27h3v1h-3zM21 27h2v1h-2zM24 27h1v1h-1zM28 27h1v1h-1zM32 27h1v1h-1zM0 28h1v1h-1zM2 28h3v1h-3zM6 28h1v1h-1zM8 28h2v1h-2zM13 28h1v1h-1zM17 28h5v1h-5zM24 28h6v1h-6zM31 28h1v1h-1zM0 29h1v1h-1zM2 29h3v1h-3zM6 29h1v1h-1zM10 29h1v1h-1zM12 29h5v1h-5zM21 29h2v1h-2zM24 29h1v1h-1zM28 29h2v1h-2zM31 29h2v1h-2zM0 30h1v1h-1zM2 30h3v1h-3zM6 30h1v1h-1zM8 30h3v1h-3zM12 30h7v1h-7zM23 30h2v1h-2zM28 30h1v1h-1zM32 30h1v1h-1zM0 31h1v1h-1zM6 31h1v1h-1zM8 31h1v1h-1zM10 31h3v1h-3zM15 31h3v1h-3zM19 31h1v1h-1zM21 31h1v1h-1zM23 31h2v1h-2zM28 31h1v1h-1zM31 31h1v1h-1zM0 32h7v1h-7zM9 32h1v1h-1zM11 32h2v1h-2zM14 32h3v1h-3zM18 32h4v1h-4zM23 32h2v1h-2zM26 32h1v1h-1zM28 32h1v1h-1zM31 32h2v1h-2z"/></svg>
+    <div>
+      <h3>Play a full season yourself</h3>
+      <p>Any collection, any network, as many seasons as it takes — plus a
+        price on flexible production capacity you can move. Nothing to
+        install, and it fits a phone.</p>
+      <code>rgxsc.github.io/wheretostock/play.html</code>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================ 4 LIMIT + FLEXIBILITY -->
+<!-- Two beats: the question, then the answer. They were two slides, and the
+     question slide ended with "how could we do better, without impact on the
+     margin?" - which is precisely what the next slide answered. A question
+     and its answer belong on one slide. -->
+<section id="sf" class="hidden">
+  <div class="card" id="limit-card">
+    <h2>What central stock cannot do</h2>
+    <p class="muted" id="limit-lead" style="margin:6px 0 16px;"></p>
+    <div id="limit-body"></div>
+  </div>
+  <div class="card hidden" id="flex-card">
+    <h2 class="withmark"><svg viewBox="0 0 24 24" aria-hidden="true"
+      ><!-- a factory line, because the room keeps hearing "pool" as a
+             warehouse full of stock. This is line time, not shelves. -->
+      <path d="M3 20V11l5 3V11l5 3V11l5 3V6h3v14H3Z" fill="none"
+            stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M6 20v-3M11 20v-3M16 20v-3" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round"/>
+    </svg>What flexible production capacity can</h2>
+    <p class="small muted" style="margin-top:0;" id="flex-lead"></p>
+    <div class="picks" style="margin-top:14px;">
+      <div class="pick">
+        <label>Target sell-through</label>
+        <div class="sliderbox">
+          <div class="slidernow" id="val3-st">90%</div>
+          <input class="slider" type="range" id="sl3-st" min="60" max="100" step="10" value="90"
+                 aria-label="Target sell-through">
+          <div class="ticks" id="ticks3-st"></div>
+        </div>
+      </div>
+      <div class="pick">
+        <label>In the boutiques at launch</label>
+        <div class="sliderbox">
+          <div class="slidernow" id="val3-sp">80%</div>
+          <input class="slider" type="range" id="sl3-sp" min="30" max="100" step="10" value="80"
+                 aria-label="Share of production placed in the boutiques at launch">
+          <div class="ticks" id="ticks3-sp"></div>
+        </div>
+      </div>
+    </div>
+    <div id="flex-table" style="margin-top:14px;"></div>
+    <div id="flex-vs" style="margin-top:18px;"></div>
+  </div>
+</section>
+
+</main>
+
+<!-- position:fixed all the way down, so this must stay a direct child of
+     <body>: any ancestor with a transform would reparent it silently -->
+<div id="spot-root"></div>
+
+<div class="footbar">
+  <div class="footbar-inner">
+    <button class="btn-ghost" id="btn-prev">← Back</button>
+    <button class="btn-primary btn-xl" id="btn-next">Next<span class="kbd">↵ Enter</span></button>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   1. THE BOARD
+   =========================================================================
+   Same five bags as the game, five boutiques instead of two. The forecast total is
+   650 — two pieces per boutique per bag per week over thirteen weeks — split
+   across the collection and the network the way a real one is weighted.
+
+   HOW THIS PAGE DIFFERS FROM THE GAME AND THE DEBRIEF, in full:
+     1. There are no weeks. The season resolves in one shot: one demand
+        number per bag per boutique for the whole thirteen weeks.
+     2. The warehouse resupplies instantly and perfectly — no lead time, and
+        no guessing where demand will land. This page is therefore the upper
+        bound of what central stock can ever be worth.
+     3. Five boutiques, each with its own forecast, and the launch push follows
+        those forecasts instead of being split equally.
+     4. Stock CAN still be stranded, and that is the point of the second
+        decision. The warehouse refills a boutique that runs out, but it
+        cannot take back what was already pushed: a bag placed in a boutique
+        the season does not want is stuck there while another boutique turns
+        customers away. Measured on this board, at the margin optimum,
+        pushing 30% instead of 100% is worth 122 sales — 122 000 € — and that
+        is the whole slope of the push axis. What 2 removes is the LEAD TIME,
+        not the placement error.
+   Production, price, unit cost and the fixed cost are set exactly as in the
+   game: production is the forecast divided by the sell-through targeted, and
+   the fixed cost is 45% of forecast sales.                                  */
+const BAGS = [
+  { name:'Aveline',  color:'#12395e' },
+  { name:'Bastide',  color:'#2f6ea8' },
+  { name:'Calanque', color:'#6ba3cd' },
+  { name:'Doriane',  color:'#8d99a6' },
+  { name:'Estérel',  color:'#464f59' }
+];
+/* The same five silhouettes the game uses, so a room that has just played it
+   recognises a bag by its shape rather than re-reading the name in every
+   table. Inline paths, no external assets — one distinct outline per bag, so
+   they stay tellable apart without relying on colour. */
+const BAG_SHAPES = [
+  'M4 9h16l-1.6 11H5.6L4 9Zm4 0V7a4 4 0 0 1 8 0v2',                    /* tote          */
+  'M4 10h16v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9Zm0 0 2-5h12l2 5H4Z',    /* flap shoulder */
+  'M5 9h14l-1 10a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 9Zm2 0a5 5 0 0 1 10 0',/* bucket       */
+  'M3 8h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Zm0 0 9 5 9-5',            /* clutch        */
+  'M4 10h16v9H4v-9Zm5 0V8a3 3 0 0 1 6 0v2'                             /* top handle    */
+];
+function bagIcon(i, size){
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" aria-hidden="true" '
+       + 'style="vertical-align:-3px;flex:none;">'
+       + '<path d="' + BAG_SHAPES[i % BAG_SHAPES.length] + '" fill="none" stroke="'
+       + BAGS[i].color + '" stroke-width="1.9" stroke-linejoin="round" '
+       + 'stroke-linecap="round"/></svg>';
+}
+
+const BOUTIQUES = ['Paris', 'Tokyo', 'New York', 'Shanghai', 'London'];
+
+/* Forecast: 37.5 / 30 / 15 / 12.5 / 5 % across the bags, 30 / 25 / 20 / 15 /
+   10 % across the boutiques. Hard-coded so every room sees the same board. */
+const FORECAST = [
+  [ 73, 61, 49, 37, 24],
+  [ 59, 49, 39, 29, 19],
+  [ 29, 24, 20, 15, 10],
+  [ 25, 20, 16, 12,  8],
+  [ 10,  8,  6,  5,  3]
+];
+/* What actually sold. The TOTAL is right — 650 forecast, 650 sold-able — so
+   nothing here is a volume story at company level. Every error is in the
+   spread: which bag, and which boutique.
+
+   Per bag, a clean ladder:  Aveline +10  Bastide 0  Calanque −10
+                             Doriane −30  Estérel +30
+   The worst two forecasts are on the two smallest bags, and the biggest
+   seller is not the one that runs hot — otherwise a single row of the matrix
+   carries the whole answer.
+
+   Per boutique, ±50 and no one in the middle, because that is how a season
+   actually lands: Paris and New York halve, Tokyo and Shanghai run 50% over,
+   London 45% over. Tokyo overtakes Paris. This is what gives the launch push
+   a price — with a mild boutique error the warehouse covers every gap and the
+   push decision is worth nothing until it reaches 100%. */
+const DEMAND = [
+  [ 40, 101, 27, 61, 39],
+  [ 30,  74, 19, 44, 28],
+  [ 13,  33,  9, 20, 13],
+  [  9,  21,  6, 13,  8],
+  [  6,  16,  4, 10,  6]
+];
+
+const ECON = { price:1000, cost:200, fixedPct:0.45 };
+const rowSum = function(r){ return r.reduce(function(a, b){ return a + b; }, 0); };
+const colSum = function(m, j){ return m.reduce(function(a, r){ return a + r[j]; }, 0); };
+const F_BAG  = FORECAST.map(rowSum);
+const D_BAG  = DEMAND.map(rowSum);
+const F_TOTAL = rowSum(F_BAG);
+/* rounded up to the nearest 10 000 so the briefing carries a round number:
+   45% of forecast sales is 117 000 in the game and 292 500 here, which read
+   like the output of a spreadsheet rather than a budget. Safe to round: the
+   fixed cost is a constant in the objective, so it moves the LEVEL of every
+   square and the CHOICE of none - swept from 0 to 90% of forecast sales, the
+   best combination never budged. */
+ECON.fixed = Math.ceil(ECON.fixedPct * F_TOTAL * ECON.price / 10000) * 10000;
+/* Each bag is pushed out on its OWN forecast row, not on one network-wide
+   share applied to the whole collection: a bag that is expected to sell
+   differently across the network is placed that way. */
+const BAG_SHARE = FORECAST.map(function(row, i){
+  return row.map(function(v){ return v / F_BAG[i]; });
+});
+
+const ST_LEVELS = [60, 70, 80, 90, 100];
+/* No boutique opens a launch with an empty window, so the axis starts at 30%
+   rather than 0 — the same floor the game uses. */
+const SP_LEVELS = [30, 40, 50, 60, 70, 80, 90, 100];
+
+const el = function(id){ return document.getElementById(id); };
+const fmt  = function(n){ return Math.round(n).toLocaleString('fr-FR').replace(/ | /g, ' '); };
+const fmtE = function(n){ return fmt(n) + ' €'; };
+/* matrix squares are narrow: keep every value to about six characters, so a
+   collection of 500 bags does not blow the column apart */
+const fmtK = function(n){
+  const a = Math.abs(n);
+  if(a >= 1e9) return (n / 1e9).toFixed(2) + ' Md';
+  if(a >= 999500) return (n / 1e6).toFixed(1) + ' M';   /* 999 999 is 1.0 M, not 1 000k */
+  const k = Math.round(n / 1000);
+  return (k === 0 ? '0' : fmt(k)) + 'k';                /* never "-0k" */
+};
+const esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){
+  return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+
+/* largest remainder: an integer split always sums back to the total */
+function split(total, shares){
+  const raw = shares.map(function(s){ return total * s; });
+  const out = raw.map(Math.floor);
+  let rem = total - rowSum(out);
+  const order = raw.map(function(v, i){ return [v - Math.floor(v), i]; })
+                   .sort(function(a, b){ return b[0] - a[0]; });
+  for(let k = 0; k < rem; k++) out[order[k % order.length][1]]++;
+  return out;
+}
+
+/* =========================================================================
+   2. THE MODEL
+   =========================================================================
+   One bag, one combination:
+     production   = forecast / target sell-through
+     pushed       = production x share placed at launch, split by boutique forecast
+     central      = the rest
+     sold at launch = min(pushed, demand) in each boutique
+     the warehouse then covers whatever the boutiques could not, up to what it
+     holds — instantly, and always in the right direction
+   The order in which central stock is handed out cannot change the total, so
+   none is assumed.                                                          */
+function runBag(i, stPct, spPct, unitCost){
+  const production = Math.round(F_BAG[i] / (stPct / 100));
+  const pushTotal  = Math.min(production, Math.round(production * spPct / 100));
+  const push       = split(pushTotal, BAG_SHARE[i]);
+  const central    = production - pushTotal;
+  const sold = [], short = [];
+  for(let j = 0; j < BOUTIQUES.length; j++){
+    const s = Math.min(push[j], DEMAND[i][j]);
+    sold.push(s);
+    short.push(DEMAND[i][j] - s);
+  }
+  const shortTot = rowSum(short);
+  const served   = Math.min(shortTot, central);
+  /* Which boutique gets the resupply. The warehouse serves every demand it
+     can; when several boutiques are short of the same bag and the central
+     pile cannot cover them all, it is split in proportion to what each is
+     short of. The total is min(shortfall, central) either way — the split
+     only decides where the sale happens, not how many there are. */
+  const servedBy = split(served, short.map(function(s){ return shortTot ? s / shortTot : 0; }));
+  /* the largest-remainder pass rounds on fractions alone, so hand back
+     anything it gave a boutique beyond what that boutique was short of */
+  let spare = 0;
+  for(let j = 0; j < servedBy.length; j++){
+    if(servedBy[j] > short[j]){ spare += servedBy[j] - short[j]; servedBy[j] = short[j]; }
+  }
+  for(let j = 0; j < servedBy.length && spare > 0; j++){
+    const room = short[j] - servedBy[j];
+    const give = Math.min(room, spare);
+    servedBy[j] += give; spare -= give;
+  }
+  const lostBy = short.map(function(s, j){ return s - servedBy[j]; });
+  const total    = rowSum(sold) + served;
+  return { production:production, push:push, pushTotal:pushTotal, central:central,
+           sold:sold, soldAtLaunch:rowSum(sold), short:short, shortTot:shortTot,
+           served:served, servedBy:servedBy, lostBy:lostBy,
+           total:total, lost:shortTot - served,
+           left:production - total,
+           margin: total * ECON.price - production * unitCost };
+}
+
+function run(stPct, spPct, unitCost){
+  unitCost = unitCost === undefined ? ECON.cost : unitCost;
+  const bags = BAGS.map(function(b, i){ return runBag(i, stPct, spPct, unitCost); });
+  const t = { production:0, pushTotal:0, central:0, soldAtLaunch:0, served:0,
+              sold:0, lost:0, left:0 };
+  bags.forEach(function(r){
+    t.production += r.production; t.pushTotal += r.pushTotal; t.central += r.central;
+    t.soldAtLaunch += r.soldAtLaunch; t.served += r.served; t.sold += r.total;
+    t.lost += r.lost; t.left += r.left;
+  });
+  t.turnover = t.sold * ECON.price;
+  t.cogs     = t.production * unitCost;
+  t.margin   = t.turnover - t.cogs - ECON.fixed;
+  t.sellThrough = t.production ? t.sold / t.production * 100 : 0;
+  return { bags:bags, t:t };
+}
+
+/* -------------------------------------------------- FLEXIBLE CAPACITY
+   The same engine as the original push/pull simulator this work came from,
+   ported to this board.
+
+   Everything held back from the launch splits in two. Half stays as that
+   bag's OWN central reserve, dedicated to it. The other half joins a single
+   pool shared by all five bags — not assigned to anything in advance.
+
+   Sales resolve in three waves: what is on the shelf, then the bag's own
+   reserve, then the shared pool, which will serve whichever bag turns out to
+   need it.
+
+   The rule that makes it matter: production = pushed + own reserve + the flex
+   ACTUALLY drawn. Capacity that is reserved and never called on is never
+   manufactured, so it is never paid for. Reserving costs nothing; only using
+   it does, and at the same 200 € as everything else — there is no premium.
+   That is the original's model, and it is why the gain is as large as it is. */
+function computeFlex(stPct, spPct){
+  const m = BOUTIQUES.length, rows = [];
+  let pushTot = 0, centTot = 0, capTot = 0, shelfTot = 0, resTot = 0, shortTot = 0;
+  BAGS.forEach(function(b, i){
+    const production = Math.round(F_BAG[i] / (stPct / 100));
+    let target = Math.round(F_BAG[i] * (spPct / 100) / (stPct / 100));
+    if(target > production) target = production;
+    /* The original splits the launch FLAT across its stores, because it has
+       no store-level forecast to split by — equal placement against unequal
+       demand is its lesson. This board does have one, and every table on the
+       page is built on it, so the launch is placed on each boutique's
+       forecast share exactly as the rigid engine does. What is imported from the original is the pool, not the
+       placement. */
+    const shelfQty = split(target, BAG_SHARE[i]);
+    const pushed = rowSum(shelfQty);
+    const pool = production - pushed;
+    const central = Math.ceil(pool / 2);      /* this bag's own reserve */
+    const cap     = pool - central;           /* joins the shared pool  */
+    let shelf = 0, missed = 0;
+    for(let j = 0; j < m; j++){
+      const got = Math.min(shelfQty[j], DEMAND[i][j]);
+      shelf += got; missed += DEMAND[i][j] - got;
+    }
+    const fromOwn = Math.min(missed, central), short = missed - fromOwn;
+    rows.push({ name:b.name, colour:b.color, production:production,
+                pushed:pushed, central:central, cap:cap, shelf:shelf,
+                fromOwn:fromOwn, short:short, demand:D_BAG[i] });
+    pushTot += pushed; centTot += central; capTot += cap;
+    shelfTot += shelf; resTot += fromOwn; shortTot += short;
+  });
+  /* The pool is blind to which bag calls on it — that is the whole point.
+     But a table that only prints the total tells a room the pool exists and
+     never where it acted, so what each bag drew is attributed back in
+     proportion to what it was still short of, largest remainder first, and
+     the parts add up to the whole exactly. */
+  const used = Math.min(shortTot, capTot);
+  if(shortTot > 0){
+    const raw = rows.map(function(r){ return r.short * used / shortTot; });
+    rows.forEach(function(r, i){ r.drawn = Math.floor(raw[i]); });
+    let left = used - rowSum(rows.map(function(r){ return r.drawn; }));
+    raw.map(function(v, i){ return [v - Math.floor(v), i]; })
+       .sort(function(a, b){ return b[0] - a[0]; })
+       .forEach(function(x, k){ if(k < left) rows[x[1]].drawn++; });
+  }else{
+    rows.forEach(function(r){ r.drawn = 0; });
+  }
+  rows.forEach(function(r){ r.lost = r.short - r.drawn; });
+  const made = pushTot + centTot + used;
+  const sold = shelfTot + resTot + used;
+  return { rows:rows, pushTot:pushTot, centTot:centTot, capTot:capTot,
+           used:used, made:made, sold:sold, away:shortTot - used,
+           unsold:made - sold, margin:sold * ECON.price - made * ECON.cost - ECON.fixed };
+}
+
+/* the same season with today's rules, for the side-by-side */
+function rigidTotals(stPct, spPct){
+  const t = run(stPct, spPct).t;
+  return { made:t.production, sold:t.sold, away:t.lost,
+           unsold:t.production - t.sold, margin:t.margin };
+}
+
+/* =========================================================================
+   3. SHARED DRAWING
+   ========================================================================= */
+/* red at the worst square on screen, green at the best; five stops, because
+   three left the whole middle of the field one muddy olive */
+const RAMP = [[150,32,14],[192,84,22],[201,146,26],[104,148,52],[15,107,69]];
+function heat(v, lo, hi){
+  const t = hi === lo ? 1 : (v - lo) / (hi - lo);
+  const seg = Math.min(RAMP.length - 2, Math.floor(t * (RAMP.length - 1)));
+  const f = t * (RAMP.length - 1) - seg;
+  const a = RAMP[seg], b = RAMP[seg + 1];
+  return 'rgb(' + a.map(function(x, k){ return Math.round(x + (b[k] - x) * f); }).join(',') + ')';
+}
+
+/* A matrix of sell-through (across) by launch push (down). `get` returns a
+   number or null for a square not yet played. Bars run 45%→100% across the
+   range on screen: a zero-based bar hides a 10% spread, a purely range-based
+   one leaves the weakest square a stub. */
+function matrix(host, get, fmtFn, marks){
+  const vals = [];
+  SP_LEVELS.forEach(function(sp){ ST_LEVELS.forEach(function(st){
+    const v = get(st, sp); if(v !== null && v !== undefined) vals.push(v);
+  }); });
+  const hi = vals.length ? Math.max.apply(null, vals) : 1;
+  const band = hi - Math.abs(hi) * 0.05;      /* within 5% of the best */
+  /* The mirror at the bottom, lighter: the worst square, and the squares in
+     the lowest quarter of the range on screen. Only once at least three squares
+     are drawn, so a half-played board does not paint its second result red. */
+  const lo = vals.length ? Math.min.apply(null, vals) : 0;
+  const redOn = vals.length >= 3 && hi > lo;
+  const lowBand = lo + (hi - lo) * 0.25;
+
+  let h = '<table class="matrix"><thead><tr><th></th><th></th>'
+        + '<th colspan="' + ST_LEVELS.length + '">Target sell-through</th></tr>'
+        + '<tr><th></th><th></th>'
+        + ST_LEVELS.map(function(s){ return '<th>' + s + '%</th>'; }).join('') + '</tr></thead><tbody>';
+  SP_LEVELS.forEach(function(sp, r){
+    h += '<tr>' + (r === 0 ? '<th class="axis-y" rowspan="' + SP_LEVELS.length
+                           + '">In the boutiques at launch</th>' : '')
+       + '<th>' + sp + '%</th>';
+    ST_LEVELS.forEach(function(st){
+      const v = get(st, sp);
+      if(v === null || v === undefined){ h += '<td><div class="mcell"></div></td>'; return; }
+      const tier = v === hi ? 'best' : (v >= band ? 'near'
+                 : (redOn && v === lo ? 'worst' : (redOn && v <= lowBand ? 'low' : 'rest')));
+      const mk = marks ? marks(st, sp, v) : '';
+      /* Colour on the figure the reader SEES, not the raw one. fmtK collapses
+         a small loss to "0k" (never "-0k"), so a square a few hundred euros
+         under water read break-even in the loss colour. Same discipline as the
+         gain sentence: signs come from the rounded figure, so the number and
+         the colour can never disagree. */
+      h += '<td><div class="mcell ' + tier + (Math.round(v / 1000) < 0 ? ' neg' : '')
+         + (mk.indexOf('tested') >= 0 ? ' tested' : '') + '">'
+         + (mk.indexOf('T') >= 0 ? '<span class="star">★</span>' : '')
+         + (mk.indexOf('M') >= 0 ? '<span class="star" style="left:5px;right:auto">◆</span>' : '')
+         + '<span class="v">' + fmtFn(v) + '</span>'
+         + '</div></td>';
+    });
+    h += '</tr>';
+  });
+  el(host).innerHTML = h + '</tbody></table>';
+}
+
+/* one horizontal bar inside a table cell, with its own figure on board */
+function cell(v, max, colour){
+  if(!v) return '<span class="cb zero" style="--w:0%"><b>—</b></span>';
+  const w = Math.max(3, v / (max || 1) * 100);
+  return '<span class="cb" style="--w:' + w.toFixed(1) + '%">'
+       + '<i style="width:' + w.toFixed(1) + '%;background:' + (colour || 'var(--accent)') + '"></i>'
+       + '<b>' + fmt(v) + '</b></span>';
+}
+
+/* after any table is drawn: put the label outside its bar wherever the bar is
+   too short to hold it */
+function fitBars(root){
+  const host = typeof root === 'string' ? el(root) : root;
+  if(!host) return;
+  host.querySelectorAll('.cb').forEach(function(c){
+    if(c.classList.contains('zero')) return;
+    const bar = c.querySelector('i'), lab = c.querySelector('b');
+    c.classList.toggle('out', lab.scrollWidth + 12 > bar.getBoundingClientRect().width);
+  });
+}
+
+/* =========================================================================
+   4. THE BOARD SLIDE
+   ========================================================================= */
+function skipLabel(){
+  el('skip-at').textContent = stPick + '% / ' + spPick + '%';
+}
+
+function renderBoard(){
+  const maxCell = Math.max.apply(null, FORECAST.map(function(r){ return Math.max.apply(null, r); }));
+  let h = '<table class="grid"><thead><tr><th>Bag</th>'
+        + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
+        + '<th>Season</th></tr></thead><tbody>';
+  BAGS.forEach(function(b, i){
+    h += '<tr><td class="bagcell">' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
+       + FORECAST[i].map(function(v){ return '<td>' + cell(v, maxCell, b.color) + '</td>'; }).join('')
+       + '<td><b class="num">' + fmt(F_BAG[i]) + '</b></td></tr>';
+  });
+  h += '<tr class="tot"><td>All five</td>'
+     + BOUTIQUES.map(function(c, j){
+         return '<td>' + fmt(FORECAST.reduce(function(a, r){ return a + r[j]; }, 0)) + '</td>'; }).join('')
+     + '<td>' + fmt(F_TOTAL) + '</td></tr></tbody></table>';
+  /* no 74ch cap on it, so it uses the full slide width and stays short. It
+     used to be pinned to one line with white-space:nowrap; adding the salvage
+     sentence pushed it past the 1152px container, and a nowrap line that wide
+     hides its own tail behind a scrollbar. Wrapping costs one 21px row, which
+     the slide has room for at any viewport it already fits. */
+  h += '<p class="small muted" style="margin-top:12px;max-width:none;">'
+     + 'One bag sells for ' + fmtE(ECON.price) + ', costs ' + fmtE(ECON.cost)
+     + ' to make whether it sells or not, and the season carries a fixed cost of '
+     /* derived, and the rounding named: 45% of forecast sales is 292 500 here
+        and the charge is 300 000, so "about 45%" left a facilitator's own
+        arithmetic landing 7 500 short of the figure on the slide */
+     + fmtE(ECON.fixed) + ' — ' + Math.round(ECON.fixedPct * 100)
+     + '% of forecast sales, rounded up. '
+     /* the margin writes leftover off in full; said here because "costs X to
+        make whether it sells or not" only states that the cost is incurred,
+        which leaves room to read the stock as still carrying value */
+     + 'Anything unsold at the end is worth nothing.</p>';
+  el('board-table').innerHTML = h;
+  fitBars('board-table');
+}
+
+/* =========================================================================
+   4b. THE SEASON — the plan, then what actually happened
+   =========================================================================
+   Six beats on one slide. It was two slides and two buttons; the buttons are
+   gone and Enter drives the whole thing, because the point is the surprise:
+   the plan, three cells taught one at a time, all twenty-five, and then what
+   the warehouse can and cannot do about them.
+   */
+/* Beats. A slide with more than one thing to say holds a beat index, and
+   every reveal on that slide is a function of it - not of a pile of booleans
+   that can disagree with each other. Beat 0 is what you see on arrival.
+
+     sd  0 the plan   1-3 the spotlight walk   4 all of it
+         5 the grand total, spotlit over the filled board   6 the warehouse
+     sf  0 the limit  1 flexible capacity
+   (SD_REVEAL 4, SD_TOTAL 5, SD_WAREHOUSE 6 - the constants below are the
+   authority; this map lost a line when the walk gained its third stop.)
+
+   demandShown and whUsed survive as DERIVED values because a dozen render
+   functions read them; nothing outside setBeat may write them. */
+const BEATS = { sd:7, sf:2 };
+/* The grand total used to be spotlit while every other cell still read "?" —
+   a sum shown before any of the detail that makes it. The whole board is
+   filled first now, and the total is the beat AFTER it. */
+const SD_REVEAL = 4, SD_TOTAL = 5, SD_WAREHOUSE = 6;
+let beats = { sd:0, sf:0 };
+let demandShown = false, whUsed = false;
+/* which cells the spotlight has opened so far, keyed "i,j" plus "tot" */
+let opened = {};
+
+/* One bag and two boutiques are followed from the moment the stock is placed
+   to the moment the warehouse refills it. Chosen from the setup rather than
+   fixed, because the interesting pair moves with the sliders: at a light push
+   nothing is short after the warehouse and the second card would read "0
+   turned away, 0 € still lost", which teaches nothing.
+
+   What we want, for one bag: a boutique that was given too much and is
+   sitting on it, and a boutique that is STILL missing sales once the
+   warehouse has done all it can. If no bag offers both — at a light push the
+   warehouse covers everything — the over-push case is what matters, so keep
+   that and take the largest remaining shortfall beside it. */
+let FOLLOW = { i:0, a:0, b:1 };
+
+function pickFollow(){
+  /* Condition one is the over-push, and it is the one that always holds:
+     a boutique sitting on stock the season did not want. Condition two is a
+     boutique that is STILL missing sales after the warehouse has done all it
+     can — that one only exists once the push is heavy enough, so it is a
+     preference, not a requirement. */
+  let best = null;
+  BAGS.forEach(function(b, i){
+    const x = runBag(i, stPick, spPick);
+    const over = [], under = [];
+    BOUTIQUES.forEach(function(c, j){
+      const left = x.push[j] - x.sold[j];
+      if(left > 0) over.push({ j:j, v:left });
+      if(x.short[j] > 0) under.push({ j:j, v:x.short[j], real:x.lostBy[j] > 0 });
+    });
+    over.sort(function(p, q){ return q.v - p.v; });
+    under.sort(function(p, q){ return (q.real - p.real) || (q.v - p.v); });
+    const pairs = [];
+    if(over.length && under.length && over[0].j !== under[0].j)
+      pairs.push({ a:over[0].j, b:under[0].j, over:over[0].v,
+                   real:under[0].real ? 1 : 0, both:1 });
+    else if(over.length)                       /* nothing short: still show the over-push */
+      pairs.push({ a:over[0].j, b:(over[0].j + 1) % BOUTIQUES.length,
+                   over:over[0].v, real:0, both:0 });
+    pairs.forEach(function(c){
+      const cand = { i:i, a:c.a, b:c.b, both:c.both, real:c.real, over:c.over };
+      if(!best) { best = cand; return; }
+      /* a real remaining loss first, then a genuine pair, then the biggest
+         over-push — never a bag with nothing sitting in the wrong boutique */
+      const better = (cand.real  - best.real)
+                  || (cand.both  - best.both)
+                  || (cand.over  - best.over);
+      if(better > 0) best = cand;
+    });
+  });
+  if(best) FOLLOW = { i:best.i, a:best.a, b:best.b };
+}
+
+/* =========================================================================
+   THE SEASON GRID
+   =========================================================================
+   One table, six beats. Everything below is a pure function of beats.sd, so
+   stepping backwards is exactly stepping forwards with a smaller number and
+   there is no state to get out of sync. */
+
+/* the cells the spotlight visits, derived from the board rather than written
+   down: at 90/80 they resolve to Aveline in Tokyo and Aveline in Paris, but a
+   facilitator who moved a slider on the previous slide would otherwise be
+   walking the room through two cells that are no longer the story */
+function walkCells(){
+  const shelf = BAGS.map(function(b, i){ return runBag(i, stPick, spPick).push; });
+  let worst = null, most = null, closest = null;
+  BAGS.forEach(function(b, i){
+    BOUTIQUES.forEach(function(c, j){
+      const ga = Math.max(0, DEMAND[i][j] - shelf[i][j]);
+      const sp = Math.max(0, shelf[i][j] - DEMAND[i][j]);
+      if(!worst || ga > worst.v) worst = { i:i, j:j, v:ga };
+      if(!most  || sp > most.v)  most  = { i:i, j:j, v:sp };
+      /* the cell the forecast came closest to getting right */
+      const off = Math.abs(FORECAST[i][j] - DEMAND[i][j]);
+      if(!closest || off < closest.off) closest = { i:i, j:j, v:ga, off:off };
+    });
+  });
+  /* At three of the forty combinations - 80/30, 90/30 and 100/30, one of them
+     the margin optimum a facilitator is likely to demo - almost everything is
+     held back and NOTHING is stranded anywhere on the board. The second stop
+     would then have spotlighted a surplus of zero and said so in words that
+     were simply false. It shows the cell the forecast got closest to instead,
+     which is true at every setting and makes the better point anyway: a right
+     answer still leaks when the stock is in the wrong place. */
+  return [worst, most.v > 0 ? most : closest];
+}
+
+/* The three stops of the walk, in order, each with the cells it opens.
+   Stop 3 is a whole ROW: one cell shows a shortage and another shows a
+   surplus, but a room does not believe they are the same problem until it
+   has seen them side by side in one bag - the same bag, the same season,
+   stock that cannot walk from Paris to Tokyo. */
+function walkStops(){
+  const w = walkCells();
+  const row = w[0].i;
+  return [
+    { key:w[0].i + ',' + w[0].j, cells:[w[0].i + ',' + w[0].j] },
+    { key:w[1].i + ',' + w[1].j, cells:[w[1].i + ',' + w[1].j] },
+    { key:'row:' + row,
+      cells:BOUTIQUES.map(function(c, j){ return row + ',' + j; }).concat(['s' + row]) }
+  ];
+}
+
+/* kept for the harnesses, and for anything that only wants the three keys */
+function seasonKeys(){
+  return walkStops().map(function(x){ return x.key; }).concat(['tot']);
+}
+
+function renderSeason(){
+  const b = beats.sd;
+  demandShown = b >= SD_REVEAL;
+  whUsed      = b >= SD_WAREHOUSE;
+  /* beats 1..3 open what each stop of the walk names; from SD_REVEAL the
+     whole table is open and the accumulation stops mattering */
+  const stops = walkStops();
+  opened = {};
+  for(let k = 0; k < Math.min(b, stops.length); k++)
+    stops[k].cells.forEach(function(c){ opened[c] = true; });
+  pickFollow();
+  renderGrid();
+  seasonWords();
+  seasonBelow();
+  spotlight(b >= 1 && b <= stops.length ? stops[b - 1].key
+          : b === SD_TOTAL ? 'tot' : null, b);
+}
+
+function renderGrid(){
+  const w = demandShown ? { i:FOLLOW.i, lo:{ j:FOLLOW.a }, hi:{ j:FOLLOW.b } } : null;
+  /* what each boutique opened with, and what the warehouse later sent, from
+     the same run every other table on this page draws */
+  const runs  = BAGS.map(function(b, i){ return runBag(i, stPick, spPick); });
+  const shelf = runs.map(function(x){ return x.push; });
+  const shelfBag = shelf.map(rowSum);
+  const OUT = BAGS.map(function(){ return []; });
+  const agg = function(list){
+    return list.reduce(function(a, x){
+      a.so += x.so; a.se += x.se; a.ga += x.ga; a.sp += x.sp; return a;
+    }, { so:0, se:0, ga:0, sp:0 });
+  };
+  /* ONE scale for every bar in the table, cells and totals alike: a boutique
+     that sells twice as much has to look twice as long, which is the entire
+     reason for drawing bars instead of printing three numbers */
+  /* Fill OUT first, then measure. Bar 3 draws sold + sent + missing + spare,
+     and in an AGGREGATE the shortage and the surplus come from different
+     cells, so its total is demand PLUS spare - 777 against a 650 scale in the
+     grand total at the default. Scaling on max(forecast, demand, shelf) asked
+     that cell for 119.5% of its track; the segments used to be flex-shrinkable
+     and quietly took the 19.5% out of themselves, so amber never stuck out
+     past the demand above it, which is the one thing it exists to do. Measure
+     what the bars ask for, not what they are made of. */
+  BAGS.forEach(function(b, i){
+    BOUTIQUES.forEach(function(c, j){
+      const so = Math.min(shelf[i][j], DEMAND[i][j]);
+      const ga = Math.max(0, DEMAND[i][j] - shelf[i][j]);
+      OUT[i][j] = { so:so, ga:ga, sp:Math.max(0, shelf[i][j] - DEMAND[i][j]),
+                    se:whUsed ? Math.min(ga, runs[i].servedBy[j]) : 0 };
+    });
+  });
+  const width = function(o){ return o.so + o.se + Math.max(0, o.ga - o.se) + o.sp; };
+  let dScale = 1;
+  BAGS.forEach(function(b, i){
+    BOUTIQUES.forEach(function(c, j){
+      dScale = Math.max(dScale, FORECAST[i][j], DEMAND[i][j], width(OUT[i][j]));
+    });
+  });
+
+  /* Three bars, one under the other, on ONE scale across the whole table so a
+     big boutique looks big:
+
+       1  what was forecast
+       2  what the season actually asked for
+       3  what actually happened to that demand, in up to four colours —
+          served off the shelf, sent from the warehouse, still missing, and
+          then any surplus stranded past the end of it.
+
+     Bar 3 is bar 2 recoloured, so blue + green + red always sums to exactly
+     the demand above it and amber is the only thing that can ever stick out
+     past its end. That is the one rule the whole grid rests on.
+
+     The signed delta is set above the bars and three times their size: from
+     five metres a room reads a field of red and amber first, and the numerals
+     only if it wants them. */
+  /* Every number takes its bar's colour, and the outcome row carries ONE
+     NUMBER PER SEGMENT. It used to carry a single figure beside a bar made of
+     two or three, so a reader could not tell which part it counted or why
+     there was only one of it.
+
+     There is no separate delta line any more either. The delta WAS the
+     outcome row's cost figure, printed a second time above the bars - so the
+     cost figure is simply set large where it belongs, still aligned down the
+     right edge of every cell, which is what let the room read the table as a
+     field of red and amber in the first place. */
+  const dcell = function(f, d, o, open, terse){
+    const bar = function(v, cls){
+      return '<i class="' + cls + '" style="width:'
+           + (dScale ? Math.min(100, v / dScale * 100) : 0).toFixed(1) + '%"></i>';
+    };
+    const row = function(bars, label, cls){
+      return '<span class="trow' + (cls ? ' ' + cls : '') + '">'
+           + '<span class="bars">' + bars + '</span>'
+           + '<b>' + (label || '') + '</b></span>';
+    };
+    const n = function(v, cls, sign){
+      return '<em class="' + cls + '">' + (sign || '') + fmt(v) + '</em>';
+    };
+    /* The outcome row's figures go on a line of their own, under the bars and
+       right-aligned across the whole cell. Beside the bar they had 46% of a
+       170px column to live in, and "54 +27 −20" or "−93 +42" simply does not
+       fit in eighty pixels: the numbers painted out past the edge of the
+       table and the last column lost its surplus entirely. The bar track
+       stays at 54% on all three rows, so a bar is still exactly as long as
+       the same value drawn anywhere else in the table. */
+    const outs = function(html){
+      return '<span class="onums">' + html + '</span>';
+    };
+    if(!open)
+      return '<span class="tri">'
+           + row(bar(f, 'plan'), n(f, 'plan'))
+           + row('', '')
+           + row('', '', 'out') + outs('<em class="q">?</em>') + '</span>';
+    const miss = Math.max(0, o.ga - o.se);
+    return '<span class="tri">'
+      + row(bar(f, 'plan'), n(f, 'plan'))
+      + row(bar(d, 'real'), n(d, 'real'))
+      + row(bar(o.so, 'sold')
+          + (o.se ? bar(o.se, 'sent')  : '')
+          + (miss ? bar(miss, 'miss')  : '')
+          + (o.sp ? bar(o.sp, 'spare') : ''), '', 'out')
+      /* A total can carry a shortage AND a surplus, so it wants four figures
+         where a cell wants three. It drops the one that is not the point:
+         what a total sold is already on the row above it in every cell that
+         made it up. What the warehouse SENT stays, in every kind of cell — a
+         green segment with no green figure beside it is the exact thing this
+         line exists to fix. */
+      + outs((terse ? '' : n(o.so, 'sold') + ' ')
+           + (o.se ? n(o.se, 'sent', '+') + ' ' : '')
+           + (miss ? n(miss, 'miss big', '−') : '')
+           + (o.sp ? (miss ? ' ' : '') + n(o.sp, 'spare big', '+') : '')
+           + (!miss && !o.sp ? '<em class="even big">✓</em>' : ''))
+      + '</span>';
+  };
+
+  /* the totals are five times the size of a cell, so they get their own scale;
+     sharing one would flatten every cell in the table to a stub */
+  let tScale = 1;
+  BAGS.forEach(function(b, i){
+    tScale = Math.max(tScale, F_BAG[i], D_BAG[i], width(agg(OUT[i]))); });
+  BOUTIQUES.forEach(function(c, j){
+    tScale = Math.max(tScale, colSum(FORECAST, j), colSum(DEMAND, j),
+      width(agg(OUT.map(function(r){ return r[j]; })))); });
+  tScale = Math.max(tScale, F_TOTAL, rowSum(D_BAG),
+    width(agg([].concat.apply([], OUT))));
+  const dcellBig = function(f, d, o, open){
+    const keep = dScale; dScale = tScale;
+    const out = dcell(f, d, o, open, true);
+    dScale = keep;
+    return out;
+  };
+
+  /* the legend only appears once there is something to decode, and gains its
+     fifth entry only when the warehouse has actually sent anything */
+  let h = '';
+  if(demandShown || Object.keys(opened).length){
+    h = '<div class="dlegend">'
+      + '<span><i class="sw" style="background:var(--plan)"></i>the plan</span>'
+      + '<span><i class="sw" style="background:var(--real)"></i>what the season asked for</span>'
+      + (whUsed ? '<span><i class="sw" style="background:var(--sent)"></i>sent from the warehouse</span>' : '')
+      /* Red is not the same claim on both sides of the warehouse beat. Before
+         it ships, red is what the SHELF could not serve - and the warehouse is
+         about to cover a good part of it. Only after it has shipped is red
+         genuinely a customer nobody could serve. Calling it "nobody could buy"
+         all the way through wrote off sales the deck then goes on to save. */
+      + '<span><i class="sw" style="background:var(--miss)"></i>'
+      + (whUsed ? 'nobody could buy' : 'the shelf could not serve') + '</span>'
+      + '<span><i class="sw" style="background:var(--spare)"></i>sitting in the wrong boutique</span>'
+      + '</div>';
+  }
+  h += '<table class="grid"><thead><tr><th>Bag</th>'
+     + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
+     + '<th>Season</th></tr></thead><tbody>';
+  BAGS.forEach(function(b, i){
+    h += '<tr><td class="bagcell">' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>';
+    BOUTIQUES.forEach(function(c, j){
+      const hit = w && w.i === i ? (w.lo.j === j ? ' class="hit-left"'
+                                  : w.hi.j === j ? ' class="hit-away"' : '') : '';
+      h += '<td id="dc-' + i + '-' + j + '"' + hit + '>'
+         + dcell(FORECAST[i][j], DEMAND[i][j], OUT[i][j],
+                 demandShown || opened[i + ',' + j]) + '</td>';
+    });
+    /* the bag's own row, adding the CELLS: a gap in Tokyo is not cancelled by
+       a surplus in Paris, because the stock cannot walk there */
+    h += '<td class="seasontot" id="dc-s-' + i + '">'
+       + dcellBig(F_BAG[i], D_BAG[i], agg(OUT[i]), demandShown || opened['s' + i])
+       + '</td></tr>';
+  });
+  h += '<tr class="tot"><td>All five</td>'
+     + BOUTIQUES.map(function(c, j){
+         const f = FORECAST.reduce(function(a, r){ return a + r[j]; }, 0);
+         const d = DEMAND.reduce(function(a, r){ return a + r[j]; }, 0);
+         const col = agg(OUT.map(function(r){ return r[j]; }));
+         return '<td>' + dcellBig(f, d, col, demandShown) + '</td>'; }).join('')
+     + '<td class="seasontot" id="dc-tot">' + (function(){
+         const all = agg([].concat.apply([], OUT));
+         return dcellBig(F_TOTAL, rowSum(D_BAG), all, demandShown || opened.tot); })()
+     + '</td></tr></tbody></table>';
+  el('demand-table').innerHTML = h;
+}
+
+/* the heading and the one line under it, per beat */
+function seasonWords(){
+  const b = beats.sd;
+  const bags = BAGS.map(function(x, i){ return runBag(i, stPick, spPick); });
+  const away = rowSum(bags.map(function(x){ return x.shortTot; }));
+  const central = rowSum(bags.map(function(x){ return x.central; }));
+  /* One heading per beat. The walk goes one cell, one cell, one ROW, then the
+     whole table, and only then the grand total: a sum means nothing until the
+     detail it sums is on screen behind it. */
+  const WORDS = [
+    ['The plan',
+     'Every bag, every boutique, and what we forecast for each. '
+     + 'Nothing here is an outcome yet — the season has not happened.'],
+    ['One boutique', null],
+    ['One more boutique', null],
+    ['One bag, all five boutiques', null],
+    ['What the season asked for',
+     'Now all twenty-five. You already know how to read one. The red is what '
+     + 'the <b>shelves</b> could not serve — the warehouse has not shipped yet, '
+     + 'and it is still holding <b class="num">' + fmt(central) + '</b> pieces.'],
+    ['And the whole board, in one cell', null],
+    ['The warehouse answers',
+     '<b class="num">' + fmt(central) + '</b> pieces never left the warehouse, against '
+     + '<b class="num">' + fmt(away) + '</b> the boutiques still need. Green is what it '
+     + 'covered. Nothing amber moves: the warehouse cannot take back what already shipped.']
+  ];
+  el('sd-h2').textContent = WORDS[b][0];
+  el('sd-lead').innerHTML = WORDS[b][1] || '';
+  el('sd-lead').classList.toggle('hidden', !WORDS[b][1]);
+}
+
+/* Everything under the grid is REPLACED at each beat, never appended: three
+   slides at least gave the room three clean resets at the top of the screen,
+   and a merged slide that only grows is strictly worse than what it replaced. */
+/* Nothing under the grid until the warehouse has answered.
+
+   Beat 4 used to carry "Aveline, boutique by boutique" — given at launch,
+   demand, sold, needed from the warehouse, left on the shelf, for one bag
+   across five boutiques. The grid now says every one of those things for all
+   five bags, so the table was answering a question the picture above it had
+   already answered, and it was the only reason a 900px screen had to scroll.
+
+   Beat 5 keeps what the grid genuinely cannot show: what the two followed
+   boutiques cost in money, how much was made against how much reached a
+   shelf, and the P&L. */
+function seasonBelow(){
+  const host = el('sd-out');
+  if(beats.sd < SD_WAREHOUSE){ host.innerHTML = ''; host.classList.add('hidden'); return; }
+  host.classList.remove('hidden');
+  testCombo();
+  fitBars(host);
+}
+
+/* =========================================================================
+   5. YOUR COMBINATION — one season, played out
+   ========================================================================= */
+/* opens on a combination that actually loses something: a first trial where
+   nothing goes wrong teaches nothing */
+let stPick = 90, spPick = 80, tested = null;
+
+/* The two sliders are the game's, down to the tick row that marks the value
+   in use, so a room that has played the game recognises the control. */
+function buildTicks(host, levels, current){
+  el(host).innerHTML = levels.map(function(v){
+    return '<span class="' + (v === current ? 'on' : '') + '">' + v + '</span>'; }).join('');
+}
+/* the same pair of sliders appears on two slides; both copies always show
+   the one pick, so moving between slides never loses the combination */
+function buildSegs(){
+  ['', '2', '3'].forEach(function(n){
+    el('val' + n + '-st').textContent = stPick + '%';
+    el('val' + n + '-sp').textContent = spPick + '%';
+    el('sl' + n + '-st').value = stPick;
+    el('sl' + n + '-sp').value = spPick;
+    buildTicks('ticks' + n + '-st', ST_LEVELS, stPick);
+    buildTicks('ticks' + n + '-sp', SP_LEVELS, spPick);
+  });
+}
+
+function sayTrial(){
+  /* Read the totals off the SAME engine the table below sums, rather than
+     rounding the collection total. Rounding 723 x 80% gives 578 and leaves
+     145, while the five per-bag figures in the table come to 579 and 144 -
+     two numbers a centimetre apart, disagreeing. Taken from run(), they
+     cannot: it is the same arithmetic, once. "About" goes with them. */
+  const t = run(stPick, spPick).t;
+  el('trial-say').innerHTML =
+      'Targeting <b>' + stPick + '%</b> means making <b class="num">' + fmt(t.production)
+    + '</b> bags against a forecast of ' + fmt(F_TOTAL) + '. '
+    + 'Placing <b>' + spPick + '%</b> sends <b class="num">' + fmt(t.pushTotal)
+    + '</b> to the five boutiques and leaves <b class="num">' + fmt(t.central)
+    + '</b> central.';
+  renderPlacement();
+}
+
+/* Where every piece actually goes. The launch push is spread on each bag's
+   own forecast row, so the quantity a boutique opens with is that bag's
+   forecast share of it — the point is easier to see in the table than to
+   take on trust.
+
+   NOTHING is marked on this table. It used to carry the followed pair, but
+   the pair is chosen from the setup, so every nudge of either slider moved
+   the outline to a different cell while the reader was still deciding — and
+   the next slide marks a pair chosen from the demand table instead, which
+   does not move at all, so the outline appeared to jump to another bag on the
+   way through. The thread starts on the slide that reveals the season; here
+   the table is just where the stock went. */
+function renderPlacement(){
+  pickFollow();
+  const rows = BAGS.map(function(b, i){ return runBag(i, stPick, spPick); });
+  const maxCell = Math.max.apply(null, rows.map(function(x){
+    return Math.max.apply(null, x.push.concat([x.central])); }));
+  let h = '<table class="grid"><thead><tr><th>Bag</th><th>Made</th>'
+        + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
+        + '<th>Warehouse</th></tr></thead><tbody>';
+  BAGS.forEach(function(b, i){
+    const x = rows[i];
+    h += '<tr>'
+       + '<td class="bagcell">' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
+       + '<td><b class="num">' + fmt(x.production) + '</b></td>'
+       + x.push.map(function(v){
+           return '<td>' + cell(v, maxCell, b.color) + '</td>'; }).join('')
+       + '<td>' + cell(x.central, maxCell, '#9aa7b3') + '</td></tr>';
+  });
+  const t = rows.reduce(function(a, x){
+    a.prod += x.production; a.central += x.central;
+    x.push.forEach(function(v, j){ a.push[j] += v; }); return a;
+  }, { prod:0, central:0, push:BOUTIQUES.map(function(){ return 0; }) });
+  h += '<tr class="tot"><td>All five</td><td>' + fmt(t.prod) + '</td>'
+     + t.push.map(function(v){ return '<td>' + fmt(v) + '</td>'; }).join('')
+     + '<td>' + fmt(t.central) + '</td></tr></tbody></table>';
+  el('place-table').innerHTML = h;
+  fitBars('place-table');
+}
+
+/* The bag followed since the stock was placed, boutique by boutique. The
+   all-bags table below sums the five boutiques away, and without this the
+   thread the room has been holding since slide 2 simply disappears. */
+function followTable(after){
+  const i = FOLLOW.i, x = runBag(i, stPick, spPick);
+  const maxV = Math.max.apply(null, x.push.concat(DEMAND[i]));
+  const mark = function(j){
+    return j === FOLLOW.a ? ' class="foll lo"' : j === FOLLOW.b ? ' class="foll hi"' : '';
+  };
+  /* Boutiques across the top, the same axis they have on every other table on
+     this page. Each row is one line of the story, in the order it happens. */
+  const line = function(label, get, tot, cls){
+    return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><th>' + label + '</th>'
+         + BOUTIQUES.map(function(c, j){ return '<td' + mark(j) + '>' + get(j) + '</td>'; }).join('')
+         + '<td class="seasontot">' + tot + '</td></tr>';
+  };
+  let h = '<h3>' + esc(BAGS[i].name) + ', boutique by boutique</h3>'
+        + '<table class="grid flip" style="margin-top:10px;"><thead><tr><th></th>'
+        + BOUTIQUES.map(function(c, j){ return '<th' + mark(j) + '>' + c + '</th>'; }).join('')
+        + '<th>All five</th></tr></thead><tbody>';
+
+  h += line('Given at launch',
+        function(j){ return cell(x.push[j], maxV, BAGS[i].color); }, fmt(x.pushTotal));
+  h += line('The actual demand',
+        function(j){ return cell(DEMAND[i][j], maxV, '#4d5560'); }, fmt(D_BAG[i]));
+  h += line('Sold on the shelf',
+        function(j){ return cell(x.sold[j], maxV, BAGS[i].color); }, fmt(rowSum(x.sold)));
+  /* "turned away" is the wrong word before the warehouse has been asked:
+     nothing is lost yet, it is a quantity the boutique needs sending. */
+  h += line('Needed from the warehouse',
+        function(j){ return x.short[j] ? '<span class="down">' + fmt(x.short[j]) + '</span>' : '—'; },
+        '<span class="down">' + fmt(x.shortTot) + '</span>', 'need');
+  if(after){
+    h += line('Sent from the warehouse',
+          function(j){ return x.servedBy[j] ? cell(x.servedBy[j], maxV, '#0f6b45') : '—'; },
+          fmt(x.served), 'sent');
+    h += line('Still missing',
+          function(j){ return x.lostBy[j] ? '<span class="down">' + fmt(x.lostBy[j]) + '</span>' : '—'; },
+          '<span class="down">' + fmt(x.lost) + '</span>', 'miss');
+    h += line('Sold',
+          function(j){ return '<b class="num">' + fmt(x.sold[j] + x.servedBy[j]) + '</b>'; },
+          '<b class="num">' + fmt(x.total) + '</b>', 'tot');
+  }
+  h += line('Left on the shelf',
+        function(j){ const v = x.push[j] - x.sold[j]; return v ? fmt(v) : '—'; },
+        fmt(x.pushTotal - rowSum(x.sold)));
+  h += '</tbody></table>';
+  return h;
+}
+
+function testCombo(){
+  const r = run(stPick, spPick);
+  tested = { st:stPick, sp:spPick };
+  if(whUsed) matrixCache[key(stPick, spPick)] = r.t;
+  const t = r.t;
+  const maxProd = Math.max.apply(null, r.bags.map(function(x){ return x.production; }));
+
+  let h = '<h3>' + stPick + '% sell-through · ' + spPick + '% in the boutiques</h3>';
+  /* the one-bag table is only worth drawing before the grid exists to say the
+     same thing; after the warehouse it is the money that is new */
+  if(!whUsed) h += followTable(false);
+
+  /* Beat 4 stops here. The whole-collection roll-up and the money belong to
+     the beat where the warehouse has actually been asked; before that they
+     only make the page longer, and this slide's one rule is that nothing may
+     push the grid off the top of the screen. The two followed boutiques come
+     after the table rather than before it — the network first, then the two
+     cases. */
+  if(!whUsed){
+    const host0 = el('sd-out');
+    host0.innerHTML = h;
+    host0.classList.remove('hidden');
+    fitBars(host0);
+    return;
+  }
+  h += '<h3 style="margin-top:22px;">All five bags, summed across the five boutiques</h3>';
+  h += '<table class="grid" style="margin-top:10px;"><thead><tr><th>Bag</th>'
+     + '<th>Made</th><th>To boutiques</th><th>Warehouse</th><th>Demand</th>'
+     + '<th>Sold on the shelf</th>'
+     /* the same words as the boutique table above it: one name per number */
+     + (whUsed ? '<th>Sent from the warehouse</th><th>Sold</th>' : '')
+     /* "Left on the shelf" is what the BOUTIQUE table above calls push minus
+        sold. This column is everything unsold - stranded on a shelf AND never
+        shipped out of the warehouse - which is the figure the P&L writes off,
+        and it was carrying the other table's name for it. */
+     + '<th>Still missing</th><th>Left unsold</th></tr></thead><tbody>';
+  BAGS.forEach(function(b, i){
+    const x = r.bags[i];
+    const away = whUsed ? x.lost : x.shortTot;
+    const left = whUsed ? x.left : x.production - x.soldAtLaunch;
+    h += '<tr><td class="bagcell">' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
+       + '<td>' + cell(x.production, maxProd, '#9aa7b3') + '</td>'
+       + '<td>' + cell(x.pushTotal, maxProd, b.color) + '</td>'
+       + '<td>' + cell(x.central, maxProd, '#9aa7b3') + '</td>'
+       + '<td>' + cell(D_BAG[i], maxProd, '#4d5560') + '</td>'
+       + '<td>' + cell(x.soldAtLaunch, maxProd, b.color) + '</td>'
+       + (whUsed ? '<td>' + cell(x.served, maxProd, '#0f6b45') + '</td>'
+                 + '<td><b class="num">' + fmt(x.total) + '</b></td>' : '')
+       + '<td>' + (away ? '<span class="down">' + fmt(away) + '</span>' : '—') + '</td>'
+       + '<td>' + (left ? fmt(left) : '—') + '</td></tr>';
+  });
+  const awayTot = whUsed ? t.lost : rowSum(r.bags.map(function(x){ return x.shortTot; }));
+  const leftTot = whUsed ? t.left : t.production - t.soldAtLaunch;
+  h += '<tr class="tot"><td>All five</td><td>' + fmt(t.production) + '</td><td>' + fmt(t.pushTotal)
+     + '</td><td>' + fmt(t.central) + '</td><td>' + fmt(rowSum(D_BAG)) + '</td><td>'
+     + fmt(t.soldAtLaunch) + '</td>'
+     + (whUsed ? '<td>' + fmt(t.served) + '</td><td>' + fmt(t.sold) + '</td>' : '')
+     + '<td>' + (awayTot ? '<span class="down">' + fmt(awayTot) + '</span>' : '—') + '</td><td>'
+     + (leftTot ? fmt(leftTot) : '—') + '</td></tr></tbody></table>';
+
+  {
+    /* Turnover and Margin used to sit side by side with nothing between them,
+       so the one arithmetic the slide exists to explain could not be checked
+       on screen: 650 000 became 199 400 and a room had to take it on trust.
+       The two deductions go in, in the order the notes move in the room and
+       the order the game and the debrief both use - fixed cost, then what the
+       bags cost to make. The costs are set smaller than the two ends: they
+       are the working, not the answer. */
+    const lab = function(x){ return '<div class="small muted" style="font-weight:800;'
+      + 'text-transform:uppercase;letter-spacing:.05em;">' + x + '</div>'; };
+    h += '<div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-end;margin-top:12px;">'
+       + '<div>' + lab('Turnover')
+       + '<div style="font-size:26px;font-weight:800;">' + fmtE(t.turnover) + '</div></div>'
+       + '<div>' + lab('− Fixed cost')
+       + '<div style="font-size:19px;font-weight:800;color:var(--miss);">− '
+       + fmtE(ECON.fixed) + '</div></div>'
+       + '<div>' + lab('− The ' + fmt(t.production) + ' made')
+       + '<div style="font-size:19px;font-weight:800;color:var(--miss);">− '
+       + fmtE(t.cogs) + '</div></div>'
+       + '<div>' + lab('Margin')
+       + '<div style="font-size:26px;font-weight:800;color:' + (t.margin < 0 ? 'var(--bad)' : 'var(--good)')
+       + '">' + fmtE(t.margin) + '</div></div>'
+       + '<div>' + lab('Sell-through reached')
+       + '<div style="font-size:26px;font-weight:800;">' + t.sellThrough.toFixed(0) + '%</div></div>'
+       + '</div>';
+  }
+
+  const host = el('sd-out');
+  host.innerHTML = h;
+  host.classList.remove('hidden');
+  fitBars(host);
+  if(whUsed) renderMatrices();
+}
+
+/* =========================================================================
+   6. EVERY COMBINATION — the matrix
+   ========================================================================= */
+const matrixCache = {};
+/* The cache holds the RIGID season for every square the room has played. The
+   pool is not cached: computeFlex is deterministic and costs a few hundred
+   operations, so flipping the switch re-reads forty squares instantly and
+   there is no second cache to fall out of step with the first. A square still
+   only shows a number once it has been played, switch or no switch. */
+let poolOn = false;
+function key(st, sp){ return st + '/' + sp; }
+function played(st, sp){ return !!matrixCache[key(st, sp)]; }
+function getT(st, sp){
+  if(!played(st, sp)) return null;
+  return poolOn ? computeFlex(st, sp).sold * ECON.price : matrixCache[key(st, sp)].turnover;
+}
+function getM(st, sp){
+  if(!played(st, sp)) return null;
+  return poolOn ? computeFlex(st, sp).margin : matrixCache[key(st, sp)].margin;
+}
+
+function renderMatrices(){
+  const marks = function(st, sp){
+    return (tested && tested.st === st && tested.sp === sp) ? 'tested' : '';
+  };
+  matrix('mx-t', getT, fmtK, marks);
+  matrix('mx-m', getM, fmtK, marks);
+  const n = Object.keys(matrixCache).length;
+  const all = ST_LEVELS.length * SP_LEVELS.length;
+  el('matrix-sub').textContent = n + ' of ' + all + ' combinations played. '
+    + 'Sell-through across, share placed at launch down the side.'
+    /* Not "is read with": on a page of coloured squares, "read" is a
+       homograph of "red" and the sentence looked like a claim about the
+       colour of every cell. */
+    + (poolOn ? ' Every square assumes the shared production capacity pool is on.' : '');
+  el('pool-switch').classList.toggle('hidden', n < 2);
+  /* held back until two squares have been played by hand: the point is to
+     try a couple and form an expectation before the whole field appears */
+  el('btn-fill').classList.toggle('hidden', n < 2 || n === all);
+  el('btn-test2').classList.toggle('hidden', n === all);
+  el('matrix-read').classList.toggle('hidden', n !== all);
+  if(n === all) readMatrix();
+}
+
+function fillAll(){
+  ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
+    if(!matrixCache[key(st, sp)]) matrixCache[key(st, sp)] = run(st, sp).t;
+  }); });
+  renderMatrices();
+}
+
+function best(getter){
+  let bs = null;
+  ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
+    const v = getter(st, sp);
+    if(v === null || v === undefined) return;
+    if(!bs || v > bs.v) bs = { st:st, sp:sp, v:v };
+  }); });
+  return bs;
+}
+
+function readMatrix(){
+  const bt = best(getT), bm = best(getM);
+  let h = '<div class="note"><b>Best turnover</b> ' + bt.st + '% / ' + bt.sp + '% at '
+        + fmtE(bt.v) + '. &nbsp; <b>Best margin</b> ' + bm.st + '% / ' + bm.sp + '% at '
+        + fmtE(bm.v) + '.</div>';
+  /* The pool is only interesting if it moves the ANSWER, so say whether it
+     did. Comparing like with like: the same square, both engines, and the
+     rigid optimum found the same way rather than remembered. */
+  if(poolOn){
+    const was = { st:ST_LEVELS[0], sp:SP_LEVELS[0], v:-Infinity };
+    ST_LEVELS.forEach(function(st){ SP_LEVELS.forEach(function(sp){
+      const c = matrixCache[key(st, sp)];
+      if(c && c.margin > was.v){ was.st = st; was.sp = sp; was.v = c.margin; } }); });
+    const moved = was.st !== bm.st || was.sp !== bm.sp;
+    /* Two claims, worth very different amounts. What the POOL is worth is the
+       gap between the engines at their own best squares: +20 600 € here, and
+       the whole point of the slide. Whether it MOVES THE PLAN is the gap
+       between the flexible reading of the rigid square and the flexible best
+       square, and that is 400 € on a 220 000 € margin — under a fifth of a
+       percent. "The pool moves the answer" on 400 € is an overclaim, and this
+       sentence made it until the figure was actually computed. */
+    const moveWorth = computeFlex(bm.st, bm.sp).margin
+                    - computeFlex(was.st, was.sp).margin;
+    const material = moveWorth >= Math.abs(bm.v) * 0.005;
+    /* And WHY, from the two seasons rather than from the sell-through
+       ordering. The guess was "you can hold more back"; the board holds 455
+       back instead of 506, so it was backwards. Committed and drawn say it
+       without being guessed at. */
+    const cf = computeFlex(bm.st, bm.sp), cw = computeFlex(was.st, was.sp);
+    const comm = function(f){ return f.pushTot + f.centTot; };
+    const why = comm(cf) > comm(cw) * 1.01
+      ? 'it commits more up front and draws less late — ' + fmt(comm(cf))
+        + ' committed against ' + fmt(comm(cw)) + ', and ' + fmt(cf.used)
+        + ' drawn against ' + fmt(cw.used)
+      : comm(cf) < comm(cw) * 0.99
+        ? 'it commits less up front — ' + fmt(comm(cf)) + ' against '
+          + fmt(comm(cw)) + ' — because the insurance no longer has to be '
+          + 'manufactured to exist'
+        : 'the same production is worth placing differently at launch, because '
+          + 'what stays behind is no longer committed to one bag';
+    h += '<p class="small muted" style="margin-top:8px;">Without the pool the best '
+       + 'margin is <b>' + was.st + '% / ' + was.sp + '%</b> at ' + fmtE(was.v) + '. '
+       + (!moved
+          ? 'The pool does not move the answer here; it is worth <b class="up">'
+            + fmtE(bm.v - was.v) + '</b> at the same square.'
+          : material
+            ? 'The pool <b>moves the answer</b> to ' + bm.st + '% / ' + bm.sp
+              + '% — ' + why + '.'
+            : 'The pool nudges the answer to ' + bm.st + '% / ' + bm.sp
+              + '%, but only by ' + fmtE(Math.round(moveWorth)) + ' — what it is '
+              + 'worth is the ' + fmtE(bm.v - was.v) + ', not the move.')
+       + '</p>';
+  }
+  el('matrix-read').innerHTML = h;
+}
+
+/* =========================================================================
+   7. THE LIMIT — what central stock cannot do
+   ========================================================================= */
+function renderLimit(){
+  /* Measured at the sell-through the matrix actually picked, not at 100%.
+     Making exactly the forecast is a target the room has just been shown is
+     beaten, and quoting the irreducible loss there overstated it more than
+     fivefold. Found rather than hard-coded, so it follows the board. */
+  let target = ST_LEVELS[0], push = SP_LEVELS[0], bestM = -Infinity;
+  ST_LEVELS.forEach(function(st){
+    SP_LEVELS.forEach(function(sp){
+      const m = run(st, sp).t.margin;
+      if(m > bestM){ bestM = m; target = st; push = sp; }
+    });
+  });
+  const prodOf = function(i){ return Math.round(F_BAG[i] / (target / 100)); };
+
+  let h = '<table class="grid"><thead><tr><th>Bag</th><th>Forecast</th>'
+        + '<th>Made at ' + target + '%</th>'
+        + '<th>Real demand</th><th>Sold</th><th>Turned away</th><th>Left over</th>'
+        + '</tr></thead><tbody>';
+  let lost = 0, left = 0, made = 0;
+  const maxV = Math.max.apply(null, D_BAG.concat(BAGS.map(function(b, i){ return prodOf(i); })));
+  BAGS.forEach(function(b, i){
+    const prod = prodOf(i);
+    const sold = Math.min(prod, D_BAG[i]);
+    const l = D_BAG[i] - sold, o = prod - sold;
+    lost += l; left += o; made += prod;
+    h += '<tr><td class="bagcell">' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
+       + '<td>' + cell(F_BAG[i], maxV, '#9aa7b3') + '</td>'
+       + '<td>' + fmt(prod) + '</td>'
+       + '<td>' + cell(D_BAG[i], maxV, b.color) + '</td>'
+       + '<td>' + fmt(sold) + '</td>'
+       + '<td>' + (l ? '<span class="down">' + fmt(l) + '</span>' : '—') + '</td>'
+       + '<td>' + (o ? fmt(o) : '—') + '</td></tr>';
+  });
+  h += '<tr class="tot"><td>All five</td><td>' + fmt(F_TOTAL) + '</td><td>' + fmt(made)
+     + '</td><td>' + fmt(rowSum(D_BAG)) + '</td><td>' + fmt(rowSum(D_BAG) - lost)
+     + '</td><td><span class="down">' + fmt(lost) + '</span></td><td>' + fmt(left)
+     + '</td></tr></tbody></table>';
+  h += '<div class="note" style="margin-top:18px;">'
+     + fmt(made) + ' made against ' + fmt(rowSum(D_BAG)) + ' asked for, every bag '
+     + 'placed exactly where the season wanted it — and still <b>' + fmt(lost)
+     + '</b> turned away and <b>' + fmt(left) + '</b> left unsold.</div>';
+  /* Both multiplications are written out. The heading above talks about
+     money and the table below counts bags, and a reader who is given only
+     the two ends has to do the arithmetic in their head to join them — at
+     which point the slide has stopped making its point and started setting
+     a puzzle. */
+  el('limit-lead').innerHTML =
+      /* this slide now runs BEFORE the matrix, so it cannot say the matrix
+         picked anything — the combination is stated as the best there is and
+         the matrix proves it two slides later */
+      'The best this board allows is <b>' + target + '% sell-through</b> and <b>' + push
+    + '% push</b>. Even there, with every bag placed exactly where the season wanted '
+    + 'it, <b>' + fmt(lost) + ' customer' + (lost === 1 ? ' was' : 's were')
+    + '</b> turned away — ' + fmt(lost) + ' × ' + fmtE(ECON.price) + ' = <b>'
+    + fmtE(lost * ECON.price) + '</b> of sales never made — and <b>' + fmt(left)
+    + ' bag' + (left === 1 ? '' : 's') + '</b> went unsold — ' + fmt(left) + ' × '
+    + fmtE(ECON.cost) + ' = <b>' + fmtE(left * ECON.cost) + '</b> already spent. '
+    + 'How could we do better, without impact on the margin?';
+  el('limit-body').innerHTML = h;
+  fitBars('limit-body');
+}
+
+/* =========================================================================
+   8. FLEXIBLE CAPACITY — what it can
+   ========================================================================= */
+/* Beat 0 asks the question, beat 1 answers it. They were two slides, and the
+   question slide literally ended with "how could we do better, without impact
+   on the margin?" - which is what the other one was for.
+
+   renderLimit derives its own optimum and is state-free, so it is drawn once
+   per arrival and never again: it costs forty run() calls and re-running it on
+   every drag of a slider would be forty for nothing. */
+function renderFlexSlide(){
+  const show = beats.sf >= 1;
+  if(!el('limit-body').firstChild) renderLimit();
+  el('flex-card').classList.toggle('hidden', !show);
+  el('limit-card').classList.toggle('dim', show);
+  if(show) renderFlex();
+}
+
+function renderFlex(){
+  const f = computeFlex(stPick, spPick), r = rigidTotals(stPick, spPick);
+  el('flex-lead').innerHTML =
+      'Everything you hold back splits in two. <b>50%</b> stays in that bag\'s own '
+    + '<b>warehouse</b>. The other <b>50%</b> becomes a <b>shared production '
+    + 'capacity pool</b> — a slot on the production line, assigned to no bag in '
+    + 'advance, that any of the five can call on. It is not stock sitting '
+    + 'anywhere: it is only manufactured, and only paid for, if a shortage '
+    + 'actually calls on it.';
+
+  const unit = Math.max(1, Math.max.apply(null, f.rows.map(function(x){
+    return Math.max(x.production, x.demand); })));
+  /* "Committed", not "Made". The whole premise of this page is that pool
+     capacity is only manufactured if a shortage calls on it, so the column
+     that sums pushed + reserve + pool is what was SET ASIDE. The box below
+     reports what was actually made, and the two used to print different
+     numbers under the same word. */
+  /* Two columns for the pool, not one. "Into the shared pool" alone said the
+     pool exists and never where it acted; the room could not see that Aveline
+     drew 43 of the 80 and Doriane drew none. In and out, side by side, and
+     the last column is what was still lost after both. */
+  let h = '<table class="grid"><thead><tr><th>Bag</th><th>Committed</th>'
+        + '<th>To the boutiques</th><th>Its own warehouse</th>'
+        + '<th>Into the production pool</th><th>Drawn from the pool</th>'
+        + '<th>Real demand</th><th>Still lost</th></tr></thead><tbody>';
+  f.rows.forEach(function(x, i){
+    h += '<tr><td class="bagcell">' + bagIcon(i, 16)
+       + ' <b>' + esc(x.name) + '</b></td>'
+       + '<td><b class="num">' + fmt(x.production) + '</b></td>'
+       + '<td>' + cell(x.pushed, unit, x.colour) + '</td>'
+       + '<td>' + cell(x.central, unit, '#9aa7b3') + '</td>'
+       + '<td>' + cell(x.cap, unit, '#7fb59a') + '</td>'
+       + '<td>' + (x.drawn ? cell(x.drawn, unit, '#0f6b45') : '—') + '</td>'
+       + '<td>' + cell(x.demand, unit, x.colour) + '</td>'
+       + '<td>' + (x.lost ? '<span class="down">' + fmt(x.lost) + '</span>' : '—') + '</td></tr>';
+  });
+  h += '<tr class="tot"><td>All five</td><td>' + fmt(f.pushTot + f.centTot + f.capTot) + '</td>'
+     + '<td>' + fmt(f.pushTot) + '</td><td>' + fmt(f.centTot) + '</td>'
+     + '<td>' + fmt(f.capTot) + '</td>'
+     + '<td>' + (f.used ? '<b class="up">' + fmt(f.used) + '</b>' : '—') + '</td>'
+     + '<td>' + fmt(rowSum(D_BAG)) + '</td>'
+     + '<td>' + (f.away ? '<span class="down">' + fmt(f.away) + '</span>' : '—')
+     + '</td></tr></tbody></table>';
+  el('flex-table').innerHTML = h;
+  fitBars('flex-table');
+
+  /* the pool is drawn on after the table, because the number that matters is
+     how much of it was never made rather than how much was set aside */
+  const spare = f.capTot - f.used;
+  const box = function(title, t, win){
+    return '<div class="vsbox' + (win ? ' win' : '') + '"><h4>' + title + '</h4>'
+      + '<div class="vsbig">' + fmtE(t.margin) + '</div>'
+      + '<div class="vsline"><span>made</span><b>' + fmt(t.made) + '</b></div>'
+      + '<div class="vsline"><span>sold</span><b>' + fmt(t.sold) + '</b></div>'
+      + '<div class="vsline"><span>customers turned away</span><b>' + fmt(Math.round(t.away)) + '</b></div>'
+      + '<div class="vsline"><span>left unsold</span><b>' + fmt(Math.round(t.unsold)) + '</b></div>'
+      + '</div>';
+  };
+  const gain = f.margin - r.margin;
+  el('flex-vs').innerHTML = '<div class="vs">'
+    + box('Rigid capacity — today', r, false)
+    + box('With a shared production capacity pool', f, gain > 0)
+    + '</div>'
+    + '<p class="small muted" style="margin-top:10px;">'
+    + (f.capTot
+        ? 'The shared production capacity pool held <b>' + fmt(f.capTot) + '</b> pieces '
+          + 'of line time, assigned to no bag. <b>' + fmt(f.used) + '</b> were called on and made — '
+          + f.rows.filter(function(x){ return x.drawn; })
+              .map(function(x){ return esc(x.name) + ' took ' + fmt(x.drawn); }).join(', ')
+          + ' — and <b>' + fmt(spare) + '</b> never existed and cost nothing. '
+        : 'Everything went to the boutiques at launch, so there was no warehouse and no '
+          + 'production left to keep flexible. ')
+    + (gain > 0 ? '<b class="up">' + fmtE(gain) + ' better</b> than committing the same production up front.'
+                : 'No better than committing it up front here.')
+    + '</p>';
+}
+
+/* =========================================================================
+   9. THE SPOTLIGHT
+   =========================================================================
+   The same trick the game's step-by-step guide uses: dim everything, cut a
+   hole over one cell, and put a card beside it. Here it walks three cells so
+   the room is taught to read ONE cell before it is shown twenty-five.
+
+   Every position is measured from live rects and re-measured on anything that
+   can move the page underneath it. Positioning once at open time left the
+   hole where the target used to be. */
+let spotTeardown = null;
+
+function spotRect(list){
+  let r = null;
+  (list || []).filter(Boolean).forEach(function(e){
+    const b = e.getBoundingClientRect();
+    if(!b.width && !b.height) return;
+    r = r ? { left:Math.min(r.left, b.left), top:Math.min(r.top, b.top),
+              right:Math.max(r.right, b.right), bottom:Math.max(r.bottom, b.bottom) }
+          : { left:b.left, top:b.top, right:b.right, bottom:b.bottom };
+  });
+  return r;
+}
+
+/* Put the card on a side of the hole where it fits without covering it. Only
+   if no side fits does it clamp into the viewport. */
+function spotPlace(box, avoid){
+  const bw = box.offsetWidth, bh = box.offsetHeight, M = 16;
+  const vw = window.innerWidth;
+  /* the footbar is fixed and holds Back and Next; the card is above it in the
+     stack, so treating the whole window as free space put the card over the
+     only two controls the facilitator is using */
+  const foot = document.querySelector('.footbar');
+  const vh = window.innerHeight - (foot ? foot.offsetHeight : 0);
+  const clampX = function(x){ return Math.min(Math.max(M, x), vw - bw - M); };
+  const clampY = function(y){ return Math.min(Math.max(M, y), vh - bh - M); };
+  const cand = {
+    rightof: { left:avoid.right + M,     top:clampY(avoid.top),   side:'rightof' },
+    leftof:  { left:avoid.left - bw - M, top:clampY(avoid.top),   side:'leftof'  },
+    below:   { left:clampX(avoid.left),  top:avoid.bottom + M,    side:'below'   },
+    above:   { left:clampX(avoid.left),  top:avoid.top - bh - M,  side:'above'   }
+  };
+  const order = ['rightof', 'leftof', 'below', 'above'];
+  for(let i = 0; i < order.length; i++){
+    const c = cand[order[i]];
+    if(c.left >= M && c.top >= M && c.left + bw <= vw - M && c.top + bh <= vh - M) return c;
+  }
+  return { left:clampX(avoid.left), top:clampY(avoid.bottom + M), side:'clamped' };
+}
+
+/* A swatch of the bar itself, in place of a colour word. Same class names as
+   the bars in the cell, so there is one palette and no second list of hexes. */
+function sw(cls){ return '<i class="sw ' + cls + '"></i>'; }
+
+/* what the card says, built from the live board rather than written out */
+function spotCard(k){
+  const runs = BAGS.map(function(b, i){ return runBag(i, stPick, spPick); });
+  if(k.indexOf('row:') === 0){
+    const i = Number(k.slice(4));
+    let ga = 0, sp = 0;
+    BOUTIQUES.forEach(function(c, j){
+      ga += Math.max(0, DEMAND[i][j] - runs[i].push[j]);
+      sp += Math.max(0, runs[i].push[j] - DEMAND[i][j]); });
+    return { title:esc(BAGS[i].name) + ', all five boutiques',
+      text:'One bag, one season. Planned <b>' + fmt(F_BAG[i]) + '</b>, asked for <b>'
+        + fmt(D_BAG[i]) + '</b>' + (ga && sp
+        ? '. Underneath that: ' + sw('miss') + ' <b>' + fmt(ga)
+          + '</b> the shelves could not serve and ' + sw('spare') + ' <b>' + fmt(sp)
+          + '</b> sitting where nobody wants them — in the same bag, at '
+          + 'the same moment. The warehouse can still answer the shortfall. It '
+          + 'can do nothing at all about the surplus: stock cannot walk from one '
+          + 'boutique to another.'
+        : ga ? ' — and ' + sw('miss') + ' <b>' + fmt(ga)
+               + '</b> the shelves could not serve, spread across the row.'
+             : ' — and ' + sw('spare') + ' <b>' + fmt(sp)
+               + '</b> sitting where nobody wants them.') };
+  }
+  if(k === 'tot'){
+    let ga = 0, sp = 0;
+    BAGS.forEach(function(b, i){ BOUTIQUES.forEach(function(c, j){
+      ga += Math.max(0, DEMAND[i][j] - runs[i].push[j]);
+      sp += Math.max(0, runs[i].push[j] - DEMAND[i][j]); }); });
+    return { title:'Now the whole board',
+      text:'<b>' + fmt(F_TOTAL) + '</b> planned. <b>' + fmt(rowSum(D_BAG))
+        + '</b> asked for. The total was right. Underneath it, ' + sw('miss')
+        + ' <b>' + fmt(ga) + '</b> the shelves could not serve'
+        + (sp ? ' and ' + sw('spare') + ' <b>' + fmt(sp)
+                + '</b> sitting where nobody wants them. '
+                + 'Every mistake on this board is a mistake of place, not of '
+                + 'volume.'
+              : ' — and nothing stranded at all, because at a ' + spPick
+                + '% push almost nothing was placed. The volume was right and '
+                + 'the shelves were still empty.') };
+  }
+  const i = Number(k.split(',')[0]), j = Number(k.split(',')[1]);
+  const f = FORECAST[i][j], d = DEMAND[i][j], given = runs[i].push[j];
+  const ga = Math.max(0, d - given), sp = Math.max(0, given - d);
+  const first = walkCells()[0];
+  if(sp) return {
+    /* "the same bag" is only true when it IS the same bag, which it is at 28
+       of the 40 combinations and not at the other 12 */
+    title:(i === first.i ? 'The same bag, the other side of the world'
+                         : 'Somewhere else, the opposite problem'),
+    text:'<b>' + fmt(given) + '</b> ' + esc(BAGS[i].name) + 's went to '
+      + esc(BOUTIQUES[j]) + '. It asked for <b>' + fmt(d) + '</b>. <b>' + fmt(sp)
+      + '</b> are sitting there while another boutique turns people away. '
+      + 'The ' + sw('spare') + ' is not a cushion — it is ' + fmtE(ECON.cost)
+      + ' each, already spent, in the wrong city.' };
+  if(k === first.i + ',' + first.j || ga >= first.v) return {
+    title:esc(BOUTIQUES[j]) + ' asked for more than we planned',
+    text:sw('plan') + ' the plan for ' + esc(BAGS[i].name) + ' in '
+      + esc(BOUTIQUES[j]) + ': <b>' + fmt(f) + '</b>.<br>'
+      + sw('real') + ' what the season actually asked for: <b>' + fmt(d)
+      + '</b>.<br>The third bar is that one again, cut where the shelf ran out: '
+      /* The price belongs to the beat that can charge it. Quoting 1 000 EUR
+         here needed a hedge to stay true, and the hedge made the sentence
+         hard to read - so the figure goes and the hedge becomes the point. */
+      + '<b>' + fmt(given) + '</b> served, then ' + sw('miss') + ' <b>' + fmt(ga)
+      + '</b> the shelf could not serve — <b>if nothing reaches them</b>. '
+      + 'The warehouse has not shipped yet.' };
+  /* the no-surplus board: the cell the forecast came closest to getting right */
+  return { title:'The one we very nearly got right',
+    text:'Planned <b>' + fmt(f) + '</b> for ' + esc(BAGS[i].name) + ' in '
+      + esc(BOUTIQUES[j]) + ', and the season asked for <b>' + fmt(d) + '</b>. '
+      + (ga ? 'The forecast was all but exact — and the shelf still ran <b>'
+              + fmt(ga) + '</b> short, because at a ' + spPick + '% push most of '
+              + 'that bag never left the warehouse. Forecasting better does not '
+              + 'fix this.'
+            : 'Right forecast, right place, nothing left over. One cell in '
+              + 'twenty-five.') };
+}
+
+/* a stop is one cell, or a whole row of them */
+function spotTargets(k){
+  if(k === 'tot') return [el('dc-tot')].filter(Boolean);
+  if(k.indexOf('row:') === 0){
+    const i = Number(k.slice(4));
+    return BOUTIQUES.map(function(c, j){ return el('dc-' + i + '-' + j); })
+      .concat([el('dc-s-' + i)]).filter(Boolean);
+  }
+  return [el('dc-' + k.replace(',', '-'))].filter(Boolean);
+}
+
+function spotlight(k, beat){
+  if(spotTeardown){ spotTeardown(); spotTeardown = null; }
+  if(!k) return;
+  const targets = spotTargets(k);
+  if(!targets.length) return;
+  const target = targets[0];
+  const root = el('spot-root');
+  const mask = document.createElement('div');
+  mask.className = 'spot-mask spotlit';
+  const hole = document.createElement('div');
+  hole.className = 'spot-hole';
+  const card = document.createElement('div');
+  card.className = 'spot-card';
+  const c = spotCard(k);
+  /* Each card says where the NEXT press actually goes. Saying "the next one"
+     on the last stop of the walk sent the room looking for a fourth cell, and
+     saying "for all twenty-five" on the grand total promised something that
+     was already on the screen behind it. */
+  const go = k === 'tot' ? 'for the warehouse'
+           : beat === walkStops().length ? 'for all twenty-five'
+           : 'for the next one';
+  card.innerHTML = '<h4>' + c.title + '</h4><p>' + c.text + '</p>'
+                 + '<span class="go">↵ Enter ' + go + '</span>';
+  root.appendChild(mask); root.appendChild(hole); root.appendChild(card);
+
+  const layout = function(){
+    const r = spotRect(targets);
+    if(!r) return;
+    const pad = 5;
+    hole.style.left   = (r.left - pad) + 'px';
+    hole.style.top    = (r.top - pad) + 'px';
+    hole.style.width  = (r.right - r.left + pad * 2) + 'px';
+    hole.style.height = (r.bottom - r.top + pad * 2) + 'px';
+    card.classList.remove('below', 'above', 'rightof', 'leftof', 'clamped');
+    const pos = spotPlace(card, { left:r.left - pad, top:r.top - pad,
+                                  right:r.right + pad, bottom:r.bottom + pad });
+    card.style.left = pos.left + 'px';
+    card.style.top  = pos.top + 'px';
+    card.classList.add(pos.side);
+  };
+  /* bring the cell into view BEFORE pointing at it — a spotlight on something
+     below the fold helps nobody — and do it once, before the listeners are
+     attached, so it cannot feed back into itself */
+  const t0 = spotRect(targets) || target.getBoundingClientRect();
+  if(t0.top < 90 || t0.bottom > window.innerHeight - 20){
+    const bar = document.querySelector('header.topbar');
+    window.scrollTo(0, Math.max(0, window.scrollY + t0.top
+      - (bar ? bar.getBoundingClientRect().height : 0) - 26));
+  }
+  layout();
+  /* a resize fires before the reflow finishes; a ResizeObserver reports after
+     layout is complete, so it measures the settled position */
+  const relayout = function(){ layout(); requestAnimationFrame(layout); };
+  let ro = null;
+  if(window.ResizeObserver){
+    ro = new ResizeObserver(layout);
+    ro.observe(document.documentElement);
+    ro.observe(target);
+  }
+  window.addEventListener('resize', relayout);
+  window.addEventListener('scroll', layout, true);
+  /* clicking the dimming advances rather than dismissing: a facilitator
+     driving with the mouse must never be able to desync the beat from what
+     is on screen */
+  mask.addEventListener('click', function(){ advance(); });
+  card.addEventListener('click', function(){ advance(); });
+
+  spotTeardown = function(){
+    if(ro) ro.disconnect();
+    window.removeEventListener('resize', relayout);
+    window.removeEventListener('scroll', layout, true);
+    root.innerHTML = '';
+  };
+}
+
+/* =========================================================================
+   10. WIRING — slides, beats and keys
+   =========================================================================
+   Each stage carries its own draw call, so inserting one never shifts an
+   index something else was relying on. The strategy is set before its
+   consequences are shown, the same order the game itself uses: you commit,
+   then you find out. */
+const STAGES = [
+  { id:'s0', title:'The board' },
+  { id:'s1', title:'Your combination', on:sayTrial },
+  /* Three slides became one. They showed three tables that were four-fifths
+     the same picture, and a room reading the second spent its first ten
+     seconds working out whether anything had changed. */
+  { id:'sd', title:'The season', on:renderSeason },
+  /* and the question its last beat asks is answered by the first beat here */
+  { id:'sf', title:'The limit, and what flexibility can', on:renderFlexSlide },
+  { id:'s2', title:'Every combination', on:renderMatrices }
+];
+let stage = 0;
+
+/* Enter and the big button do whatever this slide still has to give before
+   they move on. */
+function stepWithin(){
+  const id = STAGES[stage].id, n = BEATS[id];
+  if(!n || beats[id] >= n - 1) return false;
+  beats[id]++; STAGES[stage].on(); paintProgress(); afterBeat();
+  return true;
+}
+
+/* renderStage scrolls to the top on arrival; a beat used to inherit whatever
+   scroll the previous beat left behind, so a facilitator who had scrolled to
+   read the warehouse roll-up took the next beat mid-table. The exception is a
+   beat that owns a spotlight: that scrolls its own cell into view, and
+   fighting it would put the hole off screen. */
+function afterBeat(){
+  if(document.querySelector('.spot-card')) return;
+  window.scrollTo(0, 0);
+}
+
+/* Back has to un-beat before it leaves the slide. With one internal step per
+   slide a facilitator who overshot could live with re-entering at the end;
+   on a six-beat slide they cannot, and the walk could never be replayed. */
+function stepBackWithin(){
+  const id = STAGES[stage].id, n = BEATS[id];
+  if(!n || beats[id] <= 0) return false;
+  beats[id]--; STAGES[stage].on(); paintProgress(); afterBeat();
+  return true;
+}
+
+function advance(){
+  if(stepWithin()) return;
+  if(stage < STAGES.length - 1){ stage++; renderStage(); }
+}
+
+function retreat(){
+  if(stepBackWithin()) return;
+  if(stage > 0){ stage--; renderStage(); }
+}
+
+/* Named navigation. Seventeen harnesses used to do
+   `stage = STAGES.findIndex(s => s.id === 'sw')`, which after a rename
+   silently returns -1 and makes renderStage throw on el(undefined) — leaving
+   the deck on the previous slide while every later assertion tests the wrong
+   one. Failing loudly is worth the four lines. */
+function goStage(id, atBeat){
+  const i = STAGES.findIndex(function(s){ return s.id === id; });
+  if(i < 0) throw new Error('no such stage: ' + id);
+  stage = i;
+  if(BEATS[id] !== undefined) beats[id] = Math.max(0, Math.min(BEATS[id] - 1, atBeat || 0));
+  renderStage();
+}
+
+/* Slide dots, and for a slide with beats a second strip showing how many
+   presses it still owes. A room tolerates a dense slide far better when it
+   can see the end of it, and a facilitator can see the cost before paying it. */
+function paintProgress(){
+  el('dots').innerHTML = STAGES.map(function(x, i){
+    return '<i class="' + (i < stage ? 'done' : i === stage ? 'now' : '') + '"></i>'; }).join('');
+  const id = STAGES[stage].id, n = BEATS[id];
+  const strip = el('beatdots');
+  strip.classList.toggle('hidden', !n);
+  strip.innerHTML = n ? Array.from({ length:n }, function(_, i){
+    return '<i class="' + (i <= beats[id] ? 'done' : '') + '"></i>'; }).join('') : '';
+  el('pill').textContent = (stage + 1) + ' / ' + STAGES.length
+    + (n ? ' · ' + (beats[id] + 1) + ' of ' + n : '');
+}
+
+function renderStage(){
+  if(spotTeardown){ spotTeardown(); spotTeardown = null; }
+  STAGES.forEach(function(s, i){ el(s.id).classList.toggle('hidden', i !== stage); });
+  el('stitle').textContent = STAGES[stage].title;
+  el('btn-prev').disabled = stage === 0;
+  /* Next is dead only on the last beat of the last slide */
+  const last = STAGES[stage].id, n = BEATS[last];
+  const end = stage === STAGES.length - 1 && (!n || beats[last] >= n - 1);
+  el('btn-next').disabled = end;
+  el('btn-next').innerHTML = end ? 'End' : 'Next<span class="kbd">↵ Enter</span>';
+  if(STAGES[stage].on) STAGES[stage].on();
+  paintProgress();
+  window.scrollTo(0, 0);
+}
+
+/* the bar's real height, not a guess: the page must always be able to scroll
+   clear of it */
+function padForBar(){
+  const bar = document.querySelector('.footbar');
+  document.querySelector('main').style.paddingBottom = (bar.offsetHeight + 34) + 'px';
+}
+
+/* Bar widths are a percentage of a column that changes with the window, so a
+   label that fitted at 1600px does not at 900px. Re-measure whatever is on
+   screen instead of leaving the placement frozen at first draw. */
+function refitVisible(){
+  /* fitBars only touches .cb bars. The season grid has none - it is drawn
+     out of .tri - and #place-table has plenty and was missing, so the one
+     table on the page whose labels actually needed re-measuring was the one
+     left frozen at first draw. */
+  ['board-table','place-table','sd-out','limit-body','flex-table'].forEach(function(id){
+    const h = el(id);
+    if(h && h.offsetParent !== null) fitBars(h);
+  });
+}
+
+function init(){
+  padForBar();
+  window.addEventListener('resize', function(){ padForBar(); refitVisible(); });
+  renderBoard();
+  /* moving a slider changes the strategy, so the season played out under the
+     old one is no longer the answer: the warehouse step replays */
+  const repick = function(){
+    buildSegs(); sayTrial();
+    /* a new strategy places the stock differently, so the table on the
+       strategy slide follows immediately */
+    renderPlacement();
+    /* A different combination is a different season, so the season slide goes
+       back to its first beat: re-entering it half-revealed under numbers the
+       room has never seen is worse than starting it again. */
+    beats.sd = 0;
+    whUsed = false; demandShown = false;
+    skipLabel();
+    const id = STAGES[stage].id;
+    if(id === 'sd') renderSeason();
+    if(id === 'sf') renderFlexSlide();
+    paintProgress();
+  };
+  ['', '2', '3'].forEach(function(n){
+    el('sl' + n + '-st').addEventListener('input', function(){
+      stPick = Number(this.value); repick(); });
+    el('sl' + n + '-sp').addEventListener('input', function(){
+      spPick = Number(this.value); repick(); });
+  });
+  buildSegs();
+  sayTrial();
+  skipLabel();
+  /* the strategy is set here and played out on the next slide */
+  el('btn-test').addEventListener('click', function(){ goStage('sd', 0); });
+  el('btn-skip').addEventListener('click', function(){ goStage('sd', 0); });
+  /* The sliders on this slide pick the combination; this plays it and adds it
+     to the matrix. (Pressed without moving a slider first it re-tests the
+     square already cached and nothing visibly happens - which is fair, since
+     nothing has been asked for.) */
+  el('btn-test2').addEventListener('click', function(){ whUsed = true; testCombo(); });
+  /* the switch re-reads the squares already played; it never plays new ones */
+  el('ck-pool').addEventListener('change', function(){
+    poolOn = this.checked; renderMatrices();
+  });
+  el('btn-fill').addEventListener('click', fillAll);
+  el('btn-next').addEventListener('click', advance);
+  el('btn-prev').addEventListener('click', retreat);
+  /* A button clicked with the mouse keeps the focus ring, and the next Enter
+     then fires that button again instead of moving the slide on. Keyboard
+     activation reports detail 0 and keeps its focus, as it must. */
+  document.addEventListener('click', function(e){
+    const b = e.target.closest && e.target.closest('button');
+    if(b && e.detail > 0) b.blur();
+  });
+
+  document.addEventListener('keydown', function(e){
+    /* A slider keeps the focus after it is dragged, and a range input does
+       nothing with Enter — so Enter still moves the page on. Arrows and Space
+       belong to the slider and are left alone. */
+    const range = e.target.tagName === 'INPUT' && e.target.type === 'range';
+    if(range && e.key !== 'Enter') return;
+    if(!range && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    /* Enter and Space belong to whatever is focused when that is a control:
+       pressing Space on Stop or Back used to advance the slide instead */
+    if((e.key === 'Enter' || e.key === ' ')
+       && /^(BUTTON|A)$/.test(e.target.tagName)) return;
+    if(e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight'){
+      e.preventDefault(); advance();
+    }else if(e.key === 'ArrowLeft'){
+      e.preventDefault(); retreat();
+    }
+  });
+  renderStage();
+}
+init();
+</script>
+</body>
+</html>

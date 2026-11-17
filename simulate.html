@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fast forward — five boutiques</title>
+<title>Fast forward — two boutiques</title>
 <style>
 /* =========================================================================
    Same discipline as the game and the debrief: one file, no network, system
@@ -112,7 +112,7 @@
   /* the same slider the game uses, so the two pages feel like one tool */
   .picks{ display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
           gap:6px 40px; margin:4px 0 2px; }
-  .pick label{ display:block; font-size:12px; font-weight:800; color:var(--ink-soft);
+  .pick > label:first-child{ display:block; font-size:12px; font-weight:800; color:var(--ink-soft);
                text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px; }
   .sliderbox{ padding:4px 4px 0; }
   .slidernow{ font-size:26px; font-weight:800; line-height:1; color:var(--accent);
@@ -136,6 +136,44 @@
                font-variant-numeric:tabular-nums; }
   .ticks span.on{ color:var(--accent); }
 
+  /* ----------------------------------------------------------- stock bar */
+  /* Where the pieces are at launch, in three parts, under the slider that
+     sets them: in the boutiques, in the warehouse, in the production pool.
+     The pool was only ever a sentence and a table column, and a room kept
+     hearing it as a second warehouse. Drawn beside the other two it is seen
+     to be carved out of what is held back - half of it - and hatched because
+     it is line time, not stock: nothing there exists until it is called on.
+     Proportions are flex-grow, so the three always fill the track whatever
+     the rounding, and a part worth nothing takes no room. */
+  .stockbar{ margin:12px 4px 0; }
+  .sbtrack{ display:flex; height:28px; border-radius:7px; overflow:hidden;
+            background:var(--line-soft); }
+  .sbtrack i{ display:block; flex:0 1 0; min-width:0; height:100%;
+              transition:flex-grow .3s ease; }
+  .sbtrack i + i.on{ border-left:3px solid var(--surface); }
+  .sbtrack i.bq{ background:var(--accent); }
+  .sbtrack i.wh{ background:#8b98a5; }
+  .sbtrack i.pl{ background:repeating-linear-gradient(135deg,
+                   #35a06b 0, #35a06b 7px, #9bd3b3 7px, #9bd3b3 14px); }
+  .sbkey{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:4px 14px;
+          margin-top:7px; }
+  .sbk{ display:block; font-size:13px; font-weight:800; color:var(--ink-soft);
+        line-height:1.25; }
+  .sbk i{ display:inline-block; width:14px; height:11px; border-radius:3px;
+          margin-right:6px; vertical-align:-1px; }
+  .sbk.bq i{ background:var(--accent); }
+  .sbk.wh i{ background:#8b98a5; }
+  .sbk.pl i{ background:repeating-linear-gradient(135deg,
+               #35a06b 0, #35a06b 3px, #9bd3b3 3px, #9bd3b3 6px); }
+  .sbk b{ display:block; font-size:22px; line-height:1.1; color:var(--ink);
+          font-variant-numeric:tabular-nums; margin-top:1px; }
+  .sbk em{ display:block; font-style:normal; font-weight:600; font-size:12px; }
+  .sbk.none b{ color:var(--line); }
+  .sbk.none{ color:#8b96a1; }
+  /* the two buttons of the matrix slide, under the slider they belong to */
+  .pickacts{ display:flex; gap:10px; flex-wrap:wrap; margin:14px 4px 0; }
+  .pick .switch{ margin:12px 4px 0; }
+
   /* ---------------------------------------------------------- demand grid */
   /* three bars stacked in a cell: plan, reality, outcome */
   /* wide enough for the outcome row's worst case - served, sent, missing and
@@ -143,7 +181,7 @@
      number that says what a cell cost is the whole failure this replaced */
   .tri{ display:block; min-width:152px; }
   /* Every figure is the colour of the bar it counts, and the one that costs
-     money is set large. A room reading twenty-five cells from five metres
+     money is set large. A room reading a board of cells from five metres
      reads a field of signed colour first and the small numerals only if it
      wants them - and the large figures line up down the right edge of every
      cell, so the table still scans as a picture. */
@@ -397,7 +435,7 @@
 <!-- ============================================================ 1 BOARD -->
 <section id="s0">
   <div class="card">
-    <h1>Fast forward — one season, five boutiques</h1>
+    <h1>Fast forward — one season, two boutiques</h1>
     <div class="note" style="margin:14px 0 0;">
       <b>One difference in the simulation:</b> the warehouse resupplies a boutique
       instantaneously when it runs out of stock.
@@ -406,9 +444,9 @@
 
   <div class="card">
     <h2>The forecast</h2>
-    <p class="small muted" style="margin:4px 0 14px;">
-      Two pieces per boutique per bag per week, over thirteen weeks — 650 in total.
-    </p>
+    <!-- filled in by renderBoard, so the total is the board's and not a figure
+         typed here that the board can walk away from -->
+    <p class="small muted" style="margin:4px 0 14px;" id="board-lead"></p>
     <div id="board-table"></div>
     <!-- The board is worth reading once. A facilitator running this for the
          fifth time wants the argument, not the introduction, so there is a
@@ -462,7 +500,7 @@
 
      Now ONE table is built once and transformed in place: the plan, then
      three spotlit cells that teach the room to read a cell before it faces
-     twenty-five, then all twenty-five, then the warehouse's answer drawn on
+     the whole board, then the whole board, then the warehouse's answer drawn on
      top of them. The block BELOW the grid is replaced at each beat, never
      appended, so the grid itself never leaves the top of the screen. -->
 <section id="sd" class="hidden">
@@ -491,6 +529,23 @@
                  aria-label="Target sell-through">
           <div class="ticks" id="ticks2-st"></div>
         </div>
+        <div class="pickacts">
+          <button class="btn-primary" id="btn-test2">Test another combination</button>
+          <button class="btn-ghost hidden" id="btn-fill">Test all combinations</button>
+        </div>
+        <!-- The pool was argued on one combination on the slide before. Here it
+             can be switched on and off over the whole field, which is the only
+             way to see that it moves the BEST square and not just the numbers
+             in it. It sits level with the bar it changes: flip it and half of
+             the warehouse becomes the pool, in front of the room. Under the
+             buttons and not over them, so that it appears without moving the
+             button under the facilitator's hand - and once every square is
+             played and the buttons go, it is what is left there. -->
+        <label class="switch" id="pool-switch">
+          <input type="checkbox" id="ck-pool">
+          <span>Production capacity pool — <b>50%</b> of everything not in the
+            boutiques at launch, shared across the five bags</span>
+        </label>
       </div>
       <div class="pick">
         <label>In the boutiques at launch</label>
@@ -500,21 +555,11 @@
                  aria-label="Share of production placed in the boutiques at launch">
           <div class="ticks" id="ticks2-sp"></div>
         </div>
+        <!-- the three places a piece can be at launch; follows the pool switch -->
+        <div class="stockbar" id="stock2"></div>
       </div>
     </div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:2px;">
-      <button class="btn-primary" id="btn-test2">Test another combination</button>
-      <button class="btn-ghost hidden" id="btn-fill">Test all combinations</button>
-    </div>
-    <!-- The pool was argued on one combination two slides ago. Here it can be
-         switched on and off over the whole field, which is the only way to see
-         that it moves the BEST square and not just the numbers in it. -->
-    <label class="switch" id="pool-switch">
-      <input type="checkbox" id="ck-pool">
-      <span>Production capacity pool — <b>50%</b> of everything not in the
-        boutiques at launch, shared across the five bags</span>
-    </label>
-    <div style="margin-top:12px;" class="matrices">
+    <div style="margin-top:16px;" class="matrices">
       <div><h3 style="margin-bottom:8px;">Turnover</h3><div class="mwrap" id="mx-t"></div></div>
       <div><h3 style="margin-bottom:8px;">Margin</h3><div class="mwrap" id="mx-m"></div></div>
     </div>
@@ -576,6 +621,9 @@
                  aria-label="Share of production placed in the boutiques at launch">
           <div class="ticks" id="ticks3-sp"></div>
         </div>
+        <!-- the three places a piece can be at launch: here the pool is the
+             subject of the slide, so it is always drawn -->
+        <div class="stockbar" id="stock3"></div>
       </div>
     </div>
     <div id="flex-table" style="margin-top:14px;"></div>
@@ -600,29 +648,35 @@
 /* =========================================================================
    1. THE BOARD
    =========================================================================
-   Same five bags as the game, five boutiques instead of two. The forecast total is
-   650 — two pieces per boutique per bag per week over thirteen weeks — split
-   across the collection and the network the way a real one is weighted.
+   THE GAME'S OWN BOARD (since November 2026): the same five bags, the same
+   two boutiques, the same forecast - two pieces per boutique per bag per week
+   over thirteen weeks, 260 in all - and the same season, so a room that has
+   just played can put its own result beside every figure on these slides.
+   (It was a five-boutique network of 650 pieces with a forecast of its own;
+   that deck and its spec are kept in archive/simulate-five-boutiques.html and
+   archive/SIMULATE-SPEC-five-boutiques.md.)
 
    HOW THIS PAGE DIFFERS FROM THE GAME AND THE DEBRIEF, in full:
      1. There are no weeks. The season resolves in one shot: one demand
-        number per bag per boutique for the whole thirteen weeks.
-     2. The warehouse resupplies instantly and perfectly — no lead time, and
-        no guessing where demand will land. This page is therefore the upper
-        bound of what central stock can ever be worth.
-     3. Five boutiques, each with its own forecast, and the launch push follows
-        those forecasts instead of being split equally.
-     4. Stock CAN still be stranded, and that is the point of the second
+        number per bag per boutique for the whole thirteen weeks - the game's
+        weekly table summed.
+     2. The warehouse resupplies instantly and perfectly — no lead time, no
+        weekly shipping maximum, and no guessing where demand will land. This
+        page is therefore the upper bound of what central stock can ever be
+        worth: its margin on a square is what a team playing that square
+        perfectly would reach in the game (to within the week of transit).
+     3. Stock CAN still be stranded, and that is the point of the second
         decision. The warehouse refills a boutique that runs out, but it
         cannot take back what was already pushed: a bag placed in a boutique
-        the season does not want is stuck there while another boutique turns
-        customers away. Measured on this board, at the margin optimum,
-        pushing 30% instead of 100% is worth 122 sales — 122 000 € — and that
+        the season does not want is stuck there while the other one turns
+        customers away. Measured on this board, at the margin optimum (80%),
+        pushing 30% instead of 100% is worth 26 sales — 26 000 € — and that
         is the whole slope of the push axis. What 2 removes is the LEAD TIME,
         not the placement error.
-   Production, price, unit cost and the fixed cost are set exactly as in the
-   game: production is the forecast divided by the sell-through targeted, and
-   the fixed cost is 45% of forecast sales.                                  */
+   Production, price, unit cost, the launch split and the fixed cost are set
+   exactly as in the game: production is the forecast divided by the
+   sell-through targeted, the launch share is halved between the boutiques,
+   and the fixed cost is 45% of forecast sales (120 000 €).                  */
 const BAGS = [
   { name:'Aveline',  color:'#12395e' },
   { name:'Bastide',  color:'#2f6ea8' },
@@ -649,38 +703,40 @@ function bagIcon(i, size){
        + 'stroke-linecap="round"/></svg>';
 }
 
-const BOUTIQUES = ['Paris', 'Tokyo', 'New York', 'Shanghai', 'London'];
+const BOUTIQUES = ['Paris', 'Tokyo'];
 
-/* Forecast: 37.5 / 30 / 15 / 12.5 / 5 % across the bags, 30 / 25 / 20 / 15 /
-   10 % across the boutiques. Hard-coded so every room sees the same board. */
+/* Forecast: the game's. Two pieces per boutique per bag per week over
+   thirteen weeks - 26 a cell, 52 a bag, 260 in all. */
 const FORECAST = [
-  [ 73, 61, 49, 37, 24],
-  [ 59, 49, 39, 29, 19],
-  [ 29, 24, 20, 15, 10],
-  [ 25, 20, 16, 12,  8],
-  [ 10,  8,  6,  5,  3]
+  [ 26, 26],
+  [ 26, 26],
+  [ 26, 26],
+  [ 26, 26],
+  [ 26, 26]
 ];
-/* What actually sold. The TOTAL is right — 650 forecast, 650 sold-able — so
-   nothing here is a volume story at company level. Every error is in the
-   spread: which bag, and which boutique.
+/* What actually sold: the game's weekly DEMAND table (index.html) summed over
+   its thirteen weeks, bag by bag and boutique by boutique. check-drift.mjs
+   compares the two files, so the deck cannot quietly play another season than
+   the game. Only the season totals matter here: the week-by-week shape can
+   change in the game without touching this page.
 
-   Per bag, a clean ladder:  Aveline +10  Bastide 0  Calanque −10
-                             Doriane −30  Estérel +30
-   The worst two forecasts are on the two smallest bags, and the biggest
-   seller is not the one that runs hot — otherwise a single row of the matrix
-   carries the whole answer.
+   The TOTAL is right — 260 forecast, 260 sold-able — so nothing here is a
+   volume story at company level. Every error is in the spread: which bag,
+   and which boutique.
 
-   Per boutique, ±50 and no one in the middle, because that is how a season
-   actually lands: Paris and New York halve, Tokyo and Shanghai run 50% over,
-   London 45% over. Tokyo overtakes Paris. This is what gives the launch push
-   a price — with a mild boutique error the warehouse covers every gap and the
-   push decision is worth nothing until it reaches 100%. */
+   Per bag:       Aveline +30%   Bastide +10%   Calanque −10%
+                  Doriane −30%   Estérel 0
+   Per boutique:  Paris 171 against 130 planned, Tokyo 89. Four bags sell 2.6
+                  times more in Paris than in Tokyo; Doriane does the reverse.
+   The launch share is split equally between the two, so whatever is pushed
+   at launch is half in the wrong city - that is what gives the launch push
+   its price. */
 const DEMAND = [
-  [ 40, 101, 27, 61, 39],
-  [ 30,  74, 19, 44, 28],
-  [ 13,  33,  9, 20, 13],
-  [  9,  21,  6, 13,  8],
-  [  6,  16,  4, 10,  6]
+  [ 49, 19],
+  [ 41, 16],
+  [ 34, 13],
+  [ 10, 26],
+  [ 37, 15]
 ];
 
 const ECON = { price:1000, cost:200, fixedPct:0.45 };
@@ -690,18 +746,29 @@ const F_BAG  = FORECAST.map(rowSum);
 const D_BAG  = DEMAND.map(rowSum);
 const F_TOTAL = rowSum(F_BAG);
 /* rounded up to the nearest 10 000 so the briefing carries a round number:
-   45% of forecast sales is 117 000 in the game and 292 500 here, which read
-   like the output of a spreadsheet rather than a budget. Safe to round: the
+   45% of forecast sales is 117 000, here as in the game, which reads like the
+   output of a spreadsheet rather than a budget - so 120 000. Safe to round: the
    fixed cost is a constant in the objective, so it moves the LEVEL of every
    square and the CHOICE of none - swept from 0 to 90% of forecast sales, the
    best combination never budged. */
 ECON.fixed = Math.ceil(ECON.fixedPct * F_TOTAL * ECON.price / 10000) * 10000;
-/* Each bag is pushed out on its OWN forecast row, not on one network-wide
-   share applied to the whole collection: a bag that is expected to sell
-   differently across the network is placed that way. */
+/* Each bag's forecast share per boutique: one half each on this board. */
 const BAG_SHARE = FORECAST.map(function(row, i){
   return row.map(function(v){ return v / F_BAG[i]; });
 });
+
+/* The board in words, so no sentence has to be rewritten when the board
+   changes: the five-boutique deck said "five" and "twenty-five" in a dozen
+   places, typed out. */
+const NUMWORD = { 2:'two', 3:'three', 4:'four', 5:'five', 6:'six', 8:'eight',
+                  10:'ten', 15:'fifteen', 20:'twenty', 25:'twenty-five' };
+const nword = function(n){ return NUMWORD[n] || String(n); };
+const N_CELLS = BAGS.length * BOUTIQUES.length;
+const ALL_BQ  = BOUTIQUES.length === 2 ? 'both boutiques'
+              : 'all ' + nword(BOUTIQUES.length) + ' boutiques';
+const THE_BQ  = 'the ' + nword(BOUTIQUES.length) + ' boutiques';
+/* a season cell is wide enough to carry its figures beside its bars */
+const WIDE_CELLS = BOUTIQUES.length <= 3;
 
 const ST_LEVELS = [60, 70, 80, 90, 100];
 /* No boutique opens a launch with an empty window, so the axis starts at 30%
@@ -722,6 +789,22 @@ const fmtK = function(n){
 };
 const esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){
   return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+
+/* What each boutique opens with. The game's own rule (index.html,
+   splitStock): the launch share is divided equally between the boutiques and
+   each one's part is rounded to a whole piece, so at 80% / 50% a boutique
+   opens with 16 of the 65 exactly as it does in the game - not 17 and 16,
+   which is what rounding the share first and splitting it afterwards gives.
+   Only where that rounding would place more than was made (100% of an odd
+   production) does it fall back to the largest-remainder split.
+   ONE function for both engines: the rigid season and the pool used to round
+   the same launch two different ways. */
+function placeAtLaunch(i, production, spPct){
+  const each = BAG_SHARE[i].map(function(sh){
+    return Math.round(production * spPct / 100 * sh); });
+  if(rowSum(each) <= production) return each;
+  return split(production, BAG_SHARE[i]);
+}
 
 /* largest remainder: an integer split always sums back to the total */
 function split(total, shares){
@@ -748,8 +831,8 @@ function split(total, shares){
    none is assumed.                                                          */
 function runBag(i, stPct, spPct, unitCost){
   const production = Math.round(F_BAG[i] / (stPct / 100));
-  const pushTotal  = Math.min(production, Math.round(production * spPct / 100));
-  const push       = split(pushTotal, BAG_SHARE[i]);
+  const push       = placeAtLaunch(i, production, spPct);
+  const pushTotal  = rowSum(push);
   const central    = production - pushTotal;
   const sold = [], short = [];
   for(let j = 0; j < BOUTIQUES.length; j++){
@@ -825,15 +908,11 @@ function computeFlex(stPct, spPct){
   let pushTot = 0, centTot = 0, capTot = 0, shelfTot = 0, resTot = 0, shortTot = 0;
   BAGS.forEach(function(b, i){
     const production = Math.round(F_BAG[i] / (stPct / 100));
-    let target = Math.round(F_BAG[i] * (spPct / 100) / (stPct / 100));
-    if(target > production) target = production;
-    /* The original splits the launch FLAT across its stores, because it has
-       no store-level forecast to split by — equal placement against unequal
-       demand is its lesson. This board does have one, and every table on the
-       page is built on it, so the launch is placed on each boutique's
-       forecast share exactly as the rigid engine does. What is imported from the original is the pool, not the
+    /* placed exactly as the rigid engine places it - the same function - so
+       the two seasons in the side-by-side differ by the pool and by nothing
+       else. What is imported from the original is the pool, not the
        placement. */
-    const shelfQty = split(target, BAG_SHARE[i]);
+    const shelfQty = placeAtLaunch(i, production, spPct);
     const pushed = rowSum(shelfQty);
     const pool = production - pushed;
     const central = Math.ceil(pool / 2);      /* this bag's own reserve */
@@ -994,9 +1073,9 @@ function renderBoard(){
   h += '<p class="small muted" style="margin-top:12px;max-width:none;">'
      + 'One bag sells for ' + fmtE(ECON.price) + ', costs ' + fmtE(ECON.cost)
      + ' to make whether it sells or not, and the season carries a fixed cost of '
-     /* derived, and the rounding named: 45% of forecast sales is 292 500 here
-        and the charge is 300 000, so "about 45%" left a facilitator's own
-        arithmetic landing 7 500 short of the figure on the slide */
+     /* derived, and the rounding named: 45% of forecast sales is 117 000 and
+        the charge is 120 000, so "about 45%" left a facilitator's own
+        arithmetic landing 3 000 short of the figure on the slide */
      + fmtE(ECON.fixed) + ' — ' + Math.round(ECON.fixedPct * 100)
      + '% of forecast sales, rounded up. '
      /* the margin writes leftover off in full; said here because "costs X to
@@ -1004,6 +1083,9 @@ function renderBoard(){
         which leaves room to read the stock as still carrying value */
      + 'Anything unsold at the end is worth nothing.</p>';
   el('board-table').innerHTML = h;
+  el('board-lead').innerHTML = 'Two pieces per boutique per bag per week, over thirteen weeks — <b>'
+    + fmt(F_TOTAL) + '</b> in total. The board you have just played: the same bags, the same '
+    + nword(BOUTIQUES.length) + ' boutiques, the same season.';
   fitBars('board-table');
 }
 
@@ -1012,7 +1094,7 @@ function renderBoard(){
    =========================================================================
    Six beats on one slide. It was two slides and two buttons; the buttons are
    gone and Enter drives the whole thing, because the point is the surprise:
-   the plan, three cells taught one at a time, all twenty-five, and then what
+   the plan, three cells taught one at a time, the whole board, and then what
    the warehouse can and cannot do about them.
    */
 /* Beats. A slide with more than one thing to say holds a beat index, and
@@ -1057,6 +1139,7 @@ function pickFollow(){
      can — that one only exists once the push is heavy enough, so it is a
      preference, not a requirement. */
   let best = null;
+  const walkRow = walkCells()[0].i;
   BAGS.forEach(function(b, i){
     const x = runBag(i, stPick, spPick);
     const over = [], under = [];
@@ -1075,11 +1158,18 @@ function pickFollow(){
       pairs.push({ a:over[0].j, b:(over[0].j + 1) % BOUTIQUES.length,
                    over:over[0].v, real:0, both:0 });
     pairs.forEach(function(c){
-      const cand = { i:i, a:c.a, b:c.b, both:c.both, real:c.real, over:c.over };
+      /* The bag the spotlight walked the room through, if it shows both sides.
+         With ten cells instead of twenty-five the two rings are a fifth of the
+         board: put on Estérel straight after three beats spent on Aveline,
+         they read as a new subject nobody introduced. */
+      const cand = { i:i, a:c.a, b:c.b, both:c.both, real:c.real, over:c.over,
+                     walk:(c.both && i === walkRow) ? 1 : 0 };
       if(!best) { best = cand; return; }
-      /* a real remaining loss first, then a genuine pair, then the biggest
-         over-push — never a bag with nothing sitting in the wrong boutique */
-      const better = (cand.real  - best.real)
+      /* the walk's own bag, then a real remaining loss, then a genuine pair,
+         then the biggest over-push — never a bag with nothing sitting in the
+         wrong boutique */
+      const better = (cand.walk  - best.walk)
+                  || (cand.real  - best.real)
                   || (cand.both  - best.both)
                   || (cand.over  - best.over);
       if(better > 0) best = cand;
@@ -1113,8 +1203,8 @@ function walkCells(){
       if(!closest || off < closest.off) closest = { i:i, j:j, v:ga, off:off };
     });
   });
-  /* At three of the forty combinations - 80/30, 90/30 and 100/30, one of them
-     the margin optimum a facilitator is likely to demo - almost everything is
+  /* At four of the forty combinations - 80/30, 90/30, 100/30 and 100/40, one
+     of them the margin optimum a facilitator is likely to demo - almost everything is
      held back and NOTHING is stranded anywhere on the board. The second stop
      would then have spotlighted a surplus of zero and said so in words that
      were simply false. It shows the cell the forecast got closest to instead,
@@ -1180,10 +1270,10 @@ function renderGrid(){
      reason for drawing bars instead of printing three numbers */
   /* Fill OUT first, then measure. Bar 3 draws sold + sent + missing + spare,
      and in an AGGREGATE the shortage and the surplus come from different
-     cells, so its total is demand PLUS spare - 777 against a 650 scale in the
+     cells, so its total is demand PLUS spare - 302 against a 260 scale in the
      grand total at the default. Scaling on max(forecast, demand, shelf) asked
-     that cell for 119.5% of its track; the segments used to be flex-shrinkable
-     and quietly took the 19.5% out of themselves, so amber never stuck out
+     that cell for 116% of its track; the segments used to be flex-shrinkable
+     and quietly took the 16% out of themselves, so amber never stuck out
      past the demand above it, which is the one thing it exists to do. Measure
      what the bars ask for, not what they are made of. */
   BAGS.forEach(function(b, i){
@@ -1251,26 +1341,33 @@ function renderGrid(){
     const outs = function(html){
       return '<span class="onums">' + html + '</span>';
     };
+    /* With two boutiques a cell is twice as wide as it was with five, and the
+       figures that needed a line of their own fit beside the bar they count.
+       That is 22px a row and six rows: the whole board, totals included, on
+       one screen instead of scrolling for its last line. */
+    const outRow = function(bars, html){
+      return WIDE_CELLS ? row(bars, html, 'out') : row(bars, '', 'out') + outs(html);
+    };
     if(!open)
       return '<span class="tri">'
            + row(bar(f, 'plan'), n(f, 'plan'))
            + row('', '')
-           + row('', '', 'out') + outs('<em class="q">?</em>') + '</span>';
+           + outRow('', '<em class="q">?</em>') + '</span>';
     const miss = Math.max(0, o.ga - o.se);
     return '<span class="tri">'
       + row(bar(f, 'plan'), n(f, 'plan'))
       + row(bar(d, 'real'), n(d, 'real'))
-      + row(bar(o.so, 'sold')
+      + outRow(bar(o.so, 'sold')
           + (o.se ? bar(o.se, 'sent')  : '')
           + (miss ? bar(miss, 'miss')  : '')
-          + (o.sp ? bar(o.sp, 'spare') : ''), '', 'out')
+          + (o.sp ? bar(o.sp, 'spare') : ''),
       /* A total can carry a shortage AND a surplus, so it wants four figures
          where a cell wants three. It drops the one that is not the point:
          what a total sold is already on the row above it in every cell that
          made it up. What the warehouse SENT stays, in every kind of cell — a
          green segment with no green figure beside it is the exact thing this
          line exists to fix. */
-      + outs((terse ? '' : n(o.so, 'sold') + ' ')
+             (terse ? '' : n(o.so, 'sold') + ' ')
            + (o.se ? n(o.se, 'sent', '+') + ' ' : '')
            + (miss ? n(miss, 'miss big', '−') : '')
            + (o.sp ? (miss ? ' ' : '') + n(o.sp, 'spare big', '+') : '')
@@ -1359,9 +1456,9 @@ function seasonWords(){
      + 'Nothing here is an outcome yet — the season has not happened.'],
     ['One boutique', null],
     ['One more boutique', null],
-    ['One bag, all five boutiques', null],
+    ['One bag, ' + ALL_BQ, null],
     ['What the season asked for',
-     'Now all twenty-five. You already know how to read one. The red is what '
+     'Now all ' + nword(N_CELLS) + '. You already know how to read one. The red is what '
      + 'the <b>shelves</b> could not serve — the warehouse has not shipped yet, '
      + 'and it is still holding <b class="num">' + fmt(central) + '</b> pieces.'],
     ['And the whole board, in one cell', null],
@@ -1382,7 +1479,7 @@ function seasonWords(){
 
    Beat 4 used to carry "Aveline, boutique by boutique" — given at launch,
    demand, sold, needed from the warehouse, left on the shelf, for one bag
-   across five boutiques. The grid now says every one of those things for all
+   across its boutiques. The grid now says every one of those things for all
    five bags, so the table was answering a question the picture above it had
    already answered, and it was the only reason a 900px screen had to scroll.
 
@@ -1421,6 +1518,54 @@ function buildSegs(){
     buildTicks('ticks' + n + '-st', ST_LEVELS, stPick);
     buildTicks('ticks' + n + '-sp', SP_LEVELS, spPick);
   });
+  renderStockBars();
+}
+
+/* THE STOCK BAR, under "In the boutiques at launch" on the two slides that
+   talk about the pool. One track, three parts, all five bags together:
+
+     in the boutiques        what the slider above it places at launch
+     in the warehouse        what is held back as stock
+     in the production pool  what is held back as line time - half of
+                             everything not placed, when the pool is on
+
+   The figures are computeFlex's own totals (and with the pool off, the same
+   placement with nothing carved out of the warehouse), so the bar cannot
+   disagree with the table or the matrix under it.
+
+   Built once and then only updated: replacing the nodes on every drag of a
+   slider would restart the width transition from nothing each time. */
+function drawStockBar(host, pool){
+  const box = el(host);
+  if(!box) return;
+  const f = computeFlex(stPick, spPick);
+  const parts = [
+    { cls:'bq', name:'In the boutiques',       v:f.pushTot },
+    { cls:'wh', name:'In the warehouse',       v:pool ? f.centTot : f.centTot + f.capTot },
+    { cls:'pl', name:'In the production pool', v:pool ? f.capTot : 0,
+      note:pool ? 'made only if needed' : 'pool off' }
+  ];
+  if(!box.firstChild){
+    box.innerHTML = '<div class="sbtrack" role="img">'
+      + parts.map(function(x){ return '<i class="' + x.cls + '"></i>'; }).join('') + '</div>'
+      + '<div class="sbkey">' + parts.map(function(x){
+          return '<span class="sbk ' + x.cls + '"><i></i>' + x.name + '<b></b>'
+               + (x.note ? '<em></em>' : '') + '</span>'; }).join('') + '</div>';
+  }
+  const segs = box.querySelectorAll('.sbtrack i'), keys = box.querySelectorAll('.sbk');
+  parts.forEach(function(x, k){
+    segs[k].style.flexGrow = x.v;
+    segs[k].classList.toggle('on', x.v > 0);
+    keys[k].classList.toggle('none', !x.v);
+    keys[k].querySelector('b').textContent = fmt(x.v);
+    if(x.note) keys[k].querySelector('em').textContent = x.note;
+  });
+  box.querySelector('.sbtrack').setAttribute('aria-label', parts.map(function(x){
+    return x.name.toLowerCase() + ': ' + fmt(x.v); }).join(', '));
+}
+function renderStockBars(){
+  drawStockBar('stock3', true);       /* slide 4: the pool is what it is about */
+  drawStockBar('stock2', poolOn);     /* slide 5: follows the switch            */
 }
 
 function sayTrial(){
@@ -1434,7 +1579,7 @@ function sayTrial(){
       'Targeting <b>' + stPick + '%</b> means making <b class="num">' + fmt(t.production)
     + '</b> bags against a forecast of ' + fmt(F_TOTAL) + '. '
     + 'Placing <b>' + spPick + '%</b> sends <b class="num">' + fmt(t.pushTotal)
-    + '</b> to the five boutiques and leaves <b class="num">' + fmt(t.central)
+    + '</b> to ' + THE_BQ + ' and leaves <b class="num">' + fmt(t.central)
     + '</b> central.';
   renderPlacement();
 }
@@ -1498,7 +1643,8 @@ function followTable(after){
   let h = '<h3>' + esc(BAGS[i].name) + ', boutique by boutique</h3>'
         + '<table class="grid flip" style="margin-top:10px;"><thead><tr><th></th>'
         + BOUTIQUES.map(function(c, j){ return '<th' + mark(j) + '>' + c + '</th>'; }).join('')
-        + '<th>All five</th></tr></thead><tbody>';
+        + '<th>' + (BOUTIQUES.length === 2 ? 'Both' : 'All ' + nword(BOUTIQUES.length))
+        + '</th></tr></thead><tbody>';
 
   h += line('Given at launch',
         function(j){ return cell(x.push[j], maxV, BAGS[i].color); }, fmt(x.pushTotal));
@@ -1554,7 +1700,7 @@ function testCombo(){
     fitBars(host0);
     return;
   }
-  h += '<h3 style="margin-top:22px;">All five bags, summed across the five boutiques</h3>';
+  h += '<h3 style="margin-top:22px;">All five bags, ' + ALL_BQ + ' together</h3>';
   h += '<table class="grid" style="margin-top:10px;"><thead><tr><th>Bag</th>'
      + '<th>Made</th><th>To boutiques</th><th>Warehouse</th><th>Demand</th>'
      + '<th>Sold on the shelf</th>'
@@ -1592,7 +1738,7 @@ function testCombo(){
   {
     /* Turnover and Margin used to sit side by side with nothing between them,
        so the one arithmetic the slide exists to explain could not be checked
-       on screen: 650 000 became 199 400 and a room had to take it on trust.
+       on screen: 238 000 became 60 000 and a room had to take it on trust.
        The two deductions go in, in the order the notes move in the room and
        the order the game and the debrief both use - fixed cost, then what the
        bags cost to make. The costs are set smaller than the two ends: they
@@ -1699,19 +1845,23 @@ function readMatrix(){
       if(c && c.margin > was.v){ was.st = st; was.sp = sp; was.v = c.margin; } }); });
     const moved = was.st !== bm.st || was.sp !== bm.sp;
     /* Two claims, worth very different amounts. What the POOL is worth is the
-       gap between the engines at their own best squares: +20 600 € here, and
-       the whole point of the slide. Whether it MOVES THE PLAN is the gap
-       between the flexible reading of the rigid square and the flexible best
-       square, and that is 400 € on a 220 000 € margin — under a fifth of a
-       percent. "The pool moves the answer" on 400 € is an overclaim, and this
-       sentence made it until the figure was actually computed. */
+       gap between the engines at their own best squares: +16 000 € on the
+       game's board (72 000 at 80/30 against 88 000 at 100/30), and the whole
+       point of the slide. Whether it MOVES THE PLAN is the gap between the
+       flexible reading of the rigid square and the flexible best square: 1 400
+       € here (86 600 against 88 000), 1.6% of the margin, so the sentence may
+       say the answer moved. On the five-boutique board it was 400 € on
+       220 000 - under a fifth of a percent - and "the pool moves the answer"
+       was an overclaim the sentence made until the figure was computed; hence
+       the half-percent threshold below rather than a bare comparison. */
     const moveWorth = computeFlex(bm.st, bm.sp).margin
                     - computeFlex(was.st, was.sp).margin;
     const material = moveWorth >= Math.abs(bm.v) * 0.005;
     /* And WHY, from the two seasons rather than from the sell-through
-       ordering. The guess was "you can hold more back"; the board holds 455
-       back instead of 506, so it was backwards. Committed and drawn say it
-       without being guessed at. */
+       ordering. The guess was "you can hold more back", and on the
+       five-boutique board it was backwards; on this one the best square
+       commits 170 up front instead of 215. Committed and drawn say it
+       without being guessed at, whichever way it goes. */
     const cf = computeFlex(bm.st, bm.sp), cw = computeFlex(was.st, was.sp);
     const comm = function(f){ return f.pushTot + f.centTot; };
     const why = comm(cf) > comm(cw) * 1.01
@@ -1905,7 +2055,7 @@ function renderFlex(){
    =========================================================================
    The same trick the game's step-by-step guide uses: dim everything, cut a
    hole over one cell, and put a card beside it. Here it walks three cells so
-   the room is taught to read ONE cell before it is shown twenty-five.
+   the room is taught to read ONE cell before it is shown the whole board.
 
    Every position is measured from live rects and re-measured on anything that
    can move the page underneath it. Positioning once at open time left the
@@ -1926,7 +2076,7 @@ function spotRect(list){
 
 /* Put the card on a side of the hole where it fits without covering it. Only
    if no side fits does it clamp into the viewport. */
-function spotPlace(box, avoid){
+function spotPlace(box, avoid, across){
   const bw = box.offsetWidth, bh = box.offsetHeight, M = 16;
   const vw = window.innerWidth;
   /* the footbar is fixed and holds Back and Next; the card is above it in the
@@ -1942,7 +2092,13 @@ function spotPlace(box, avoid){
     below:   { left:clampX(avoid.left),  top:avoid.bottom + M,    side:'below'   },
     above:   { left:clampX(avoid.left),  top:avoid.top - bh - M,  side:'above'   }
   };
-  const order = ['rightof', 'leftof', 'below', 'above'];
+  /* A whole ROW is as wide as the table, so the only free space beside it is
+     the column of bag names - and a card set there hides the name of the very
+     bag it is talking about. Under the row, then, and beside it only if there
+     is no room below or above. (With five boutiques the row left no room at
+     its side at all and this never came up.) */
+  const order = across ? ['below', 'above', 'rightof', 'leftof']
+                       : ['rightof', 'leftof', 'below', 'above'];
   for(let i = 0; i < order.length; i++){
     const c = cand[order[i]];
     if(c.left >= M && c.top >= M && c.left + bw <= vw - M && c.top + bh <= vh - M) return c;
@@ -1963,7 +2119,7 @@ function spotCard(k){
     BOUTIQUES.forEach(function(c, j){
       ga += Math.max(0, DEMAND[i][j] - runs[i].push[j]);
       sp += Math.max(0, runs[i].push[j] - DEMAND[i][j]); });
-    return { title:esc(BAGS[i].name) + ', all five boutiques',
+    return { title:esc(BAGS[i].name) + ', ' + ALL_BQ,
       text:'One bag, one season. Planned <b>' + fmt(F_BAG[i]) + '</b>, asked for <b>'
         + fmt(D_BAG[i]) + '</b>' + (ga && sp
         ? '. Underneath that: ' + sw('miss') + ' <b>' + fmt(ga)
@@ -1999,13 +2155,16 @@ function spotCard(k){
   const ga = Math.max(0, d - given), sp = Math.max(0, given - d);
   const first = walkCells()[0];
   if(sp) return {
-    /* "the same bag" is only true when it IS the same bag, which it is at 28
-       of the 40 combinations and not at the other 12 */
+    /* "the same bag" is only true when it IS the same bag. On the game's
+       board it never is - the worst shortage is always Aveline in Paris and
+       the biggest surplus Doriane in Paris - so the second title is the one
+       a room sees; the first is kept for a board where the two coincide (the
+       five-boutique one: 28 of its 40 combinations). */
     title:(i === first.i ? 'The same bag, the other side of the world'
                          : 'Somewhere else, the opposite problem'),
     text:'<b>' + fmt(given) + '</b> ' + esc(BAGS[i].name) + 's went to '
       + esc(BOUTIQUES[j]) + '. It asked for <b>' + fmt(d) + '</b>. <b>' + fmt(sp)
-      + '</b> are sitting there while another boutique turns people away. '
+      + '</b> are sitting there while other shelves on the board run empty. '
       + 'The ' + sw('spare') + ' is not a cushion — it is ' + fmtE(ECON.cost)
       + ' each, already spent, in the wrong city.' };
   if(k === first.i + ',' + first.j || ga >= first.v) return {
@@ -2020,16 +2179,19 @@ function spotCard(k){
       + '<b>' + fmt(given) + '</b> served, then ' + sw('miss') + ' <b>' + fmt(ga)
       + '</b> the shelf could not serve — <b>if nothing reaches them</b>. '
       + 'The warehouse has not shipped yet.' };
-  /* the no-surplus board: the cell the forecast came closest to getting right */
-  return { title:'The one we very nearly got right',
+  /* the no-surplus board: the cell the forecast came closest to getting right.
+     On the game's board one cell is EXACT - Doriane in Tokyo, 26 planned and
+     26 asked for - so "all but" would undersell the one forecast that was
+     right to the piece. */
+  return { title:(f === d ? 'The one we got exactly right' : 'The one we very nearly got right'),
     text:'Planned <b>' + fmt(f) + '</b> for ' + esc(BAGS[i].name) + ' in '
       + esc(BOUTIQUES[j]) + ', and the season asked for <b>' + fmt(d) + '</b>. '
-      + (ga ? 'The forecast was all but exact — and the shelf still ran <b>'
+      + (ga ? 'The forecast was ' + (f === d ? '' : 'all but ') + 'exact — and the shelf still ran <b>'
               + fmt(ga) + '</b> short, because at a ' + spPick + '% push most of '
               + 'that bag never left the warehouse. Forecasting better does not '
               + 'fix this.'
             : 'Right forecast, right place, nothing left over. One cell in '
-              + 'twenty-five.') };
+              + nword(N_CELLS) + '.') };
 }
 
 /* a stop is one cell, or a whole row of them */
@@ -2059,10 +2221,10 @@ function spotlight(k, beat){
   const c = spotCard(k);
   /* Each card says where the NEXT press actually goes. Saying "the next one"
      on the last stop of the walk sent the room looking for a fourth cell, and
-     saying "for all twenty-five" on the grand total promised something that
+     saying "for all of them" on the grand total promised something that
      was already on the screen behind it. */
   const go = k === 'tot' ? 'for the warehouse'
-           : beat === walkStops().length ? 'for all twenty-five'
+           : beat === walkStops().length ? 'for all ' + nword(N_CELLS)
            : 'for the next one';
   card.innerHTML = '<h4>' + c.title + '</h4><p>' + c.text + '</p>'
                  + '<span class="go">↵ Enter ' + go + '</span>';
@@ -2078,7 +2240,8 @@ function spotlight(k, beat){
     hole.style.height = (r.bottom - r.top + pad * 2) + 'px';
     card.classList.remove('below', 'above', 'rightof', 'leftof', 'clamped');
     const pos = spotPlace(card, { left:r.left - pad, top:r.top - pad,
-                                  right:r.right + pad, bottom:r.bottom + pad });
+                                  right:r.right + pad, bottom:r.bottom + pad },
+                          targets.length > 1);
     card.style.left = pos.left + 'px';
     card.style.top  = pos.top + 'px';
     card.classList.add(pos.side);
@@ -2154,7 +2317,21 @@ function stepWithin(){
    fighting it would put the hole off screen. */
 function afterBeat(){
   if(document.querySelector('.spot-card')) return;
+  if(showAnswerCard()) return;
   window.scrollTo(0, 0);
+}
+
+/* The flexible-capacity card opens BELOW the question it answers, and on a
+   laptop that is below the fold: the beat changed and the room was left
+   looking at the same table, greyed. Bring the answer up under the top bar
+   instead - the question is still one flick of the wheel above it. */
+function showAnswerCard(){
+  const fc = el('flex-card');
+  if(STAGES[stage].id !== 'sf' || beats.sf < 1 || fc.offsetParent === null) return false;
+  const bar = document.querySelector('header.topbar');
+  window.scrollTo(0, Math.max(0, window.scrollY + fc.getBoundingClientRect().top
+    - (bar ? bar.getBoundingClientRect().height : 0) - 14));
+  return true;
 }
 
 /* Back has to un-beat before it leaves the slide. With one internal step per
@@ -2218,6 +2395,7 @@ function renderStage(){
   if(STAGES[stage].on) STAGES[stage].on();
   paintProgress();
   window.scrollTo(0, 0);
+  showAnswerCard();
 }
 
 /* the bar's real height, not a guess: the page must always be able to scroll
@@ -2282,7 +2460,7 @@ function init(){
   el('btn-test2').addEventListener('click', function(){ whUsed = true; testCombo(); });
   /* the switch re-reads the squares already played; it never plays new ones */
   el('ck-pool').addEventListener('change', function(){
-    poolOn = this.checked; renderMatrices();
+    poolOn = this.checked; renderStockBars(); renderMatrices();
   });
   el('btn-fill').addEventListener('click', fillAll);
   el('btn-next').addEventListener('click', advance);

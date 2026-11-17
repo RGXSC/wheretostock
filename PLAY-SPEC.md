@@ -124,9 +124,11 @@ fixed cost per run.
 **The fixed cost is rounded, the same way the other two engines round it**:
 45% of forecast sales, rounded UP to the nearest 10 000. This file took the
 raw product for a while, and the cost was exact: a 5 × 5 world is
-`2 × 13 × 5 × 5 = 650` units — *the deck's own board* — and it charged
-292 500 € where the deck charged 300 000 €. Two pages a facilitator shows in
-one session, 7 500 € apart on the same board.
+`2 × 13 × 5 × 5 = 650` units — *the deck's own board at the time* — and it
+charged 292 500 € where the deck charged 300 000 €. Two pages a facilitator
+shows in one session, 7 500 € apart on the same board. (Since November 2026
+the deck plays the game's two-boutique board of 260 instead — `SIMULATE-SPEC.md`
+— and the five-boutique deck is in `archive/`; the rule is unchanged.)
 
 Safe to round, and measured rather than assumed: the fixed cost is a constant
 in the objective, so it moves the **level** of every square and the **choice**

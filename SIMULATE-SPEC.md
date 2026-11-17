@@ -24,6 +24,99 @@ changed. A fourth, the Monte Carlo, has moved out of the deck entirely and now
 lives in `play.html`, which is what participants are given at the end anyway
 (`PLAY-SPEC.md`).
 
+## The board is the game's (November 2026)
+
+The deck used to play a board of its own: five boutiques, 650 pieces, a
+forecast weighted across the collection and the network. It made the argument
+well and it had one cost — **no figure on it could be put beside a figure the
+room had just produced**. A team that finished the game at +61 000 € had
+nothing to compare that with on a slide that talked about 199 400 €.
+
+It now plays **the game's own board**: the same five bags, Paris and Tokyo,
+the same forecast (2 per boutique per bag per week — 26 a cell, 260 in all),
+the same season (the game's weekly demand table summed: Paris 49 / 41 / 34 /
+10 / 37, Tokyo 19 / 16 / 13 / 26 / 15), the same 120 000 € of fixed cost, and
+the game's launch split (the share placed at launch is halved between the two
+boutiques and each half rounded to a piece — `placeAtLaunch`, one function for
+the rigid engine and the pool, mirroring the game's `splitStock`).
+
+What that buys: **the deck's margin on a square is the margin of that square
+played perfectly in the game.** All thirty squares the game offers (targets
+60–100, 30–90% in the boutiques) were played in the game itself with perfect
+foresight; the two grids are identical, to the euro. The room reads the matrix
+on slide 5 as *what our square could have made* — and the distance to its own
+result as the price of not knowing where demand would land.
+
+| in the boutiques | 60% | 70% | 80% | 90% | 100% |
+|---|---|---|---|---|---|
+| 30% | 53 | 66 | **72** | **72** | 67 |
+| 50% | 53 | 66 | **72** | **72** | 67 |
+| 80% | 53 | 61 | 63 | 60 | 51 |
+| 100% | 48 | 50 | 46 | 37 | 31 |
+
+(margin, k€, rigid capacity; the 100% row is the deck's alone — the game stops
+at 90%.) 80% and 90% tie at 72 000 €; the deck names the first it finds, 80/30,
+which is also the game's documented optimum.
+
+`check-drift.mjs` now compares the two files: boutiques, bag names, each
+cell's forecast and each cell's demand against the game's table summed. The
+week-by-week **shape** belongs to the game alone and can change freely — it
+did, the same month, when the best sellers were made to sell earlier — but the
+season totals cannot change in one file only.
+
+**The five-boutique deck is kept**, complete and working, with the spec that
+explains it: `archive/simulate-five-boutiques.html` and
+`archive/SIMULATE-SPEC-five-boutiques.md`. Everything that spec says about why
+the season slide is built the way it is still holds here; the sections below
+keep that reasoning and carry this board's figures. What did not survive the
+move is the study of how typical the five-boutique season was (4 000 redraws,
+"three squares within 5%"): it described that board and stays with it.
+
+**Two things changed in the layout because a cell is now twice as wide.** The
+outcome figures sit **beside** the third bar instead of on a line under it
+(`WIDE_CELLS`): 22px a row, six rows, and the whole board — totals included —
+fits a 1536 × 800 screen without scrolling. And the two ringed cells stay on
+the bag the spotlight walked through: with ten cells instead of twenty-five,
+rings that land on Estérel straight after three beats on Aveline read as a new
+subject nobody introduced.
+
+## The stock bar (November 2026)
+
+**Under "In the boutiques at launch", on slides 4 and 5, one bar in three
+parts: in the boutiques · in the warehouse · in the production pool.** All
+five bags together, in pieces.
+
+The pool was only ever a sentence and a table column, and a room kept hearing
+it as a second warehouse. Drawn beside the other two it is *seen* to be carved
+out of what is held back — half of it — and it is **hatched**, because it is
+line time and not stock: nothing in it exists until a shortage calls on it.
+Its key says so in four words, *made only if needed*.
+
+- **Slide 4** (flexible capacity): the pool is the subject, so the bar always
+  shows it. At 90/80: 230 · 30 · 30.
+- **Slide 5** (every combination): the bar follows the **pool switch**. Off,
+  the warehouse holds everything not placed (230 · 60 · 0, the third key
+  greyed *pool off*); on, half of the warehouse becomes the pool in front of
+  the room. The switch sits level with the bar, under the two buttons — so it
+  appears without moving the button under the facilitator's hand, and once
+  every square is played and the buttons go, it is what is left there.
+
+The figures are `computeFlex`'s own totals, so the bar cannot disagree with
+the table or the matrix beneath it. Proportions are `flex-grow`, so the three
+parts always fill the track whatever the rounding and a part worth nothing
+takes no room. The nodes are built once and then updated: replacing them on
+every drag of a slider would restart the width transition each time.
+
+No percentages on it. 230 of 290 is 79.3%, and a bar reading *79%* under a
+slider reading *80%* starts an argument about rounding in the one place the
+slide wants an argument about pools.
+
+**The answer card comes up to the top.** On slide 4 the flexible-capacity card
+opens *below* the question it answers, which on a laptop is below the fold:
+the beat changed and the room was left looking at the same table, greyed.
+`showAnswerCard()` scrolls it up under the top bar; the question is one flick
+of the wheel above.
+
 ## The season slide, beat by beat
 
 **One table is built once and transformed in place.** The block *below* the
@@ -36,8 +129,8 @@ grows would be strictly worse than what it replaced.
 | 0 | **the plan** — one grey bar a cell, a grey `?` where the outcome will go |
 | 1 | **spotlight**: the worst shortage on the board, opened alone |
 | 2 | **spotlight**: the biggest surplus, opened alone |
-| 3 | **spotlight**: that bag's **whole row** — five boutiques and its season |
-| 4 | **all twenty-five**, and nothing else on the screen |
+| 3 | **spotlight**: that bag's **whole row** — both boutiques and its season |
+| 4 | **the whole board** — ten cells — and nothing else on the screen |
 | 5 | **spotlight**: the grand total, over a board already filled in |
 | 6 | **the warehouse answers** — green eats into red, in place |
 
@@ -49,9 +142,9 @@ the total is read off it.
 
 **Stop 3 is a row, not a cell**, because two single cells do not settle it. A
 shortage in one boutique and a surplus in another are only obviously the same
-problem once they are seen in **one bag, at one moment** — Aveline planned 244,
-asked for 268, and underneath that 93 nobody could buy and 42 sitting where
-nobody wants them. The stock cannot walk from Paris to Tokyo. That is the
+problem once they are seen in **one bag, at one moment** — Aveline planned 52,
+asked for 68, and underneath that 26 the shelves could not serve and 4 sitting
+where nobody wants them. The stock cannot walk from Paris to Tokyo. That is the
 sentence the grand total then generalises.
 
 **Nothing sits under the grid until beat 5.** Beat 4 used to carry the
@@ -64,28 +157,30 @@ show — what the two followed boutiques cost in money, what was made against
 what reached a shelf, and the P&L.
 
 **The walk exists because a dense grid is unreadable until you can read one
-cell of it.** Three cards of about thirty words, then twenty-five cells the
-room already knows how to decode — and it then reads them as a *pattern*, an
-amber column under Paris and New York against a red one under Tokyo and
-Shanghai, instead of as a wall of numbers. That is the beat the three-slide
+cell of it.** Three cards of about thirty words, then a board the room already
+knows how to decode — and it then reads it as a *pattern*, a red column under
+Paris against an amber one under Tokyo, with Doriane the one row that runs the
+other way, instead of as a wall of numbers. That is the beat the three-slide
 version never reached, because the room was still decoding cell one.
 
 **The stops are derived, never written down.** The argmax gap, the argmax
 surplus, and then the whole row of whichever bag the first stop landed in. At
-90/80 that resolves to Aveline in Tokyo (−47), Aveline in Paris (+25) and the
-Aveline row — but a facilitator who moved a slider on the previous slide would
-otherwise be walking the room through cells that are no longer the story, and
-at 90/30 they are not.
+90/80 that resolves to Aveline in Paris (−26), Doriane in Paris (+13) and the
+Aveline row. On this board the first two are the same cells at every setting
+that strands anything; at the four that strand nothing (80/30, 90/30, 100/30,
+100/40) the second stop is the cell the forecast got closest to — Doriane in
+Tokyo, planned 26 and asked for 26, *"the one we got exactly right"*, whose
+shelf still ran short because most of the bag never left the warehouse.
 
 Each card also names **where the next press goes**, and it is a different
-place three times: another cell, then all twenty-five, then the warehouse.
-Saying "the next one" on the last stop sent the room hunting for a fourth
-cell; saying "for all twenty-five" on the grand total promised something
-already on the screen behind it.
+place three times: another cell, then the whole board (*"for all ten"*), then
+the warehouse. Saying "the next one" on the last stop sent the room hunting
+for a fourth cell; saying "for all of them" on the grand total promised
+something already on the screen behind it.
 
 **The last beat draws the warehouse ON the table just read**, not as a second table.
 Every red segment splits where it stands: the covered part turns green, the
-rest stays red, the delta re-labels from −47 to −20. **Not one amber segment
+rest stays red, the delta re-labels from −26 to −14. **Not one amber segment
 moves**, because central stock cannot un-place what has already shipped —
 which is the argument the old slide had to make in prose.
 
@@ -104,12 +199,14 @@ end. That is the single rule the whole grid rests on, and it is what the first
 spotlight card teaches.
 
 **Every figure is the colour of the bar it counts**, and the outcome row
-carries **one figure per segment** on a line of its own under the bars:
+carries **one figure per segment**:
 
-    ▬▬▬▬▬▬▬▬▬▬▬   73        grey    the plan
-    ▬▬▬▬▬▬       101        navy    what it asked for
-    ▬▬▬▄▄▄▄
-                  54 +27 −20        navy · green · red
+    ▬▬▬▬▬▬         26        grey    the plan
+    ▬▬▬▬▬▬▬▬▬▬▬   49        navy    what it asked for
+    ▬▬▬▬▬▄▄▄▄▄▄   23 +12 −14        navy · green · red
+
+(With five boutiques a cell was 170px wide and the three figures needed a line
+of their own under the bars; with two they sit beside the third bar.)
 
 The one that costs money — red or amber — is set large, and those large
 figures line up down the right edge of every cell, so the table still scans as
@@ -137,14 +234,15 @@ under the grid to make room for (below), and the slide had 150px of unused
 space beneath the table at 1400×940. At 6px a bar made of three segments and
 two gaps is not a bar, it is a smudge; at 10px it was legible and no more.
 Flush rows also group the three bars as one reading, which is what they are.
-The cost: the grid needs 929px of page instead of 869, so a 1280×800 screen
-scrolls ~130px on this slide. 1400×940 and 1920×1080 still fit whole.
+With five boutiques the cost was a grid of 929px, which a 1280×800 screen
+scrolled; with two, and the figures beside the bars, the whole board fits
+1536×800 and scrolls about 20px on its busiest beat.
 
 ## The season's arithmetic closes on screen
 
 Turnover and Margin used to sit side by side with nothing between them, so the
-one sum the slide exists to explain could not be checked: 584 000 € became
-139 400 € and a room had to take it on trust. The two deductions are now shown
+one sum the slide exists to explain could not be checked: 238 000 € became
+60 000 € and a room had to take it on trust. The two deductions are now shown
 between them, in the order the notes move — **fixed cost, then what was made**
 — set smaller than the two ends, because they are the working and not the
 answer.
@@ -168,19 +266,19 @@ is red genuinely a customer nobody could serve.
 The deck used to caption it *"nobody could buy"* from the first beat, and the
 walk card told the room those customers were *"walking out of the door"* at
 1 000 € each — writing off sales the deck then spends a whole beat saving. On
-this board the spotlit cell goes from −47 to −20 once the warehouse answers:
-more than half the loss the card had already booked.
+this board the spotlit cell goes from −26 to −14 once the warehouse answers:
+nearly half the loss the card had already booked.
 
 Everything that names it now branches on `whUsed`:
 
 - the legend reads **"the shelf could not serve"** before, **"nobody could
   buy"** after;
-- the walk card says the shelf could not serve them — *"47 the shelf could
+- the walk card says the shelf could not serve them — *"26 the shelf could
   not serve — if nothing reaches them. The warehouse has not shipped yet."*
   The **price is not quoted here at all**: at 1 000 € a head it needed a hedge
   to stay true, and the hedge made the sentence hard to read. The figure
   belongs to the beat that can actually charge it;
-- the all-twenty-five lead says the warehouse has not shipped and how much it
+- the whole-board lead says the warehouse has not shipped and how much it
   is still holding;
 - the row and total cards say *"the shelves could not serve"*.
 
@@ -225,8 +323,8 @@ demand bar, amber only ever extends *past* its end.
 **The totals add the cells; they never net one against another.** A shortage
 in Tokyo is not cancelled by a surplus in Paris, because the stock cannot walk
 there, and pretending it can is the exact error this slide exists to expose.
-Netted, the season reads *71 short* and sounds like a volume problem. Added,
-it reads **650 planned, 650 demanded, 198 short and 127 spare** — the whole
+Netted, the season reads *30 short* and sounds like a volume problem. Added,
+it reads **260 planned, 260 demanded, 72 short and 42 spare** — the whole
 argument of the page in one cell.
 
 **Nothing follows the grid but the roll-up and the P&L.** A pair of focus
@@ -323,29 +421,27 @@ Everything below is a deliberate change, and each one is stated on the page:
    during the season — the two setup numbers decide everything.
 2. **The warehouse replenishes instantly and perfectly.** A boutique that runs
    out is resupplied the moment it does, always from the right pile, with no
-   lead time and no guessing. When two boutiques are short of the same bag and
+   lead time, no weekly shipping maximum and no guessing. When two boutiques are short of the same bag and
    the central pile cannot cover both, it is split in proportion to what each
    is short of — which decides where the sale happens, not how many there
    are. In reality that is one to three days against a bag that sells once a
    fortnight, so it is close to true. The consequence is that this page is the
    **upper bound** of what central stock can ever be worth.
-3. **Five cities, not two** — Paris, Tokyo, New York, Shanghai, London — and
-   each carries its own forecast. The launch push follows **each bag's own
-   forecast row**, not one network-wide share applied to the whole collection,
-   so the naive-equal-split error of the main game is removed and only the
-   demand error is left.
-4. **Stock can still be stranded — that is what the second decision buys.**
+3. **Stock can still be stranded — that is what the second decision buys.**
    Instant replenishment removes the *lead time*, not the placement error: the
    warehouse refills a boutique that runs out, but it cannot take back what
    was already pushed. A bag sitting in a boutique the season does not want is
-   stuck there while another turns customers away. At the margin optimum,
-   pushing 30% rather than 100% is worth **122 sales — 122 000 €**, and that
-   is the entire slope of the push axis.
+   stuck there while the other one turns customers away. At the margin optimum
+   (80%), pushing 30% rather than 100% is worth **26 sales — 26 000 €**, and
+   that is the entire slope of the push axis.
+
+The board itself is **no longer a difference**: since November 2026 it is the
+game's (above). The five-city network is in the archive.
 
 Unchanged: the five bags, thirteen weeks of forecast, production = forecast ÷
 target sell-through, 1 000 € price, 200 € unit cost. The fixed cost is 45% of
-forecast sales **rounded up to the nearest 10 000** — 300 000 € here and
-120 000 € in the game, and `play.html` applies the same rule (`check-drift.mjs`
+forecast sales **rounded up to the nearest 10 000** — 120 000 € here as in
+the game, and `play.html` applies the same rule (`check-drift.mjs`
 pins it across all three) — so the briefing carries a round number instead of a
 spreadsheet output. Safe to round, and worth knowing why: the fixed cost is a
 constant in the objective, so it moves the level of every square and the
@@ -363,59 +459,26 @@ optimum does not move at all.
 
 ## 2. The board
 
-Forecast **650** = 2 per city per bag per week × 13 × 5 × 5. Split across the
-collection 37.5 / 30 / 15 / 12.5 / 5 % (the shape of the reference file the
-brief was based on) and across the network 30 / 25 / 20 / 15 / 10 %.
+Forecast **260** = 2 per boutique per bag per week × 13 × 2 × 5 — the game's,
+flat: 26 in every cell.
 
 The launch-push axis runs **30% to 100%** in steps of ten. It does not start
 at zero: no boutique opens a launch with an empty window, and the same floor
-is used in the game.
+is used in the game. The game stops at 90%; the deck keeps the 100% row,
+because *everything in the boutiques* is the end of the argument and the pool
+has nothing to work with there (the two engines agree on that whole row).
 
-Real demand is hard-coded and also totals **650**. That is the point of the
-whole page: **the volume call was right**, and every error is in the spread.
+Real demand is hard-coded — the game's weekly table summed — and also totals
+**260**. That is the point of the whole page: **the volume call was right**,
+and every error is in the spread.
 
-Per bag it is a clean ladder — Aveline +10%, Bastide 0%, Calanque −10%,
-Doriane −30%, Estérel +30%. The two worst forecasts sit on the two smallest
-bags and the biggest seller is not the one that runs hot; put +30% on the
-leader instead and one whole row of the matrix carries the answer.
-
-Per boutique it is ±50% with **no one in the middle** — Paris and New York
-halve, Tokyo and Shanghai run 50% over, London 45% over, and Tokyo overtakes
-Paris. That width is not decoration. With a mild boutique error the warehouse
-covers every gap and the launch push is worth nothing until it reaches 100%;
-at ±50% it is worth 122 000 €, and the optimum narrows from twenty-one
-squares to three.
-
-**"Three" is this draw, not this design.** The matrix is one hard-coded
-season, and that season is tighter than almost any other of the same
-construction. Redrawn 4 000 times at the error the board itself carries — 21%
-per bag, 44% per boutique — the count of squares within 5% of the best runs:
-
-| | squares within 5% |
-|---|---|
-| the shipped board | **3** |
-| a typical season | **10** (median) |
-| 10th–90th percentile | 5 – 16 |
-
-So the shipped season is tighter than nine seasons in ten. Quote the three as
-what this board does, not as how sharply the setup discriminates.
-
-**Which half of the answer to lean on.** Over the same 4 000 redraws, the two
-axes are not equally solid:
-
-| | per-season winner |
-|---|---|
-| best margin | 90/30 **48%** · 80/30 24% · 100/30 9% · 90/40 6% · 70/30 3% |
-| best turnover | 60/30 **59%** · 60/40 10% · 60/50 5% |
-
-The **push** half is robust: some `x/30` square wins in **84%** of seasons and
-`x/40` in a further 6%, so *hold stock central* survives essentially every
-draw — which is the claim this page exists to make. The **sell-through** half
-is a coin-flip between neighbours: 90% is the modal answer but wins only about
-half the time, with 80% behind it a quarter of the time. The board's 90/30 and
-60/30 are the modal winners and agree with the Monte Carlo in `play.html`, so
-nothing on screen is wrong; but a room should be told the push is the finding and the
-sell-through is the weaker half.
+Per bag: Aveline +30%, Bastide +10%, Calanque −10%, Doriane −30%, Estérel on
+the forecast. Per boutique: Paris takes 171 of the 260 against 130 planned,
+Tokyo 89. Four bags sell 2.6 times more in Paris than in Tokyo and Doriane
+does the reverse, so whatever is placed at launch — split equally, as in the
+game — is half in the wrong city. That is what gives the launch push its
+price: 26 000 € at the optimum, and from 72 000 € down to 46 000 € along the
+80% column.
 
 ## 3. Why there is no artificial limit on central stock
 
@@ -430,12 +493,13 @@ is more useful than a rigged optimum:
 - **The first beat of slide 4** shows what it cannot fix. It is measured
   **where the margin actually peaks** — the argmax over both axes, found
   rather than assumed — and says so in as many words: *"The best this board
-  allows is 90% sell-through and 30% push."* Even there, with every bag placed
-  exactly where the season wanted it, **6 customers are turned away and 79
-  bags go unsold**.
+  allows is 80% sell-through and 30% push."* Even there, with every bag placed
+  exactly where the season wanted it, **3 customers are turned away and 68
+  bags go unsold**. (90/30 ties with it at 72 000 € — 10 turned away, 40
+  unsold; the beat shows the first the search finds.)
 
   Both conversions are **written out** rather than left to the reader:
-  *6 × 1 000 € = 6 000 € of sales never made* and *79 × 200 € = 15 800 €
+  *3 × 1 000 € = 3 000 € of sales never made* and *68 × 200 € = 13 600 €
   already spent*. The heading talks money and the table underneath counts
   bags, so a beat that prints only the two ends makes the room do the
   arithmetic in its head — at which point it has stopped making its point and
@@ -533,16 +597,20 @@ one combination on slide 4; on slide 5 a tick-box — *production capacity pool
 at 50% of everything not in the boutiques at launch* — re-reads every square
 that has been played. It exists because the interesting fact is not that the
 numbers go up, it is what happens to the best square. The read-out names the
-rigid optimum and then quotes the move **in money**: on this board 90/30 →
-100/30 is worth 400 € against a 220 000 € margin, so it says the pool
-*nudges* the answer and that the value is the 20 600 €, not the move. See
+rigid optimum and then quotes the move **in money**: on this board 80/30 →
+100/30 is worth 1 400 € (86 600 € → 88 000 €), 1.6% of the margin and over
+the half-percent threshold, so it says the pool **moves the answer** and why.
+(On the five-boutique board the move was worth 400 € on 220 000 €, and the
+sentence says *nudges* in that case: the value is the pool, not the move.) See
 "Two claims, worth very different amounts" in `PLAY-SPEC.md`.
 
 **Which way it moved is computed, not written.** Production is `F ÷
-sell-through`, so a *higher* target is *less* made: this board's move produces
-650 instead of 723 and holds back **455 instead of 506**. The first version of
-that sentence said "you can hold more back once holding it back stops being a
-bet" — exactly backwards, and it shipped. The clause is now chosen from the
+sell-through`, so a *higher* target is *less* made: this board's move commits
+**170 up front instead of 215** — 80 in the boutiques and 90 in the
+warehouses, against 100 and 115 — and lets the pool make the difference, 90
+pieces instead of 52. The first version of that sentence said "you can hold
+more back once holding it back stops being a bet" — exactly backwards on the
+board it was written for, and it shipped. The clause is now chosen from the
 two optima, because the model goes both ways: `play.html` on a 5×5 collection
 moves 90/30 → **80/30** instead, where reserving more is what pays.
 
@@ -551,32 +619,32 @@ not fill it. And there is no second cache: `computeFlex` is deterministic and
 costs a few hundred operations, so forty squares re-read instantly and there
 is nothing to fall out of step with the rigid cache.
 
-**One thing deliberately not copied.** The original splits the launch *flat*
-across its five stores, because it has no store-level forecast to split by:
-equal placement against unequal demand is its lesson. This board does have
-one, and every table on the page is built on it, so the launch is placed on
-each boutique's forecast share exactly as the rigid engine does. What is imported is the pool, not the placement.
-Copying the flat split would have made the boutique forecast meaningless and
-moved every number in the deck.
+**The launch is placed as the game places it.** The original push/pull
+simulator splits the launch *flat* across its stores; the five-boutique deck
+split it on each boutique's forecast share instead. On the game's board the
+two are the same thing — every boutique is forecast the same — and the rule is
+the game's own, to the piece: the launch share is halved and each half
+rounded (`placeAtLaunch`). Both engines call that one function, so the two
+seasons in the side-by-side differ by the pool and by nothing else; they used
+to round the same launch two different ways.
 
 What it is worth, at each engine's own best combination:
 
 | | best | made | sold | turned away | unsold | margin |
 |---|---|---|---|---|---|---|
-| rigid | 90 / 30 | 723 | 644 | 6 | 79 | 199 400 € |
-| **flexible** | **100 / 30** | **650** | **650** | **0** | **0** | **220 000 €** |
+| rigid | 80 / 30 | 325 | 257 | 3 | 68 | 72 000 € |
+| **flexible** | **100 / 30** | **260** | **260** | **0** | **0** | **88 000 €** |
 
-**+20 600 €, and production lands exactly on the forecast.** Rigid capacity
+**+16 000 €, and production lands exactly on the forecast.** Rigid capacity
 forces you to over-produce as insurance; flexible capacity lets you produce
 the plan and flex the difference. It is the answer to the question the beat
 before it ends on — which is why the two share a slide.
 
-Both margins are read off the page's own `run()` and `computeFlex()`. They
-were quoted as 207k and 228k for a while: 7 500 € high on each row, which is
-exactly the fixed-cost rounding this spec documents in §2 — 45% of forecast
-sales is 292 500 € and the file rounds it up to 300 000 €. A table copied
-before a rounding change stays wrong quietly, so these are re-derived rather
-than remembered.
+Both margins are read off the page's own `run()` and `computeFlex()`, on the
+default combination too: 90/80 makes 60 000 € rigid and 67 000 € with the pool
+(30 pieces of line time, all 30 called on — Aveline 14, Bastide 8, Estérel 5,
+Calanque 3). A table copied before a change of board or of rounding stays
+wrong quietly, so these are re-derived rather than remembered.
 
 **Order.** The limit answers the warehouse, so it follows it; flexibility
 answers the limit, so it shares its slide; and the matrix comes last, scaling
@@ -593,10 +661,11 @@ after.
 **UI.** One slide, no new control. The engine needs none — the existing push
 slider already sets the pool — so the deck's sell-through and push sliders
 simply appear a third time and stay in step with the other two copies. Under
-them, one table per bag (committed · to the boutiques · its own warehouse ·
-into the production pool · drawn from the pool · real demand · still lost)
-and two boxes side by side, rigid
-against flexible, carrying the same four numbers each.
+the push slider, the **stock bar** (above): boutiques · warehouse · production
+pool. Under them, one table per bag (committed · to the boutiques · its own
+warehouse · into the production pool · drawn from the pool · real demand ·
+still lost) and two boxes side by side, rigid against flexible, carrying the
+same four numbers each.
 
 ## 6. Deliberately absent
 
@@ -608,7 +677,7 @@ against flexible, carrying the same four numbers each.
   the stated rules.
 - **A way to skip the spotlight walk in one press.** A facilitator behind
   schedule will want one. They cannot have it: the whole point of the walk is
-  that the twenty-five-cell grid is unreadable until you can read one cell,
+  that the grid is unreadable until you can read one cell,
   and landing a room on it un-taught is worse than the three slides this
   replaced. The beat strip in the topbar shows the cost up front instead.
 - **Auto-playing reveals.** Considered and dropped. Animating the demand and

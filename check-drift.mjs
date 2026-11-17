@@ -71,6 +71,55 @@ if(unrounded.length === ENGINES.length)
   console.log('PATTERN  no engine matches the fixed-cost rule at all — the check\'s\n'
             + '         regex is probably what needs updating, not the engines');
 
+/* THE SEASON. Since November 2026 the deck plays the game's own board: the
+   same five bags in the same two boutiques, each cell's forecast the game's
+   two pieces a week, and each cell's demand the game's weekly table summed
+   over the season. That is what lets a room put its own result beside the
+   deck's figures - and it is two literals in two files, which nothing in a
+   browser compares. The week-by-week SHAPE belongs to the game alone and can
+   change freely; the season totals cannot change in one file only. */
+function literal(src, name, open, close){
+  const at = src.search(new RegExp('^const ' + name + ' = \\' + open, 'm'));
+  if(at < 0) return null;
+  const from = src.indexOf(open, at), to = src.indexOf('\n' + close + ';', from);
+  if(to < 0) return null;
+  try{ return new Function('return (' + src.slice(from, to + 2) + ')')(); }catch(err){ return null; }
+}
+const seasonOff = [];
+{
+  const gameBags = literal(game, 'BAGS', '[', ']'), gameDemand = literal(game, 'DEMAND', '{', '}');
+  const deckBags = literal(deck, 'BAGS', '[', ']'), deckDemand = literal(deck, 'DEMAND', '[', ']');
+  const deckForecast = literal(deck, 'FORECAST', '[', ']');
+  const weeks = Number((game.match(/^const WEEKS = (\d+);/m) || [])[1]);
+  const stores = (game.match(/^const STORES = \{\s*A:'([^']+)',\s*B:'([^']+)'\s*\};/m) || []).slice(1);
+  const boutiques = (deck.match(/^const BOUTIQUES = \[([^\]]*)\];/m) || ['', ''])[1]
+    .split(',').map(function(x){ return x.trim().replace(/^'|'$/g, ''); }).filter(Boolean);
+  const sum = function(a){ return a.reduce(function(x, y){ return x + y; }, 0); };
+  if(!gameBags || !gameDemand || !deckBags || !deckDemand || !deckForecast || !weeks || stores.length !== 2){
+    seasonOff.push('could not read the two boards — the check\'s parsing is probably what needs updating');
+  }else{
+    if(boutiques.join('/') !== stores.join('/'))
+      seasonOff.push('boutiques: the deck has ' + boutiques.join(', ') + ', the game ' + stores.join(', '));
+    if(deckBags.length !== gameBags.length)
+      seasonOff.push('bags: the deck has ' + deckBags.length + ', the game ' + gameBags.length);
+    gameBags.forEach(function(b, i){
+      const d = gameDemand[b.key];
+      if(!d || !deckBags[i] || !deckDemand[i] || !deckForecast[i]) return;
+      if(deckBags[i].name !== b.name)
+        seasonOff.push('bag ' + (i + 1) + ': the deck calls it ' + deckBags[i].name + ', the game ' + b.name);
+      const want = [sum(d.A), sum(d.B)];
+      if(d.A.length !== weeks || d.B.length !== weeks)
+        seasonOff.push(b.name + ': the game\'s table does not have ' + weeks + ' weeks');
+      if(deckDemand[i].join('/') !== want.join('/'))
+        seasonOff.push(b.name + ' demand: the deck has ' + deckDemand[i].join(' / ')
+                     + ', the game\'s season sums to ' + want.join(' / '));
+      if(deckForecast[i].join('/') !== [2 * weeks, 2 * weeks].join('/'))
+        seasonOff.push(b.name + ' forecast: the deck has ' + deckForecast[i].join(' / ')
+                     + ', the game plans ' + 2 * weeks + ' per boutique');
+    });
+  }
+}
+
 const drifted = [], missing = [];
 for(const name of SHARED){
   const a = pull(deck, name, 'simulate.html'), b = pull(play, name, 'play.html');
@@ -84,14 +133,21 @@ for(const name of drifted) console.log('DRIFTED  ' + name);
 for(const e of unrounded)
   console.log('UNROUNDED  ' + e[0] + ' does not round the fixed cost up to the nearest 10 000');
 
-if(!drifted.length && !missing.length && !unrounded.length){
+for(const line of seasonOff) console.log('SEASON  ' + line);
+
+if(!drifted.length && !missing.length && !unrounded.length && !seasonOff.length){
   console.log('OK  ' + SHARED.length + ' shared functions, identical in both files');
   console.log('OK  ' + ENGINES.length + ' engines apply the same fixed-cost rule');
+  console.log('OK  the deck plays the game\'s season, bag by bag and boutique by boutique');
   process.exit(0);
 }
 if(drifted.length || missing.length)
   console.log('\nThe two copies of the engine disagree. Fix the odd one out, or if the\n'
             + 'change is deliberate, make it in both files.');
+if(seasonOff.length)
+  console.log('\nThe fast-forward deck plays the game\'s own season so that a room can\n'
+            + 'compare its result with the slides. Change the season totals in\n'
+            + 'index.html (DEMAND) and simulate.html (DEMAND, FORECAST) together.');
 if(unrounded.length)
   console.log('\nThe fixed cost is 45% of forecast sales rounded UP to the nearest\n'
             + '10 000, and every engine has to apply it — otherwise the same board\n'
