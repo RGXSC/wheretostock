@@ -149,6 +149,18 @@ grows would be strictly worse than what it replaced.
 | 5 | **spotlight**: the grand total, over a board already filled in |
 | 6 | **the warehouse answers** — green eats into red, in place |
 
+**The headings say what is spotlit** (November 2026): *One bag in one
+boutique*, then — derived from the two stops — *Another bag in the same
+boutique*, *The same bag in the other boutique* or *Another bag in the other
+boutique*, then *One bag, both boutiques*. They were "One boutique" and "One
+more boutique", written for five boutiques; on this board the two stops are
+mostly both in Paris (Aveline short, Doriane left over), and "one more
+boutique" was false. The surplus card then makes the point that board offers:
+*"23 Dorianes went to Paris, which asked for 10. 13 are sitting there while,
+in the same boutique, Aveline ran out."* Amber is captioned **"sitting where
+nobody wants it"** everywhere — it was "sitting in the wrong boutique", which
+a heavy push makes untrue (Doriane over in both cities at once).
+
 **The order of the last three is the whole argument in miniature.** The grand
 total used to be stop 3 of the walk, spotlit while every other cell still read
 `?` — a sum on screen before any of the detail that makes it, which is exactly

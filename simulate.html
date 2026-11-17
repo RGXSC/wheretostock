@@ -1438,7 +1438,8 @@ function renderGrid(){
     h = '<div class="dlegend">'
       + '<span><i class="sw" style="background:var(--plan)"></i>the plan</span>'
       + '<span><i class="sw" style="background:var(--real)"></i>what the season asked for</span>'
-      + (whUsed ? '<span><i class="sw" style="background:var(--sent)"></i>sent from the warehouse</span>' : '')
+      + (whUsed && OUT.some(function(r){ return r.some(function(o){ return o.se > 0; }); })
+          ? '<span><i class="sw" style="background:var(--sent)"></i>sent from the warehouse</span>' : '')
       /* Red is not the same claim on both sides of the warehouse beat. Before
          it ships, red is what the SHELF could not serve - and the warehouse is
          about to cover a good part of it. Only after it has shipped is red
@@ -1446,7 +1447,7 @@ function renderGrid(){
          all the way through wrote off sales the deck then goes on to save. */
       + '<span><i class="sw" style="background:var(--miss)"></i>'
       + (whUsed ? 'nobody could buy' : 'the shelf could not serve') + '</span>'
-      + '<span><i class="sw" style="background:var(--spare)"></i>sitting in the wrong boutique</span>'
+      + '<span><i class="sw" style="background:var(--spare)"></i>sitting where nobody wants it</span>'
       + '</div>';
   }
   h += '<table class="grid"><thead><tr><th>Bag</th>'
@@ -1489,22 +1490,40 @@ function seasonWords(){
   /* One heading per beat. The walk goes one cell, one cell, one ROW, then the
      whole table, and only then the grand total: a sum means nothing until the
      detail it sums is on screen behind it. */
+  /* The walk's first two headings say what is spotlit. They were "One
+     boutique" and "One more boutique", written for five boutiques, where the
+     second stop was usually in another city. On the game's board the two
+     stops are mostly in the SAME boutique - Aveline short in Paris, Doriane
+     left over in Paris - and "one more boutique" was simply false. */
+  const wc = walkCells(), w1 = wc[0], w2 = wc[1];
+  const otherBq = BOUTIQUES.length === 2 ? 'the other boutique' : 'another boutique';
+  const second = w2.i === w1.i ? 'The same bag in ' + otherBq
+               : w2.j === w1.j ? 'Another bag in the same boutique'
+               : 'Another bag in ' + otherBq;
+  /* at 100% in the boutiques nothing is left central: say so, rather than
+     "still holding 0 pieces" and "0 pieces never left the warehouse" */
   const WORDS = [
     ['The plan',
      'Every bag, every boutique, and what we forecast for each. '
      + 'Nothing here is an outcome yet — the season has not happened.'],
-    ['One boutique', null],
-    ['One more boutique', null],
+    ['One bag in one boutique', null],
+    [second, null],
     ['One bag, ' + ALL_BQ, null],
     ['What the season asked for',
-     'Now all ' + nword(N_CELLS) + '. You already know how to read one. The red is what '
-     + 'the <b>shelves</b> could not serve — the warehouse has not shipped yet, '
-     + 'and it is still holding <b class="num">' + fmt(central) + '</b> pieces.'],
+     'Now the whole board — all ' + nword(N_CELLS) + ' cells. You already know how to read '
+     + 'one. The red is what the <b>shelves</b> could not serve — '
+     + (central ? 'the warehouse has not shipped yet, and it is still holding <b class="num">'
+                  + fmt(central) + '</b> pieces.'
+                : 'and the warehouse is empty: everything went to the boutiques at launch.')],
     ['And the whole board, in one cell', null],
     ['The warehouse answers',
-     '<b class="num">' + fmt(central) + '</b> pieces never left the warehouse, against '
-     + '<b class="num">' + fmt(away) + '</b> the boutiques still need. Green is what it '
-     + 'covered. Nothing amber moves: the warehouse cannot take back what already shipped.']
+     central
+       ? '<b class="num">' + fmt(central) + '</b> pieces never left the warehouse, against '
+         + '<b class="num">' + fmt(away) + '</b> the boutiques still need. Green is what it '
+         + 'covered. Nothing amber moves: the warehouse cannot take back what already shipped.'
+       : 'It has nothing to send: everything went to the boutiques at launch, so the '
+         + '<b class="num">' + fmt(away) + '</b> the boutiques still need are lost. Nothing '
+         + 'amber moves either: what is on a shelf stays there.']
   ];
   el('sd-h2').textContent = WORDS[b][0];
   el('sd-lead').innerHTML = WORDS[b][1] || '';
@@ -1617,9 +1636,10 @@ function sayTrial(){
   el('trial-say').innerHTML =
       'Targeting <b>' + stPick + '%</b> means making <b class="num">' + fmt(t.production)
     + '</b> bags against a forecast of ' + fmt(F_TOTAL) + '. '
-    + 'Placing <b>' + spPick + '%</b> sends <b class="num">' + fmt(t.pushTotal)
-    + '</b> to ' + THE_BQ + ' and leaves <b class="num">' + fmt(t.central)
-    + '</b> central.';
+    + 'Placing <b>' + spPick + '%</b> sends ' + (t.central ? '' : 'all ')
+    + '<b class="num">' + fmt(t.pushTotal) + '</b> to ' + THE_BQ
+    + (t.central ? ' and leaves <b class="num">' + fmt(t.central) + '</b> central.'
+                 : ' and keeps nothing central.');
   renderPlacement();
 }
 
@@ -2039,7 +2059,7 @@ function renderFlex(){
       'Everything you hold back splits in two. <b>50%</b> stays in that bag\'s own '
     + '<b>warehouse</b>. The other <b>50%</b> becomes a <b>shared production '
     + 'capacity pool</b> — a slot on the production line, assigned to no bag in '
-    + 'advance, that any of the five can call on. It is not stock sitting '
+    + 'advance, that any of the five bags can call on. It is not stock sitting '
     + 'anywhere: it is only manufactured, and only paid for, if a shortage '
     + 'actually calls on it.';
 
@@ -2100,10 +2120,17 @@ function renderFlex(){
     + '<p class="small muted" style="margin-top:10px;">'
     + (f.capTot
         ? 'The shared production capacity pool held <b>' + fmt(f.capTot) + '</b> pieces '
-          + 'of line time, assigned to no bag. <b>' + fmt(f.used) + '</b> were called on and made — '
-          + f.rows.filter(function(x){ return x.drawn; })
-              .map(function(x){ return esc(x.name) + ' took ' + fmt(x.drawn); }).join(', ')
-          + ' — and <b>' + fmt(spare) + '</b> never existed and cost nothing. '
+          + 'of line time, assigned to no bag. '
+          + (!f.used
+              ? 'None of it was called on — the bags\' own warehouses covered every '
+                + 'shortage — so none of it was ever made or paid for. '
+              : (f.used === f.capTot ? 'All of it was called on and made: '
+                 : '<b>' + fmt(f.used) + '</b> ' + (f.used === 1 ? 'was' : 'were')
+                   + ' called on and made: ')
+                + f.rows.filter(function(x){ return x.drawn; })
+                    .map(function(x){ return esc(x.name) + ' took ' + fmt(x.drawn); }).join(', ')
+                + '. '
+                + (spare ? 'The other <b>' + fmt(spare) + '</b> never existed and cost nothing. ' : ''))
         : 'Everything went to the boutiques at launch, so there was no warehouse and no '
           + 'production left to keep flexible. ')
     + (gain > 0 ? '<b class="up">' + fmtE(gain) + ' better</b> than committing the same production up front.'
@@ -2186,9 +2213,14 @@ function spotCard(k){
         ? '. Underneath that: ' + sw('miss') + ' <b>' + fmt(ga)
           + '</b> the shelves could not serve and ' + sw('spare') + ' <b>' + fmt(sp)
           + '</b> sitting where nobody wants them — in the same bag, at '
-          + 'the same moment. The warehouse can still answer the shortfall. It '
-          + 'can do nothing at all about the surplus: stock cannot walk from one '
-          + 'boutique to another.'
+          + 'the same moment. '
+          /* at 100% in the boutiques there is no warehouse left to answer */
+          + (runs[i].central
+              ? 'The warehouse can still answer the shortfall. It can do nothing at all '
+                + 'about the surplus: '
+              : 'Nothing was kept in the warehouse to answer the shortfall, and nothing at '
+                + 'all can be done about the surplus: ')
+          + 'stock cannot walk from one boutique to another.'
         : ga ? ' — and ' + sw('miss') + ' <b>' + fmt(ga)
                + '</b> the shelves could not serve, spread across the row.'
              : ' — and ' + sw('spare') + ' <b>' + fmt(sp)
@@ -2205,8 +2237,8 @@ function spotCard(k){
         + ' <b>' + fmt(ga) + '</b> the shelves could not serve'
         + (sp ? ' and ' + sw('spare') + ' <b>' + fmt(sp)
                 + '</b> sitting where nobody wants them. '
-                + 'Every mistake on this board is a mistake of place, not of '
-                + 'volume.'
+                + 'Every mistake on this board is in the split — which bag, which '
+                + 'boutique — not in the volume.'
               : ' — and nothing stranded at all, because at a ' + spPick
                 + '% push almost nothing was placed. The volume was right and '
                 + 'the shelves were still empty.') };
@@ -2221,13 +2253,20 @@ function spotCard(k){
        the biggest surplus Doriane in Paris - so the second title is the one
        a room sees; the first is kept for a board where the two coincide (the
        five-boutique one: 28 of its 40 combinations). */
-    title:(i === first.i ? 'The same bag, the other side of the world'
-                         : 'Somewhere else, the opposite problem'),
+    /* and when it is the same BOUTIQUE - which on this board it mostly is -
+       that is the point to make: in Paris one bag ran out while another sat
+       on the shelf. "Somewhere else" and "in the wrong city" were written for
+       five boutiques; at a heavy push Doriane is over in both cities, so
+       "the wrong city" was not even true. */
+    title:(i === first.i ? 'The same bag, the other side of the world' : 'The opposite problem'),
     text:'<b>' + fmt(given) + '</b> ' + esc(BAGS[i].name) + 's went to '
-      + esc(BOUTIQUES[j]) + '. It asked for <b>' + fmt(d) + '</b>. <b>' + fmt(sp)
-      + '</b> are sitting there while other shelves on the board run empty. '
+      + esc(BOUTIQUES[j]) + ', which asked for <b>' + fmt(d) + '</b>. <b>' + fmt(sp)
+      + '</b> are sitting there'
+      + (i !== first.i && j === first.j
+          ? ' while, in the same boutique, ' + esc(BAGS[first.i].name) + ' ran out. '
+          : ' while other shelves on the board run empty. ')
       + 'The ' + sw('spare') + ' is not a cushion — it is ' + fmtE(ECON.cost)
-      + ' each, already spent, in the wrong city.' };
+      + ' each, already spent, on a shelf where nobody wants it.' };
   if(k === first.i + ',' + first.j || ga >= first.v) return {
     title:esc(BOUTIQUES[j]) + ' asked for more than we planned',
     text:sw('plan') + ' the plan for ' + esc(BAGS[i].name) + ' in '
@@ -2238,8 +2277,9 @@ function spotCard(k){
          here needed a hedge to stay true, and the hedge made the sentence
          hard to read - so the figure goes and the hedge becomes the point. */
       + '<b>' + fmt(given) + '</b> served, then ' + sw('miss') + ' <b>' + fmt(ga)
-      + '</b> the shelf could not serve — <b>if nothing reaches them</b>. '
-      + 'The warehouse has not shipped yet.' };
+      + '</b> the shelf could not serve'
+      + (runs[i].central ? ' — <b>if nothing reaches them</b>. The warehouse has not shipped yet.'
+                         : ' — and nothing was kept in the warehouse to send them.') };
   /* the no-surplus board: the cell the forecast came closest to getting right.
      On the game's board one cell is EXACT - Doriane in Tokyo, 26 planned and
      26 asked for - so "all but" would undersell the one forecast that was
@@ -2285,7 +2325,7 @@ function spotlight(k, beat){
      saying "for all of them" on the grand total promised something that
      was already on the screen behind it. */
   const go = k === 'tot' ? 'for the warehouse'
-           : beat === walkStops().length ? 'for all ' + nword(N_CELLS)
+           : beat === walkStops().length ? 'for the whole board'
            : 'for the next one';
   card.innerHTML = '<h4>' + c.title + '</h4><p>' + c.text + '</p>'
                  + '<span class="go">↵ Enter ' + go + '</span>';
