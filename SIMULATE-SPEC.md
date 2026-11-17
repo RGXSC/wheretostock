@@ -75,7 +75,15 @@ move is the study of how typical the five-boutique season was (4 000 redraws,
 **Two things changed in the layout because a cell is now twice as wide.** The
 outcome figures sit **beside** the third bar instead of on a line under it
 (`WIDE_CELLS`): 22px a row, six rows, and the whole board — totals included —
-fits a 1536 × 800 screen without scrolling. And the two ringed cells stay on
+fits a 1536 × 800 screen without scrolling.
+
+**Slide 2's placement table is on one fixed ruler** (November 2026): every
+bar — made, Paris, Tokyo, warehouse — is measured against the most one bag can
+ever be made (87, at a 60% target), not against the largest cell on screen.
+On the old relative scale every combination filled the columns to the same
+length and a 60% target looked exactly like 100%; on a fixed ruler a low
+target draws long bars and a high one short ones, which is the decision. The
+columns have fixed widths, so nothing moves sideways as the sliders move. And the two ringed cells stay on
 the bag the spotlight walked through: with ten cells instead of twenty-five,
 rings that land on Estérel straight after three beats on Aveline read as a new
 subject nobody introduced.
@@ -97,9 +105,16 @@ Its key says so in four words, *made only if needed*.
 - **Slide 5** (every combination): the bar follows the **pool switch**. Off,
   the warehouse holds everything not placed (230 · 60 · 0, the third key
   greyed *pool off*); on, half of the warehouse becomes the pool in front of
-  the room. The switch sits level with the bar, under the two buttons — so it
-  appears without moving the button under the facilitator's hand, and once
-  every square is played and the buttons go, it is what is left there.
+  the room. It is there while squares are being chosen; **once all forty are
+  played, the sliders, the two buttons and the bar go** — there is nothing
+  left to choose — and the matrices move up under the switch.
+
+**The pool switch is a real on/off toggle**, big — 70 px, the name at 21 px
+and an OFF / ON pill beside it — in a row of its own between the controls and
+the matrices, so it appears (after two squares) without moving the button under
+the facilitator's hand. With the field full it is the only control on the
+slide. The outline on the last square tested goes too: with nothing being
+tested, it pointed at something nobody on screen could explain.
 
 The figures are `computeFlex`'s own totals, so the bar cannot disagree with
 the table or the matrix beneath it. Proportions are `flex-grow`, so the three
@@ -332,8 +347,11 @@ cards used to sit there, restating one bag's two interesting boutiques in
 words and a big number. Once the grid taught the room to read a cell — the
 spotlight walk, the figures per segment, the taller bars — the cards were
 saying in prose what two cells of the table above were already saying in
-colour. `FOLLOW` survives: it still picks which row the walk teaches and which
-two cells are ringed in the grid.
+colour. The two cells those cards were about stayed **ringed** on the grid for
+a while after the cards went — pointing, on most combinations, at a bag the
+walk had not opened, with nothing on screen to say why (November 2026: "what
+is the highlight on Doriane for?"). The rings are gone; the spotlight walk is
+what points at cells now.
 
 Every table on the page puts the **boutiques across the top** — the axis they
 have on the board, on the demand grid and on the placement table — because
@@ -593,8 +611,8 @@ pool used, that `drawn + lost = short` per bag, and that no bag draws more
 than it was short.
 
 **A switch on the last slide, over the whole field.** The pool is argued on
-one combination on slide 4; on slide 5 a tick-box — *production capacity pool
-at 50% of everything not in the boutiques at launch* — re-reads every square
+one combination on slide 4; on slide 5 an on/off switch — *production capacity
+pool, 50% of everything not in the boutiques at launch* — re-reads every square
 that has been played. It exists because the interesting fact is not that the
 numbers go up, it is what happens to the best square. The read-out names the
 rigid optimum and then quotes the move **in money**: on this board 80/30 →
@@ -664,8 +682,10 @@ simply appear a third time and stay in step with the other two copies. Under
 the push slider, the **stock bar** (above): boutiques · warehouse · production
 pool. Under them, one table per bag (committed · to the boutiques · its own
 warehouse · into the production pool · drawn from the pool · real demand ·
-still lost) and two boxes side by side, rigid against flexible, carrying the
-same four numbers each.
+still lost) and two boxes side by side, rigid against flexible, each headed by
+**turnover and margin** side by side at the same size — the pool sells more
+*and* earns more, and a box showing the margin alone hid the first half — then
+the same four counts each.
 
 ## 6. Deliberately absent
 

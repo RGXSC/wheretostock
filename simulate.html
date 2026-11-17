@@ -176,7 +176,6 @@
   .sbk.none{ color:#8b96a1; }
   /* the two buttons of the matrix slide, under the slider they belong to */
   .pickacts{ display:flex; gap:10px; flex-wrap:wrap; margin:14px 4px 0; }
-  .pick .switch{ margin:12px 4px 0; }
 
   /* ---------------------------------------------------------- demand grid */
   /* three bars stacked in a cell: plan, reality, outcome */
@@ -277,6 +276,26 @@
   .switch input{ width:20px; height:20px; flex:none; accent-color:var(--good);
                  cursor:pointer; }
   .switch b{ color:var(--ink); }
+  /* the big one: slide 5's on/off switch for the production capacity pool */
+  .switch.big{ margin-top:16px; padding:14px 22px; gap:20px; border-radius:12px; }
+  .switch.big .swtext{ display:flex; flex-direction:column; gap:3px; }
+  .switch.big .swname{ font-size:21px; font-weight:800; line-height:1.2; }
+  .switch.big .swsub{ font-size:15px; }
+  .switch.big .swstate{ font-style:normal; font-size:13px; font-weight:800; letter-spacing:.08em;
+                        padding:3px 11px; border-radius:999px; margin-left:12px; vertical-align:3px;
+                        background:var(--line-soft); color:var(--ink-soft); }
+  .switch.big .swstate::after{ content:'OFF'; }
+  .switch.big:has(input:checked) .swstate{ background:var(--good); color:#fff; }
+  .switch.big:has(input:checked) .swstate::after{ content:'ON'; }
+  .switch input.toggle{ -webkit-appearance:none; appearance:none; width:70px; height:38px;
+                        flex:none; margin:0; border-radius:19px; background:#b3bcc6;
+                        position:relative; cursor:pointer; transition:background .2s ease; }
+  .switch input.toggle::before{ content:''; position:absolute; top:4px; left:4px; width:30px;
+                        height:30px; border-radius:50%; background:#fff;
+                        box-shadow:0 1px 4px rgba(0,0,0,.3); transition:transform .2s ease; }
+  .switch input.toggle:checked{ background:var(--good); }
+  .switch input.toggle:checked::before{ transform:translateX(32px); }
+  .switch input.toggle:focus-visible{ outline:3px solid var(--accent); outline-offset:3px; }
 
   /* ------------------------------------------------------- the spotlight */
   /* Lifted from the game's step-by-step guide, renamed on the way in. The
@@ -404,6 +423,14 @@
   .vsline b{ font-weight:800; }
   .vsbig{ font-size:26px; font-weight:800; letter-spacing:-.02em; margin-bottom:6px; }
   .vsbox.win .vsbig{ color:var(--good); }
+  /* turnover and margin side by side, same size: the pool sells more AND
+     earns more, and a box that showed the margin alone hid the first half */
+  .vstwo{ display:flex; gap:28px; flex-wrap:wrap; margin-bottom:8px; }
+  .vstwo span{ display:block; font-size:12px; font-weight:800; text-transform:uppercase;
+               letter-spacing:.05em; color:var(--ink-soft); }
+  .vstwo b{ font-size:26px; font-weight:800; letter-spacing:-.02em;
+            font-variant-numeric:tabular-nums; }
+  .vsbox.win .vsm{ color:var(--good); }
   .vsgain{ margin-top:10px; font-weight:800; color:var(--good); }
 
   /* ------------------------------------------------------- the takeaway */
@@ -524,7 +551,7 @@
   <div class="card">
     <h2>Every combination</h2>
     <p class="small muted" style="margin:2px 0 8px;" id="matrix-sub"></p>
-    <div class="picks">
+    <div class="picks" id="picks2">
       <div class="pick">
         <label>Target sell-through</label>
         <div class="sliderbox">
@@ -537,19 +564,6 @@
           <button class="btn-primary" id="btn-test2">Test another combination</button>
           <button class="btn-ghost hidden" id="btn-fill">Test all combinations</button>
         </div>
-        <!-- The pool was argued on one combination on the slide before. Here it
-             can be switched on and off over the whole field, which is the only
-             way to see that it moves the BEST square and not just the numbers
-             in it. It sits level with the bar it changes: flip it and half of
-             the warehouse becomes the pool, in front of the room. Under the
-             buttons and not over them, so that it appears without moving the
-             button under the facilitator's hand - and once every square is
-             played and the buttons go, it is what is left there. -->
-        <label class="switch" id="pool-switch">
-          <input type="checkbox" id="ck-pool">
-          <span>Production capacity pool — <b>50%</b> of everything not in the
-            boutiques at launch, shared across the five bags</span>
-        </label>
       </div>
       <div class="pick">
         <label>In the boutiques at launch</label>
@@ -563,6 +577,21 @@
         <div class="stockbar" id="stock2"></div>
       </div>
     </div>
+    <!-- THE POOL SWITCH. The pool was argued on one combination on the slide
+         before; here it is switched on and off over the whole field, which is
+         the only way to see that it moves the BEST square and not just the
+         numbers in it. A real on/off toggle, big enough to read and to hit from
+         the front of a room, in a row of its own under the controls - so it
+         appears without moving the button under the facilitator's hand. Once
+         every square is played the sliders, the buttons and the stock bar go
+         (there is nothing left to choose) and this is the one control left on
+         the slide (November 2026). -->
+    <label class="switch big hidden" id="pool-switch">
+      <input type="checkbox" id="ck-pool" class="toggle" role="switch">
+      <span class="swtext"><b class="swname">Production capacity pool<em class="swstate"></em></b>
+        <span class="swsub">50% of everything not in the boutiques at launch, shared across
+          the five bags — made only if needed</span></span>
+    </label>
     <div style="margin-top:16px;" class="matrices">
       <div><h3 style="margin-bottom:8px;">Turnover</h3><div class="mwrap" id="mx-t"></div></div>
       <div><h3 style="margin-bottom:8px;">Margin</h3><div class="mwrap" id="mx-m"></div></div>
@@ -1257,7 +1286,13 @@ function renderSeason(){
 }
 
 function renderGrid(){
-  const w = demandShown ? { i:FOLLOW.i, lo:{ j:FOLLOW.a }, hi:{ j:FOLLOW.b } } : null;
+  /* No ringed pair any more. Two cells were outlined from the full board on
+     (a boutique sitting on stock, another still short, same bag): they were
+     the anchor of two focus cards under the grid, and when the cards went the
+     rings stayed, pointing at something nobody on screen explained - on most
+     combinations a bag the walk had not even opened. The spotlight walk does
+     that job now. */
+  const w = null;
   /* what each boutique opened with, and what the warehouse later sent, from
      the same run every other table on this page draws */
   const runs  = BAGS.map(function(b, i){ return runBag(i, stPick, spPick); });
@@ -1809,13 +1844,17 @@ function getM(st, sp){
 }
 
 function renderMatrices(){
+  const n = Object.keys(matrixCache).length;
+  const all = ST_LEVELS.length * SP_LEVELS.length;
+  const full = n === all;
+  /* The outline marks the square just tested. Once the field is full there
+     is nothing being tested, and an outline nobody on screen can explain is
+     noise - it goes with the sliders. */
   const marks = function(st, sp){
-    return (tested && tested.st === st && tested.sp === sp) ? 'tested' : '';
+    return (!full && tested && tested.st === st && tested.sp === sp) ? 'tested' : '';
   };
   matrix('mx-t', getT, fmtK, marks);
   matrix('mx-m', getM, fmtK, marks);
-  const n = Object.keys(matrixCache).length;
-  const all = ST_LEVELS.length * SP_LEVELS.length;
   el('matrix-sub').textContent = n + ' of ' + all + ' combinations played. '
     + 'Sell-through across, share placed at launch down the side.'
     /* Not "is read with": on a page of coloured squares, "read" is a
@@ -1825,6 +1864,9 @@ function renderMatrices(){
   el('pool-switch').classList.toggle('hidden', n < 2);
   /* held back until two squares have been played by hand: the point is to
      try a couple and form an expectation before the whole field appears */
+  /* the sliders, the two buttons and the stock bar exist to choose the next
+     square: with all of them played they go, and the matrices move up */
+  el('picks2').classList.toggle('hidden', full);
   el('btn-fill').classList.toggle('hidden', n < 2 || n === all);
   el('btn-test2').classList.toggle('hidden', n === all);
   el('matrix-read').classList.toggle('hidden', n !== all);
@@ -2042,7 +2084,8 @@ function renderFlex(){
   const spare = f.capTot - f.used;
   const box = function(title, t, win){
     return '<div class="vsbox' + (win ? ' win' : '') + '"><h4>' + title + '</h4>'
-      + '<div class="vsbig">' + fmtE(t.margin) + '</div>'
+      + '<div class="vstwo"><div><span>Turnover</span><b>' + fmtE(t.sold * ECON.price) + '</b></div>'
+      + '<div><span>Margin</span><b class="vsm">' + fmtE(t.margin) + '</b></div></div>'
       + '<div class="vsline"><span>made</span><b>' + fmt(t.made) + '</b></div>'
       + '<div class="vsline"><span>sold</span><b>' + fmt(t.sold) + '</b></div>'
       + '<div class="vsline"><span>customers turned away</span><b>' + fmt(Math.round(t.away)) + '</b></div>'
