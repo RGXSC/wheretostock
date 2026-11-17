@@ -89,6 +89,10 @@
         text-transform:uppercase; letter-spacing:.04em; text-align:right;
         border-bottom:2px solid var(--line); }
   table.grid th:first-child, table.grid td:first-child{ text-align:left; }
+  table.placegrid{ table-layout:fixed; }
+  table.placegrid td{ padding-right:18px; }
+  /* headings and totals start where the bars start, not at the far end */
+  table.placegrid th, table.placegrid td{ text-align:left; }
   table.grid tr.tot td{ font-weight:800; border-top:2px solid var(--line);
         border-bottom:0; background:#f6f8fa; }
   /* One bar per figure, tall enough to read, with the number inside it when
@@ -1599,19 +1603,31 @@ function sayTrial(){
 function renderPlacement(){
   pickFollow();
   const rows = BAGS.map(function(b, i){ return runBag(i, stPick, spPick); });
-  const maxCell = Math.max.apply(null, rows.map(function(x){
-    return Math.max.apply(null, x.push.concat([x.central])); }));
-  let h = '<table class="grid"><thead><tr><th>Bag</th><th>Made</th>'
+  /* ONE FIXED RULER for every bar in the table, whatever the sliders say: the
+     most any bag can ever be made, at the lowest target sell-through. The
+     scale used to be the largest cell on screen, so every combination filled
+     the columns to the same length and 60% looked exactly like 100%. On a
+     fixed ruler the room SEES a low target make long bars and a high one
+     short ones - which is the decision. */
+  const ruler = Math.max.apply(null, F_BAG.map(function(f){
+    return Math.round(f / (ST_LEVELS[0] / 100)); }));
+  /* fixed column widths, so the bars do not move sideways as the figures
+     change, and the five columns share the width instead of the bag names
+     taking a third of it */
+  const n = BOUTIQUES.length + 2, w = (84 / n).toFixed(2) + '%';
+  let h = '<table class="grid placegrid"><colgroup><col style="width:16%">'
+        + Array.from({ length:n }, function(){ return '<col style="width:' + w + '">'; }).join('')
+        + '</colgroup><thead><tr><th>Bag</th><th>Made</th>'
         + BOUTIQUES.map(function(c){ return '<th>' + c + '</th>'; }).join('')
         + '<th>Warehouse</th></tr></thead><tbody>';
   BAGS.forEach(function(b, i){
     const x = rows[i];
     h += '<tr>'
        + '<td class="bagcell">' + bagIcon(i, 16) + ' <b>' + b.name + '</b></td>'
-       + '<td><b class="num">' + fmt(x.production) + '</b></td>'
+       + '<td>' + cell(x.production, ruler, '#5d6b78') + '</td>'
        + x.push.map(function(v){
-           return '<td>' + cell(v, maxCell, b.color) + '</td>'; }).join('')
-       + '<td>' + cell(x.central, maxCell, '#9aa7b3') + '</td></tr>';
+           return '<td>' + cell(v, ruler, b.color) + '</td>'; }).join('')
+       + '<td>' + cell(x.central, ruler, '#9aa7b3') + '</td></tr>';
   });
   const t = rows.reduce(function(a, x){
     a.prod += x.production; a.central += x.central;
@@ -1619,7 +1635,9 @@ function renderPlacement(){
   }, { prod:0, central:0, push:BOUTIQUES.map(function(){ return 0; }) });
   h += '<tr class="tot"><td>All five</td><td>' + fmt(t.prod) + '</td>'
      + t.push.map(function(v){ return '<td>' + fmt(v) + '</td>'; }).join('')
-     + '<td>' + fmt(t.central) + '</td></tr></tbody></table>';
+     + '<td>' + fmt(t.central) + '</td></tr></tbody></table>'
+     + '<p class="small muted" style="margin-top:8px;">Every bar on the same ruler: full width is '
+     + fmt(ruler) + ' pieces, what one bag is made at a ' + ST_LEVELS[0] + '% target.</p>';
   el('place-table').innerHTML = h;
   fitBars('place-table');
 }
