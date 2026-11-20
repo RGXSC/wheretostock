@@ -520,27 +520,29 @@ season asks. The reference file hid this by never offering less than
 is more useful than a rigged optimum:
 
 - The matrix says outright that centralising wins on **allocation**.
-- **The first beat of slide 4** shows what it cannot fix. Since November 2026
-  it stands on **the least production that turns nobody away** — the highest
-  target at which every bag is made for at least its own demand, found rather
-  than assumed: *"To turn nobody away, you have to aim at 70% sell-through or
-  lower: 370 made for 260 asked for. Even with every bag placed exactly where
-  the season wanted it, 110 bags are left unsold — 110 × 200 € = 22 000 €
-  spent for nothing."* Its table is that square, bag by bag: 74 of each made,
-  nobody turned away, 6 to 38 left over.
+- **The first beat of slide 4** shows what it cannot fix, **at the room's own
+  sell-through** — the one set on slide 2 and played on slide 3 — with every
+  bag taken as placed exactly where the season wanted it, the most central
+  stock can ever do. What is left is what no warehouse can fix: the volume of
+  each bag, set before the season. At 60%: *"Your season was made at 60%
+  sell-through: 435 made for 260 asked for. Even if every bag had been placed
+  exactly where the season wanted it, nobody would have been turned away — but
+  175 bags would still be left unsold (175 × 200 € = 35 000 € spent for
+  nothing)."* At 90%: 10 turned away and 40 unsold; at 100%: 21 and 21. Then
+  the trade, in one sentence: making more turns fewer customers away but
+  leaves more unsold, making less does the reverse — *no target gets both to
+  zero* (checked over the targets, not assumed).
 
-  It used to stand on the **margin optimum** alone (80% / 30%: 3 turned away,
-  68 unsold), which reads as a small miss. The sharper point is that serving
-  everyone already means making for nothing (the question that changed it:
-  "si on passe à 60, il reste … pièces non vendues ?"). 70% rather than 60%
-  because it is the *least* overproduction that serves everyone: at 60% the
-  pile is bigger (175) only because more was made. The optimum stays, as the
-  other end of the trade, in one sentence: *"Aim higher and customers walk
-  away: at 80%, the best margin on this board, 3 are turned away and 68 still
-  go unsold."*
+  It used to stand on the margin optimum found by a search over the matrix
+  (80%: 3 turned away, 68 unsold), and for an hour on the least production
+  that turns nobody away (70%). Both changed the figures under the room's
+  feet: the sliders said one thing, this beat another, and a room did not
+  understand why the parameters jumped (November 2026). The table's column
+  says *Made at 60%*, the slide's own sliders move it, and the beat is redrawn
+  with them.
 
-  The conversion is **written out** rather than left to the reader
-  (*110 × 200 € = 22 000 €*). The heading talks money and the table
+  The conversions are **written out** rather than left to the reader
+  (*175 × 200 € = 35 000 €*, *10 × 1 000 € = 10 000 €*). The heading talks money and the table
   underneath counts bags, so a beat that prints only the two ends makes the
   room do the arithmetic in its head — at which point it has stopped making
   its point and started setting a puzzle.

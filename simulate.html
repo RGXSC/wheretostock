@@ -1995,35 +1995,18 @@ function readMatrix(){
    7. THE LIMIT — what central stock cannot do
    ========================================================================= */
 function renderLimit(){
-  /* Two targets, both found rather than hard-coded so they follow the board.
-     SERVE: the least production that turns nobody away - the highest target
-     at which every bag is made for at least its own demand - with every bag
-     placed exactly where the season wanted it. BEST: the rigid margin optimum.
-     The slide used to stand on BEST alone (80%: 3 turned away, 68 unsold),
-     which reads as a small miss. The sharper point is that serving everyone
-     already means making for nothing (November 2026: "si on passe à 60, il
-     reste ... pièces non vendues"). The least overproduction that serves
-     everyone is the fair example: at 60% the unsold pile is bigger only
-     because more was made (175 against 110 at 70%). */
-  const outcome = function(st){
-    let made = 0, sold = 0;
-    BAGS.forEach(function(b, i){
-      const p = Math.round(F_BAG[i] / (st / 100));
-      made += p; sold += Math.min(p, D_BAG[i]);
-    });
-    return { made:made, sold:sold, lost:rowSum(D_BAG) - sold, left:made - sold };
-  };
-  let best = ST_LEVELS[0], bestM = -Infinity;
-  ST_LEVELS.forEach(function(st){
-    SP_LEVELS.forEach(function(sp){
-      const m = run(st, sp).t.margin;
-      if(m > bestM){ bestM = m; best = st; }
-    });
-  });
-  const serving = ST_LEVELS.filter(function(st){ return outcome(st).lost === 0; });
-  const target = serving.length ? Math.max.apply(null, serving) : ST_LEVELS[0];
-  const SV = outcome(target), BE = outcome(best);
+  /* Measured at the room's OWN sell-through - the one set on slide 2 and
+     played on slide 3 - so nothing on screen jumps (November 2026: the room
+     did not understand why the parameters changed on this page). It used to
+     stand on the margin optimum found by a search over the matrix (80%), and
+     for an hour on the least production that turns nobody away (70%): both
+     swapped the figures under the room's feet. Placement is taken as perfect -
+     every bag exactly where the season wanted it - which is the most central
+     stock can ever do, so what is left is what no warehouse can fix: the
+     volume of each bag, set before the season. */
+  const target = stPick;
   const prodOf = function(i){ return Math.round(F_BAG[i] / (target / 100)); };
+  const asked = rowSum(D_BAG);
 
   let h = '<table class="grid"><thead><tr><th>Bag</th><th>Forecast</th>'
         + '<th>Made at ' + target + '%</th>'
@@ -2045,37 +2028,40 @@ function renderLimit(){
        + '<td>' + (o ? fmt(o) : '—') + '</td></tr>';
   });
   h += '<tr class="tot"><td>All five</td><td>' + fmt(F_TOTAL) + '</td><td>' + fmt(made)
-     + '</td><td>' + fmt(rowSum(D_BAG)) + '</td><td>' + fmt(rowSum(D_BAG) - lost)
-     + '</td><td>' + (lost ? '<span class="down">' + fmt(lost) + '</span>' : '—') + '</td><td>' + fmt(left)
-     + '</td></tr></tbody></table>';
+     + '</td><td>' + fmt(asked) + '</td><td>' + fmt(asked - lost)
+     + '</td><td>' + (lost ? '<span class="down">' + fmt(lost) + '</span>' : '—')
+     + '</td><td>' + (left ? fmt(left) : '—') + '</td></tr></tbody></table>';
   h += '<div class="note" style="margin-top:18px;">'
-     + fmt(made) + ' made against ' + fmt(rowSum(D_BAG)) + ' asked for, every bag '
+     + fmt(made) + ' made against ' + fmt(asked) + ' asked for, every bag '
      + 'placed exactly where the season wanted it — '
-     + (lost ? 'and still <b>' + fmt(lost) + '</b> turned away and <b>' + fmt(left) + '</b> left unsold.'
-             : 'nobody turned away, and still <b>' + fmt(left) + '</b> left unsold.') + '</div>';
-  /* Both multiplications are written out. The heading above talks about
-     money and the table below counts bags, and a reader who is given only
-     the two ends has to do the arithmetic in their head to join them — at
-     which point the slide has stopped making its point and started setting
-     a puzzle. */
-  el('limit-lead').innerHTML = serving.length
-    ? 'To turn <b>nobody</b> away, you have to aim at <b>' + target + '% sell-through</b> or '
-      + 'lower: <b>' + fmt(SV.made) + '</b> made for ' + fmt(rowSum(D_BAG)) + ' asked for. Even with '
-      + 'every bag placed exactly where the season wanted it, <b>' + fmt(SV.left) + ' bag'
-      + (SV.left === 1 ? ' is' : 's are') + '</b> left unsold — ' + fmt(SV.left) + ' × '
-      + fmtE(ECON.cost) + ' = <b>' + fmtE(SV.left * ECON.cost) + '</b> spent for nothing. '
-      /* the other end of the trade: aim higher and the shelves run short */
-      + (best !== target && BE.lost
-          ? 'Aim higher and customers walk away: at <b>' + best + '%</b>, the best margin on '
-            + 'this board, ' + fmt(BE.lost) + ' ' + (BE.lost === 1 ? 'is' : 'are')
-            + ' turned away and ' + fmt(BE.left) + ' still go unsold. '
-          : '')
-      + 'How could we serve everyone without making what will not sell?'
-    /* a board where even the lowest target turns customers away */
-    : 'Even at <b>' + target + '% sell-through</b>, with every bag placed exactly where the '
-      + 'season wanted it, <b>' + fmt(SV.lost) + '</b> customers are turned away and <b>'
-      + fmt(SV.left) + '</b> bags go unsold. How could we serve everyone without making what '
-      + 'will not sell?';
+     + (lost && left ? 'and still <b>' + fmt(lost) + '</b> turned away and <b>' + fmt(left) + '</b> left unsold.'
+        : !lost ? 'nobody turned away, and still <b>' + fmt(left) + '</b> left unsold.'
+        : 'nothing left over, and still <b>' + fmt(lost) + '</b> turned away.') + '</div>';
+
+  /* Both conversions are written out. The heading talks money and the table
+     counts bags, and a reader given only the two ends has to do the
+     arithmetic in their head - at which point the slide has stopped making
+     its point and started setting a puzzle. */
+  const lostTxt = '<b>' + fmt(lost) + ' customer' + (lost === 1 ? '' : 's') + '</b> would still '
+    + 'have been turned away (' + fmt(lost) + ' × ' + fmtE(ECON.price) + ' = <b>'
+    + fmtE(lost * ECON.price) + '</b> of sales never made)';
+  const leftTxt = function(verb){
+    return '<b>' + fmt(left) + ' bag' + (left === 1 ? '' : 's') + '</b> ' + verb + ' ('
+      + fmt(left) + ' × ' + fmtE(ECON.cost) + ' = <b>' + fmtE(left * ECON.cost)
+      + '</b> spent for nothing)'; };
+  /* "no target gets both to zero" is checked, not assumed */
+  const bothZero = ST_LEVELS.some(function(st){
+    return BAGS.every(function(b, i){ return Math.round(F_BAG[i] / (st / 100)) === D_BAG[i]; }); });
+  el('limit-lead').innerHTML =
+      'Your season was made at <b>' + target + '% sell-through</b>: <b>' + fmt(made)
+    + '</b> made for ' + fmt(asked) + ' asked for. Even if every bag had been placed exactly '
+    + 'where the season wanted it, '
+    + (lost && left ? lostTxt + ' and ' + leftTxt('left unsold') + '. '
+       : !lost ? 'nobody would have been turned away — but ' + leftTxt('would still be left unsold') + '. '
+       : 'nothing would have been left unsold — but ' + lostTxt + '. ')
+    + 'Making more turns fewer customers away but leaves more unsold; making less does the '
+    + 'reverse' + (bothZero ? '. ' : ' — no target gets both to zero. ')
+    + 'How could we serve everyone without making what will not sell?';
   el('limit-body').innerHTML = h;
   fitBars('limit-body');
 }
@@ -2087,12 +2073,11 @@ function renderLimit(){
    question slide literally ended with "how could we do better, without impact
    on the margin?" - which is what the other one was for.
 
-   renderLimit derives its own optimum and is state-free, so it is drawn once
-   per arrival and never again: it costs forty run() calls and re-running it on
-   every drag of a slider would be forty for nothing. */
+   renderLimit reads the room's own sell-through, so it is redrawn with the
+   rest of the slide whenever a slider moves - five multiplications. */
 function renderFlexSlide(){
   const show = beats.sf >= 1;
-  if(!el('limit-body').firstChild) renderLimit();
+  renderLimit();
   el('flex-card').classList.toggle('hidden', !show);
   el('limit-card').classList.toggle('dim', show);
   if(show) renderFlex();
