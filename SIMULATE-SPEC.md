@@ -520,23 +520,34 @@ season asks. The reference file hid this by never offering less than
 is more useful than a rigged optimum:
 
 - The matrix says outright that centralising wins on **allocation**.
-- **The first beat of slide 4** shows what it cannot fix. It is measured
-  **where the margin actually peaks** — the argmax over both axes, found
-  rather than assumed — and says so in as many words: *"The best this board
-  allows is 80% sell-through and 30% push."* Even there, with every bag placed
-  exactly where the season wanted it, **3 customers are turned away and 68
-  bags go unsold**. (90/30 ties with it at 72 000 € — 10 turned away, 40
-  unsold; the beat shows the first the search finds.)
+- **The first beat of slide 4** shows what it cannot fix. Since November 2026
+  it stands on **the least production that turns nobody away** — the highest
+  target at which every bag is made for at least its own demand, found rather
+  than assumed: *"To turn nobody away, you have to aim at 70% sell-through or
+  lower: 370 made for 260 asked for. Even with every bag placed exactly where
+  the season wanted it, 110 bags are left unsold — 110 × 200 € = 22 000 €
+  spent for nothing."* Its table is that square, bag by bag: 74 of each made,
+  nobody turned away, 6 to 38 left over.
 
-  Both conversions are **written out** rather than left to the reader:
-  *3 × 1 000 € = 3 000 € of sales never made* and *68 × 200 € = 13 600 €
-  already spent*. The heading talks money and the table underneath counts
-  bags, so a beat that prints only the two ends makes the room do the
-  arithmetic in its head — at which point it has stopped making its point and
-  started setting a puzzle.
+  It used to stand on the **margin optimum** alone (80% / 30%: 3 turned away,
+  68 unsold), which reads as a small miss. The sharper point is that serving
+  everyone already means making for nothing (the question that changed it:
+  "si on passe à 60, il reste … pièces non vendues ?"). 70% rather than 60%
+  because it is the *least* overproduction that serves everyone: at 60% the
+  pile is bigger (175) only because more was made. The optimum stays, as the
+  other end of the trade, in one sentence: *"Aim higher and customers walk
+  away: at 80%, the best margin on this board, 3 are turned away and 68 still
+  go unsold."*
 
-  It ends on the question it raises — *how could we do better, without impact
-  on the margin?* — and the **next beat of the same slide** answers it. That
+  The conversion is **written out** rather than left to the reader
+  (*110 × 200 € = 22 000 €*). The heading talks money and the table
+  underneath counts bags, so a beat that prints only the two ends makes the
+  room do the arithmetic in its head — at which point it has stopped making
+  its point and started setting a puzzle.
+
+  It ends on the question it raises — *how could we serve everyone without
+  making what will not sell?* — and the **next beat of the same slide**
+  answers it. That
   is why the two are no longer two slides. Every figure is computed from the
   two tables, so retuning the demand retunes the beat; the numbers above are
   what the shipped board currently gives.
@@ -592,6 +603,14 @@ paid for**. Reserving costs nothing; only using it does, at the same 200 € as
 everything else. There is **no premium**. That is the original's model, and it
 is why the gain is as large as it is — worth saying out loud rather than
 leaving someone to find it.
+
+**The split is said as big as the heading** (November 2026). Right under
+*What flexible production capacity can*, two blocks at heading size: *Of
+everything not in the boutiques at launch:* **50% in the warehouse** (grey,
+like the stock bar's warehouse) · **50% not produced yet — a shared
+production capacity pool** (green, dashed, like its hatched pool). It was a
+sentence in small grey print, and a room read past it. The small print under
+the blocks now only says what the pool is.
 
 **The vocabulary is fixed, and it says *production*.** What a bag keeps for
 itself is its **warehouse** — a real place with real stock in it. What the

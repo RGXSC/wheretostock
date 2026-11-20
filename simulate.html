@@ -174,6 +174,15 @@
   .sbk em{ display:block; font-style:normal; font-weight:600; font-size:12px; }
   .sbk.none b{ color:var(--line); }
   .sbk.none{ color:#8b96a1; }
+  /* slide 4: the split of what is held back, as big as the heading */
+  .poolsplit{ margin:8px 0 12px; }
+  .poolsplit .ps-lead{ font-size:20px; font-weight:700; color:var(--ink); margin-bottom:8px; }
+  .poolsplit .ps-row{ display:flex; gap:14px; flex-wrap:wrap; }
+  .poolsplit .ps{ flex:1 1 300px; display:flex; align-items:center; gap:14px; padding:10px 18px;
+                  border-radius:10px; font-size:19px; font-weight:700; line-height:1.25; }
+  .poolsplit .ps b{ font-size:36px; font-weight:800; letter-spacing:-.02em; flex:none; }
+  .poolsplit .ps.wh{ background:#eef1f4; color:#3c4651; border:2px solid #8b98a5; }
+  .poolsplit .ps.pl{ background:#eaf6ef; color:var(--good); border:2px dashed #35a06b; }
   /* the two buttons of the matrix slide, under the slider they belong to */
   .pickacts{ display:flex; gap:10px; flex-wrap:wrap; margin:14px 4px 0; }
 
@@ -635,6 +644,18 @@
       <path d="M6 20v-3M11 20v-3M16 20v-3" fill="none" stroke="currentColor"
             stroke-width="1.8" stroke-linecap="round"/>
     </svg>What flexible production capacity can</h2>
+    <!-- THE SPLIT, as big as the heading: the room has to leave with "half in
+         the warehouse, half not made yet", and as a sentence in grey small
+         print it was read past (November 2026). The two blocks wear the
+         colours of the stock bar below: grey for stock, hatched green for
+         line time. -->
+    <div class="poolsplit">
+      <div class="ps-lead">Of everything not in the boutiques at launch:</div>
+      <div class="ps-row">
+        <div class="ps wh"><b>50%</b><span>in the warehouse</span></div>
+        <div class="ps pl"><b>50%</b><span>not produced yet — a shared production capacity pool</span></div>
+      </div>
+    </div>
     <p class="small muted" style="margin-top:0;" id="flex-lead"></p>
     <div class="picks" style="margin-top:14px;">
       <div class="pick">
@@ -1974,17 +1995,34 @@ function readMatrix(){
    7. THE LIMIT — what central stock cannot do
    ========================================================================= */
 function renderLimit(){
-  /* Measured at the sell-through the matrix actually picked, not at 100%.
-     Making exactly the forecast is a target the room has just been shown is
-     beaten, and quoting the irreducible loss there overstated it more than
-     fivefold. Found rather than hard-coded, so it follows the board. */
-  let target = ST_LEVELS[0], push = SP_LEVELS[0], bestM = -Infinity;
+  /* Two targets, both found rather than hard-coded so they follow the board.
+     SERVE: the least production that turns nobody away - the highest target
+     at which every bag is made for at least its own demand - with every bag
+     placed exactly where the season wanted it. BEST: the rigid margin optimum.
+     The slide used to stand on BEST alone (80%: 3 turned away, 68 unsold),
+     which reads as a small miss. The sharper point is that serving everyone
+     already means making for nothing (November 2026: "si on passe à 60, il
+     reste ... pièces non vendues"). The least overproduction that serves
+     everyone is the fair example: at 60% the unsold pile is bigger only
+     because more was made (175 against 110 at 70%). */
+  const outcome = function(st){
+    let made = 0, sold = 0;
+    BAGS.forEach(function(b, i){
+      const p = Math.round(F_BAG[i] / (st / 100));
+      made += p; sold += Math.min(p, D_BAG[i]);
+    });
+    return { made:made, sold:sold, lost:rowSum(D_BAG) - sold, left:made - sold };
+  };
+  let best = ST_LEVELS[0], bestM = -Infinity;
   ST_LEVELS.forEach(function(st){
     SP_LEVELS.forEach(function(sp){
       const m = run(st, sp).t.margin;
-      if(m > bestM){ bestM = m; target = st; push = sp; }
+      if(m > bestM){ bestM = m; best = st; }
     });
   });
+  const serving = ST_LEVELS.filter(function(st){ return outcome(st).lost === 0; });
+  const target = serving.length ? Math.max.apply(null, serving) : ST_LEVELS[0];
+  const SV = outcome(target), BE = outcome(best);
   const prodOf = function(i){ return Math.round(F_BAG[i] / (target / 100)); };
 
   let h = '<table class="grid"><thead><tr><th>Bag</th><th>Forecast</th>'
@@ -2008,29 +2046,36 @@ function renderLimit(){
   });
   h += '<tr class="tot"><td>All five</td><td>' + fmt(F_TOTAL) + '</td><td>' + fmt(made)
      + '</td><td>' + fmt(rowSum(D_BAG)) + '</td><td>' + fmt(rowSum(D_BAG) - lost)
-     + '</td><td><span class="down">' + fmt(lost) + '</span></td><td>' + fmt(left)
+     + '</td><td>' + (lost ? '<span class="down">' + fmt(lost) + '</span>' : '—') + '</td><td>' + fmt(left)
      + '</td></tr></tbody></table>';
   h += '<div class="note" style="margin-top:18px;">'
      + fmt(made) + ' made against ' + fmt(rowSum(D_BAG)) + ' asked for, every bag '
-     + 'placed exactly where the season wanted it — and still <b>' + fmt(lost)
-     + '</b> turned away and <b>' + fmt(left) + '</b> left unsold.</div>';
+     + 'placed exactly where the season wanted it — '
+     + (lost ? 'and still <b>' + fmt(lost) + '</b> turned away and <b>' + fmt(left) + '</b> left unsold.'
+             : 'nobody turned away, and still <b>' + fmt(left) + '</b> left unsold.') + '</div>';
   /* Both multiplications are written out. The heading above talks about
      money and the table below counts bags, and a reader who is given only
      the two ends has to do the arithmetic in their head to join them — at
      which point the slide has stopped making its point and started setting
      a puzzle. */
-  el('limit-lead').innerHTML =
-      /* this slide now runs BEFORE the matrix, so it cannot say the matrix
-         picked anything — the combination is stated as the best there is and
-         the matrix proves it two slides later */
-      'The best this board allows is <b>' + target + '% sell-through</b> and <b>' + push
-    + '% push</b>. Even there, with every bag placed exactly where the season wanted '
-    + 'it, <b>' + fmt(lost) + ' customer' + (lost === 1 ? ' was' : 's were')
-    + '</b> turned away — ' + fmt(lost) + ' × ' + fmtE(ECON.price) + ' = <b>'
-    + fmtE(lost * ECON.price) + '</b> of sales never made — and <b>' + fmt(left)
-    + ' bag' + (left === 1 ? '' : 's') + '</b> went unsold — ' + fmt(left) + ' × '
-    + fmtE(ECON.cost) + ' = <b>' + fmtE(left * ECON.cost) + '</b> already spent. '
-    + 'How could we do better, without impact on the margin?';
+  el('limit-lead').innerHTML = serving.length
+    ? 'To turn <b>nobody</b> away, you have to aim at <b>' + target + '% sell-through</b> or '
+      + 'lower: <b>' + fmt(SV.made) + '</b> made for ' + fmt(rowSum(D_BAG)) + ' asked for. Even with '
+      + 'every bag placed exactly where the season wanted it, <b>' + fmt(SV.left) + ' bag'
+      + (SV.left === 1 ? ' is' : 's are') + '</b> left unsold — ' + fmt(SV.left) + ' × '
+      + fmtE(ECON.cost) + ' = <b>' + fmtE(SV.left * ECON.cost) + '</b> spent for nothing. '
+      /* the other end of the trade: aim higher and the shelves run short */
+      + (best !== target && BE.lost
+          ? 'Aim higher and customers walk away: at <b>' + best + '%</b>, the best margin on '
+            + 'this board, ' + fmt(BE.lost) + ' ' + (BE.lost === 1 ? 'is' : 'are')
+            + ' turned away and ' + fmt(BE.left) + ' still go unsold. '
+          : '')
+      + 'How could we serve everyone without making what will not sell?'
+    /* a board where even the lowest target turns customers away */
+    : 'Even at <b>' + target + '% sell-through</b>, with every bag placed exactly where the '
+      + 'season wanted it, <b>' + fmt(SV.lost) + '</b> customers are turned away and <b>'
+      + fmt(SV.left) + '</b> bags go unsold. How could we serve everyone without making what '
+      + 'will not sell?';
   el('limit-body').innerHTML = h;
   fitBars('limit-body');
 }
@@ -2055,13 +2100,12 @@ function renderFlexSlide(){
 
 function renderFlex(){
   const f = computeFlex(stPick, spPick), r = rigidTotals(stPick, spPick);
+  /* the split itself is the big line under the heading; this says what the pool is */
   el('flex-lead').innerHTML =
-      'Everything you hold back splits in two. <b>50%</b> stays in that bag\'s own '
-    + '<b>warehouse</b>. The other <b>50%</b> becomes a <b>shared production '
-    + 'capacity pool</b> — a slot on the production line, assigned to no bag in '
-    + 'advance, that any of the five bags can call on. It is not stock sitting '
-    + 'anywhere: it is only manufactured, and only paid for, if a shortage '
-    + 'actually calls on it.';
+      'The warehouse half stays with its own bag. The pool is a slot on the production '
+    + 'line, assigned to no bag in advance, that any of the five bags can call on. It is '
+    + 'not stock sitting anywhere: it is only manufactured, and only paid for, if a '
+    + 'shortage actually calls on it.';
 
   const unit = Math.max(1, Math.max.apply(null, f.rows.map(function(x){
     return Math.max(x.production, x.demand); })));
